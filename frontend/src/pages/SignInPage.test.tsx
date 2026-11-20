@@ -34,6 +34,22 @@ afterEach(() => {
 });
 
 describe('SignInPage (no-login profile picker)', () => {
+  it('previews each person with their own colours', async () => {
+    mockApi(true);
+    renderApp('/signin');
+
+    expect(await screen.findByRole('button', { name: 'Husband' })).toHaveClass(
+      'bg-husband-soft',
+      'border-husband',
+      'text-husband',
+    );
+    expect(screen.getByRole('button', { name: 'Wife' })).toHaveClass(
+      'bg-wife-soft',
+      'border-wife',
+      'text-wife',
+    );
+  });
+
   it('shows Husband and Wife; tapping Wife posts the profile with CSRF and lands on /', async () => {
     document.cookie = `${CSRF_COOKIE}=tok123`;
     const fetchMock = mockApi(true, () => jsonResponse(wifeSession));

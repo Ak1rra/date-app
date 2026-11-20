@@ -15,6 +15,26 @@
   --accent-soft: #f7dceb;
   --coral: #b4381f;
   --ring: #6d2a5e;
+  /* Fixed per-person colours: the same in every palette, so both people can be told apart. */
+  --husband: #1d4e89;
+  --husband-soft: #dce8fa;
+  --wife: #6d2a5e;
+  --wife-soft: #f7dceb;
+}
+
+/* Blue palette, applied when the Husband is using the app (data-person is set by usePersonTheme). */
+:root[data-person='husband'] {
+  --canvas: #eef4ff;
+  --surface: #ffffff;
+  --surface-2: #dbe7fb;
+  --ink: #0f1f3a;
+  --muted: #4a5a78;
+  --border: #c9d8f0;
+  --accent: #1d4e89;
+  --on-accent: #ffffff;
+  --accent-soft: #dce8fa;
+  --coral: #1c64a8;
+  --ring: #1d4e89;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -30,6 +50,24 @@
     --accent-soft: #4a2a4f;
     --coral: #ff9e85;
     --ring: #f2a7c3;
+    --husband: #8db8f2;
+    --husband-soft: #1e3356;
+    --wife: #f2a7c3;
+    --wife-soft: #4a2a4f;
+  }
+
+  :root[data-person='husband'] {
+    --canvas: #0f1726;
+    --surface: #17223a;
+    --surface-2: #1f2d4a;
+    --ink: #eaf1ff;
+    --muted: #a9bad6;
+    --border: #2c3d5e;
+    --accent: #8db8f2;
+    --on-accent: #0b1a33;
+    --accent-soft: #1e3356;
+    --coral: #7cc4ff;
+    --ring: #8db8f2;
   }
 }
 
@@ -44,6 +82,10 @@
   --color-on-accent: var(--on-accent);
   --color-accent-soft: var(--accent-soft);
   --color-coral: var(--coral);
+  --color-husband: var(--husband);
+  --color-wife: var(--wife);
+  --color-husband-soft: var(--husband-soft);
+  --color-wife-soft: var(--wife-soft);
   --font-sans:
     ui-rounded, 'SF Pro Rounded', 'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }

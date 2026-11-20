@@ -25,7 +25,7 @@ export function ProfilePage() {
           {meta.data?.no_login ? (
             <>
               <div role="group" aria-label="Switch profile" className="grid grid-cols-2 gap-2">
-                {PROFILES.map(({ value, label }) => {
+                {PROFILES.map(({ value, label, tone }) => {
                   const selected = value === current;
                   return (
                     <button
@@ -36,10 +36,8 @@ export function ProfilePage() {
                       onClick={() => {
                         if (!selected) choose.mutate(value);
                       }}
-                      className={`min-h-11 rounded-full border border-line px-5 py-2 font-semibold motion-safe:transition disabled:opacity-60 ${
-                        selected
-                          ? 'bg-accent text-on-accent'
-                          : 'bg-surface text-ink hover:bg-surface-2'
+                      className={`min-h-11 rounded-full px-5 py-2 font-semibold motion-safe:transition disabled:opacity-60 ${tone} ${
+                        selected ? 'border-4' : 'border hover:brightness-95'
                       }`}
                     >
                       {choose.isPending && choose.variables === value ? 'Opening…' : label}

@@ -1,7 +1,7 @@
 import type { ComponentProps } from 'react';
 import { Link } from 'react-router';
 
-type Variant = 'primary' | 'secondary';
+type Variant = 'primary' | 'secondary' | 'husband' | 'wife';
 type Size = 'md' | 'xl';
 
 const base =
@@ -11,6 +11,8 @@ const base =
 const variants: Record<Variant, string> = {
   primary: 'bg-accent text-on-accent shadow-md hover:brightness-110',
   secondary: 'bg-accent-soft text-accent border border-line hover:brightness-95',
+  husband: 'bg-husband-soft text-husband border-2 border-husband hover:brightness-95',
+  wife: 'bg-wife-soft text-wife border-2 border-wife hover:brightness-95',
 };
 const sizes: Record<Size, string> = {
   md: 'min-h-11 px-5 py-2 text-base',

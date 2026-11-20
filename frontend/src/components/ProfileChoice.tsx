@@ -2,9 +2,20 @@ import type { ReactNode } from 'react';
 import { ApiError } from '../api/http';
 import type { Profile } from '../hooks/useChooseProfile';
 
-export const PROFILES: { value: Profile; label: string }[] = [
-  { value: 'husband', label: 'Husband' },
-  { value: 'wife', label: 'Wife' },
+/** `tone` previews each person's colours; `variant` is the matching Button variant. */
+export const PROFILES: {
+  value: Profile;
+  label: string;
+  variant: 'husband' | 'wife';
+  tone: string;
+}[] = [
+  {
+    value: 'husband',
+    label: 'Husband',
+    variant: 'husband',
+    tone: 'bg-husband-soft border-husband text-husband',
+  },
+  { value: 'wife', label: 'Wife', variant: 'wife', tone: 'bg-wife-soft border-wife text-wife' },
 ];
 
 /** Friendly inline text for a failed choose-profile call. */

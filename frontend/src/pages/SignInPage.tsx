@@ -60,8 +60,14 @@ export function SignInPage() {
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-6 bg-canvas p-6 text-ink">
       <h1 className="text-3xl font-bold">Who&apos;s using Date Planner?</h1>
       <div className="flex flex-col gap-4">
-        {PROFILES.map(({ value, label }) => (
-          <Button key={value} size="xl" disabled={choose.isPending} onClick={() => pick(value)}>
+        {PROFILES.map(({ value, label, variant }) => (
+          <Button
+            key={value}
+            variant={variant}
+            size="xl"
+            disabled={choose.isPending}
+            onClick={() => pick(value)}
+          >
             {choose.isPending && choose.variables === value ? 'Opening…' : label}
           </Button>
         ))}

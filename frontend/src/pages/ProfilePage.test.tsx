@@ -50,6 +50,22 @@ describe('ProfilePage', () => {
     expect(call[1]?.body).toBe(JSON.stringify({ profile: 'wife' }));
   });
 
+  it('previews each person with their own colours on the switcher', async () => {
+    mockApi(husband);
+    renderApp('/profile');
+
+    expect(await screen.findByRole('button', { name: 'Husband' })).toHaveClass(
+      'bg-husband-soft',
+      'border-husband',
+      'text-husband',
+    );
+    expect(screen.getByRole('button', { name: 'Wife' })).toHaveClass(
+      'bg-wife-soft',
+      'border-wife',
+      'text-wife',
+    );
+  });
+
   it('shows an inline alert when switching fails', async () => {
     mockApi(husband, {
       choose: jsonResponse(
