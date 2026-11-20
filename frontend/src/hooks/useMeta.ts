@@ -1,0 +1,18 @@
+import { useQuery } from '@tanstack/react-query';
+import { apiFetch } from '../api/http';
+
+export interface Meta {
+  demo_mode: boolean;
+  version: string;
+  no_login: boolean;
+}
+
+/** GET /api/v1/meta. Server flags don't change while the app is open, so cache forever. */
+export function useMeta() {
+  return useQuery({
+    queryKey: ['meta'],
+    queryFn: () => apiFetch<Meta>('/api/v1/meta'),
+    retry: false,
+    staleTime: Infinity,
+  });
+}

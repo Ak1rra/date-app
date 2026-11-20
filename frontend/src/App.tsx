@@ -7,6 +7,7 @@ import { ChatPage } from './pages/ChatPage';
 import { HomePage } from './pages/HomePage';
 import { IdeasPage } from './pages/IdeasPage';
 import { PlanPage } from './pages/PlanPage';
+import { ProfilePage } from './pages/ProfilePage';
 import { SetupPage } from './pages/SetupPage';
 import { SignInPage } from './pages/SignInPage';
 import { UsPage } from './pages/UsPage';
@@ -38,6 +39,7 @@ export const routes: RouteObject[] = [
           { path: '/calendar', element: <CalendarPage /> },
           { path: '/chat', element: <ChatPage /> },
           { path: '/us', element: <UsPage /> },
+          { path: '/profile', element: <ProfilePage /> },
           { path: '/plan', element: <PlanPage /> },
         ],
       },

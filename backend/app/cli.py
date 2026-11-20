@@ -39,7 +39,7 @@ from sqlalchemy.engine import make_url
 from app import __version__
 from app.config import REPO_ROOT, Settings, get_settings
 from app.db import make_engine, make_sessionmaker
-from app.services.auth import issue_magic_link
+from app.services.auth import is_household_email, issue_magic_link
 
 REPO_DIR = str(REPO_ROOT)
 BACKEND_DIR = os.path.join(REPO_DIR, "backend")
@@ -484,8 +484,13 @@ def magic_link(email: str) -> None:
     email = email.strip().lower()
     if "@" not in email:
         _fail(f"{email!r} is not an email address.")
+    if is_household_email(email):
+        _fail("That address is reserved for the NO_LOGIN household and cannot sign in by email.")
+    settings = _settings()
+    if settings.no_login:
+        _fail("Email sign-in is switched off (NO_LOGIN=1).")
     try:
-        link = asyncio.run(_issue_magic_link(_settings(), email))
+        link = asyncio.run(_issue_magic_link(settings, email))
     except Exception as exc:
         _fail(
             "Could not create the link.",

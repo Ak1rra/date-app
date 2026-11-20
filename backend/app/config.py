@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     # Expose /api/v1/dev/outbox (sign-in links, unauthenticated). Local dev only; DEMO_MODE
     # alone is deliberately not enough.
     dev_outbox: bool = False
+    # Replaces sign-in with a husband/wife picker (POST /auth/choose-profile); email sign-in
+    # is switched off. No PIN, no protection: anyone who can reach the app can act as either
+    # profile.
+    no_login: bool = False
     port: int = 8090
     # Proxies whose X-Forwarded-* headers `dateapp serve` trusts (uvicorn forwarded_allow_ips).
     forwarded_allow_ips: str = "127.0.0.1"

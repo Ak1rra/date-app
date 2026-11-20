@@ -1,6 +1,23 @@
 {
   "components": {
     "schemas": {
+      "ChooseProfileIn": {
+        "properties": {
+          "profile": {
+            "enum": [
+              "husband",
+              "wife"
+            ],
+            "title": "Profile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile"
+        ],
+        "title": "ChooseProfileIn",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -149,6 +166,10 @@
             "title": "Demo Mode",
             "type": "boolean"
           },
+          "no_login": {
+            "title": "No Login",
+            "type": "boolean"
+          },
           "version": {
             "title": "Version",
             "type": "string"
@@ -156,6 +177,7 @@
         },
         "required": [
           "demo_mode",
+          "no_login",
           "version"
         ],
         "title": "MetaOut",
@@ -306,6 +328,48 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/auth/choose-profile": {
+      "post": {
+        "description": "NO_LOGIN mode only: act as the household's husband or wife (no PIN, trust).",
+        "operationId": "choose_profile_api_v1_auth_choose_profile_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChooseProfileIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Choose Profile",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/api/v1/auth/logout": {
       "post": {
         "operationId": "logout_api_v1_auth_logout_post",

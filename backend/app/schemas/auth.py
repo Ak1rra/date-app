@@ -2,7 +2,7 @@
 
 import uuid
 from functools import cache
-from typing import Any
+from typing import Any, Literal
 from zoneinfo import available_timezones
 
 from pydantic import BaseModel, EmailStr, field_validator
@@ -38,6 +38,10 @@ class VerifyIn(BaseModel):
     token: str
     # An unusable value is ignored (the account falls back to UTC), never a validation error.
     timezone: str | None = None
+
+
+class ChooseProfileIn(BaseModel):
+    profile: Literal["husband", "wife"]
 
 
 class MeOut(BaseModel):

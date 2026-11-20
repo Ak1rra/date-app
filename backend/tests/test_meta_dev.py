@@ -12,7 +12,14 @@ from tests.conftest import make_settings
 async def test_meta(client: AsyncClient) -> None:
     response = await client.get("/api/v1/meta")
     assert response.status_code == 200
-    assert response.json() == {"demo_mode": True, "version": __version__}
+    assert response.json() == {"demo_mode": True, "no_login": False, "version": __version__}
+
+
+async def test_meta_reports_no_login() -> None:
+    app = create_app(make_settings(no_login=True))
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as c:
+        response = await c.get("/api/v1/meta")
+    assert response.json()["no_login"] is True
 
 
 @pytest.fixture

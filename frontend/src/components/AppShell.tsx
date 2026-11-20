@@ -1,6 +1,6 @@
 import { useRef, type ComponentType, type MouseEvent, type SVGProps } from 'react';
 import { NavLink, Outlet } from 'react-router';
-import { CalendarIcon, ChatIcon, HomeIcon, IdeasIcon, UsIcon } from './Icons';
+import { CalendarIcon, ChatIcon, HomeIcon, IdeasIcon, ProfileIcon, UsIcon } from './Icons';
 
 interface NavItem {
   to: string;
@@ -15,6 +15,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/calendar', label: 'Calendar', icon: CalendarIcon },
   { to: '/chat', label: 'Chat', icon: ChatIcon },
   { to: '/us', label: 'Us', icon: UsIcon },
+  { to: '/profile', label: 'Profile', icon: ProfileIcon },
 ];
 
 const focusRing = 'rounded-2xl no-underline';
@@ -55,7 +56,7 @@ function BottomTabBar() {
       aria-label="Main tabs"
       className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
     >
-      <ul className="grid grid-cols-5">
+      <ul className="grid grid-cols-6">
         {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
           <li key={to}>
             <NavLink

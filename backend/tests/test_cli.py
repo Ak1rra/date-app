@@ -430,3 +430,22 @@ async def test_magic_link_prints_a_link_that_signs_in(
     assert response.status_code == 200
     assert response.json()["user"]["email"] == "ann@example.com"
     assert (await db_client.get("/api/v1/me")).status_code == 200
+
+
+def test_magic_link_refuses_when_no_login_is_on() -> None:
+    with (
+        mock.patch.object(cli_mod, "_settings", return_value=make_settings(no_login=True)),
+        mock.patch.object(cli_mod, "_issue_magic_link") as issue,
+    ):
+        result = invoke("magic-link", "ann@example.com")
+    assert result.exit_code == 1
+    assert "Email sign-in is switched off (NO_LOGIN=1)." in result.output
+    issue.assert_not_called()
+
+
+def test_magic_link_refuses_the_reserved_household_addresses() -> None:
+    with mock.patch.object(cli_mod, "_issue_magic_link") as issue:
+        result = invoke("magic-link", "Husband@household.invalid")
+    assert result.exit_code == 1
+    assert "reserved for the NO_LOGIN household" in result.output
+    issue.assert_not_called()

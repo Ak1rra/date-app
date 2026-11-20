@@ -8,13 +8,20 @@ afterEach(() => {
 });
 
 describe('AppShell navigation', () => {
-  it('renders the five tabs with accessible names and marks the active one', async () => {
+  it('renders the six tabs with accessible names and marks the active one', async () => {
     mockSession(signedIn);
     renderApp('/ideas');
 
     const tabs = await screen.findByRole('navigation', { name: 'Main tabs' });
     const links = within(tabs).getAllByRole('link');
-    expect(links.map((l) => l.textContent)).toEqual(['Home', 'Ideas', 'Calendar', 'Chat', 'Us']);
+    expect(links.map((l) => l.textContent)).toEqual([
+      'Home',
+      'Ideas',
+      'Calendar',
+      'Chat',
+      'Us',
+      'Profile',
+    ]);
 
     expect(within(tabs).getByRole('link', { name: 'Ideas' })).toHaveAttribute(
       'aria-current',
@@ -23,7 +30,7 @@ describe('AppShell navigation', () => {
     expect(within(tabs).getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
 
     const top = screen.getByRole('navigation', { name: 'Main menu', hidden: true });
-    expect(within(top).getAllByRole('link', { hidden: true })).toHaveLength(5);
+    expect(within(top).getAllByRole('link', { hidden: true })).toHaveLength(6);
   });
 
   it('shows a teaching empty state on Ideas with the invite CTA', async () => {

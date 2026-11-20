@@ -59,3 +59,9 @@ export const SparkleIcon = (p: IconProps) => (
     <path d="M19 16v4M17 18h4" />
   </Icon>
 );
+export const ProfileIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="8" r="3.5" />
+    <path d="M5 20a7 7 0 0 1 14 0" />
+  </Icon>
+);

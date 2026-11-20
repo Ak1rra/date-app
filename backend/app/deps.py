@@ -22,6 +22,21 @@ def get_app_settings(request: Request) -> Settings:
     return cast(Settings, request.app.state.settings)
 
 
+def require_email_login(settings: Settings = Depends(get_app_settings)) -> None:
+    """Email sign-in routes do not exist in NO_LOGIN mode. Listed in a route's
+    `dependencies`, so it runs before the route's other dependencies (email provider,
+    limiters) and before body validation."""
+    if settings.no_login:
+        raise ApiError(404, "not_found", "Not found.")
+
+
+def require_no_login(settings: Settings = Depends(get_app_settings)) -> None:
+    """The profile picker only exists in NO_LOGIN mode. Listed in a route's `dependencies`
+    so it runs before body validation and the route's other dependencies."""
+    if not settings.no_login:
+        raise ApiError(404, "not_found", "Not found.")
+
+
 def get_magic_link_ip_limiter(request: Request) -> SlidingWindowLimiter:
     return cast(SlidingWindowLimiter, request.app.state.magic_link_ip_limiter)
 

@@ -12,7 +12,7 @@ describe('SessionBootstrap', () => {
     renderApp('/signin');
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/v1/auth/session');
+    expect(fetchMock.mock.calls.map(([url]) => url)).toContain('/api/v1/auth/session');
   });
 
   it('shares one session request with the route guard', async () => {

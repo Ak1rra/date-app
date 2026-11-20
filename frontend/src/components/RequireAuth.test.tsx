@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { jsonResponse, mockSession, renderApp, signedIn } from '../test/renderApp';
@@ -20,8 +20,8 @@ describe('RequireAuth', () => {
       jsonResponse({ error: { code: 'unauthenticated', message: 'Please sign in.' } }, 401),
     );
     const router = renderApp('/');
-    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe('/signin');
+    // The mock answers /meta with 401 too, so the sign-in page itself shows its error state.
+    await waitFor(() => expect(router.state.location.pathname).toBe('/signin'));
   });
 
   it('sends signed-in users without a display name to /setup', async () => {

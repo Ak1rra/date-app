@@ -426,3 +426,16 @@ async def test_no_token_link_or_address_is_logged(
     dump = caplog.text + json.dumps([r.__dict__ for r in caplog.records], default=str)
     for secret in (token, link, email, "secret.person", session_token):
         assert secret not in dump
+
+
+async def test_concurrent_magic_links_cannot_pass_the_per_email_limit(
+    db_app: FastAPI, db_session: AsyncSession
+) -> None:
+    for _ in range(4):
+        await new_link(db_app, "busy@example.com")
+    async with browser(db_app) as a, browser(db_app) as b, browser(db_app) as c:
+        results = await asyncio.gather(
+            *(post(client, MAGIC, json={"email": "busy@example.com"}) for client in (a, b, c))
+        )
+    assert sorted(r.status_code for r in results) == [202, 429, 429]
+    assert len(await tokens(db_session)) == 5
