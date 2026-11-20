@@ -1,7 +1,7 @@
 """Standalone worker for debugging: `python -m app.worker`. Exits cleanly on SIGTERM/SIGINT.
 
-Normally the worker runs inside the API process; don't run both against one database
-unless the job runner is safe for concurrent workers.
+Normally the worker runs inside the API process. Running both against one database is safe:
+claims use FOR UPDATE SKIP LOCKED, so a job is never handed to two workers at once.
 """
 
 import asyncio
@@ -10,6 +10,7 @@ import signal
 from types import FrameType
 
 from app.config import get_settings
+from app.db import make_engine, make_sessionmaker
 from app.logging import setup_logging
 from app.worker.runner import run_worker
 
@@ -30,7 +31,11 @@ async def main() -> None:
         if sig := getattr(signal, name, None):
             signal.signal(sig, request_stop)
 
-    await run_worker(settings, stop)
+    engine = make_engine(settings)
+    try:
+        await run_worker(settings, stop, make_sessionmaker(engine))
+    finally:
+        await engine.dispose()
 
 
 if __name__ == "__main__":

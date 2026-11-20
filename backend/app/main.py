@@ -16,6 +16,7 @@ from app.frontend import FrontendMiddleware, check_frontend
 from app.logging import RequestContextMiddleware, setup_logging
 from app.security.csrf import CSRF_HEADER_NAME, CSRFMiddleware
 from app.security.headers import SecurityHeadersMiddleware
+from app.security.ratelimit import SlidingWindowLimiter
 from app.worker.runner import run_worker
 
 logger = logging.getLogger(__name__)
@@ -54,7 +55,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         stop = asyncio.Event()
         worker_task: asyncio.Task[None] | None = None
         if settings.run_worker:
-            worker_task = asyncio.create_task(run_worker(settings, stop), name="worker")
+            worker_task = asyncio.create_task(
+                run_worker(settings, stop, app.state.sessionmaker), name="worker"
+            )
             worker_task.add_done_callback(_log_worker_failure)
         try:
             yield
@@ -75,6 +78,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.engine = engine
     app.state.sessionmaker = make_sessionmaker(engine)
+    # Per app, so each test app starts with empty windows.
+    app.state.magic_link_ip_limiter = SlidingWindowLimiter(limit=20, window_sec=15 * 60)
+    app.state.verify_ip_limiter = SlidingWindowLimiter(limit=30, window_sec=15 * 60)
 
     install_error_handlers(app)
     app.include_router(v1_router, prefix="/api/v1")
