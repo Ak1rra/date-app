@@ -1,9 +1,11 @@
 """Application settings, read from the environment / .env (names as in .env.example)."""
 
+import math
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -46,6 +48,37 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = None
     ai_model_fast: str = "claude-haiku-5-5"
     ai_model_smart: str = "claude-sonnet-5-5"
+    # AI caps, effort & pricing (M2)
+    ai_cap_ideas_per_day: int = 20
+    ai_cap_builds_per_day: int = 20
+    ai_cap_chat_per_day: int = 100
+    ai_monthly_tokens_per_couple: int = 4_000_000
+    ai_global_monthly_usd: float = 25.0
+    ai_max_tool_iterations: int = 8
+    ai_effort_smart: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
+    ai_effort_fast: Literal["low", "medium", "high", "xhigh", "max"] = "low"
+    # $ per million tokens, per model. A model that isn't listed is priced as the smart model.
+    ai_prices: dict[str, dict[str, float]] = {
+        "claude-haiku-5-5": {
+            "input": 0.10,
+            "output": 0.50,
+            "cache_read": 0.01,
+            "cache_write": 0.125,
+        },
+        "claude-sonnet-5-5": {
+            "input": 2.00,
+            "output": 10.00,
+            "cache_read": 0.10,
+            "cache_write": 2.50,
+        },
+        "claude-sonnet-5": {  # the "default" fallback for claude-sonnet-5-5
+            "input": 2.00,
+            "output": 10.00,
+            "cache_read": 0.20,
+            "cache_write": 2.50,
+        },
+    }
+    travel_buffer_minutes: int = 10
     google_maps_api_key: str | None = None
     ticketmaster_api_key: str | None = None
     weather_provider: str = "open-meteo"
@@ -61,6 +94,24 @@ class Settings(BaseSettings):
     apple_private_key: str | None = None
     google_oauth_client_id: str | None = None
     google_oauth_client_secret: str | None = None
+
+    @model_validator(mode="after")
+    def _check_ai_prices(self) -> "Settings":
+        """Fail at startup on a price map that would make the spend caps undercount: a missing
+        or negative rate counts as free, and a model with no entry has no rates to fall back on."""
+        keys = {"input", "output", "cache_read", "cache_write"}
+        for model in (self.ai_model_smart, self.ai_model_fast):
+            if model not in self.ai_prices:
+                raise ValueError(f"AI_PRICES has no entry for the configured model {model!r}")
+        for model, price in self.ai_prices.items():
+            if set(price) != keys:
+                raise ValueError(f"AI_PRICES[{model!r}] must have exactly the keys {sorted(keys)}")
+            for key, value in price.items():
+                if not math.isfinite(value) or value < 0:
+                    raise ValueError(
+                        f"AI_PRICES[{model!r}][{key!r}] must be a finite number >= 0, got {value}"
+                    )
+        return self
 
     @property
     def resolved_frontend_dist(self) -> Path:

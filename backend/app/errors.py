@@ -28,12 +28,15 @@ class ApiError(Exception):
         code: str,
         message: str,
         headers: dict[str, str] | None = None,
+        **extra: Any,
     ) -> None:
         super().__init__(message)
         self.status = status
         self.code = code
         self.message = message
         self.headers = headers
+        # Extra fields for the error body, next to code and message (e.g. `reset_at`).
+        self.extra = extra
 
 
 def error_body(code: str, message: str, **extra: Any) -> dict[str, Any]:
@@ -48,7 +51,7 @@ def error_response(
 
 async def _api_error_handler(_: Request, exc: Exception) -> JSONResponse:
     assert isinstance(exc, ApiError)
-    return error_response(exc.status, exc.code, exc.message, exc.headers)
+    return error_response(exc.status, exc.code, exc.message, exc.headers, **exc.extra)
 
 
 async def _http_exception_handler(_: Request, exc: Exception) -> JSONResponse:
