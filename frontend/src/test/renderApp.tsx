@@ -35,13 +35,19 @@ export function mockSession(session: Session | Error | Response) {
   return fetchMock;
 }
 
-export function renderApp(path: string) {
+/** Like renderApp, but also hands back the QueryClient so a test can inspect the cache. */
+export function renderAppWithClient(path: string, seed?: (queryClient: QueryClient) => void) {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  seed?.(queryClient);
   render(
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  return router;
+  return { router, queryClient };
+}
+
+export function renderApp(path: string) {
+  return renderAppWithClient(path).router;
 }

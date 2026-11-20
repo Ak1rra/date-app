@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../api/http';
-import { SESSION_KEY, type Session } from './useSession';
+import { resetForProfile } from './profileSwitch';
+import type { Session } from './useSession';
 
 export type Profile = 'husband' | 'wife';
 
@@ -13,8 +14,6 @@ export function useChooseProfile() {
         method: 'POST',
         body: JSON.stringify({ profile }),
       }),
-    onSuccess: (session) => {
-      queryClient.setQueryData(SESSION_KEY, session);
-    },
+    onSuccess: (session) => resetForProfile(queryClient, session),
   });
 }

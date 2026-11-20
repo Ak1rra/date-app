@@ -26,3 +26,12 @@ export function useSession() {
     staleTime: 60_000,
   });
 }
+
+/**
+ * Who is using the app, for scoping per-viewer query keys: [root, userId, ...]. A different person
+ * gets different cache entries, so one person's data can never render for another, whatever the
+ * timing of a profile switch.
+ */
+export function useViewerId(): string | undefined {
+  return useSession().data?.user?.id;
+}

@@ -1,4 +1,5 @@
 import { Outlet } from 'react-router';
+import { useProfileSwitchSync } from '../hooks/profileSwitch';
 import { usePersonTheme } from '../hooks/usePersonTheme';
 import { useSession } from '../hooks/useSession';
 
@@ -8,6 +9,8 @@ import { useSession } from '../hooks/useSession';
  * same query key and reuses the cached result. Also applies the per-person palette app-wide.
  */
 export function SessionBootstrap() {
-  usePersonTheme(useSession().data?.user?.role);
+  const user = useSession().data?.user;
+  usePersonTheme(user?.role);
+  useProfileSwitchSync(user?.id);
   return <Outlet />;
 }

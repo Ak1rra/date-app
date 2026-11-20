@@ -7,10 +7,12 @@ export interface Meta {
   no_login: boolean;
 }
 
+export const META_KEY = ['meta'] as const;
+
 /** GET /api/v1/meta. Server flags don't change while the app is open, so cache forever. */
 export function useMeta() {
   return useQuery({
-    queryKey: ['meta'],
+    queryKey: META_KEY,
     queryFn: () => apiFetch<Meta>('/api/v1/meta'),
     retry: false,
     staleTime: Infinity,

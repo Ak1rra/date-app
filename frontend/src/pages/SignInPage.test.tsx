@@ -1,7 +1,8 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CSRF_COOKIE, CSRF_HEADER } from '../api/http';
+import { couple as coupleFixture } from '../test/fixtures';
 import { jsonResponse, renderApp, signedIn } from '../test/renderApp';
 
 const signedOut = { authenticated: false, user: null };
@@ -14,14 +15,18 @@ function mockApi(
   noLogin: boolean,
   choose?: () => Response | Promise<Response>,
   meta?: () => Response | Promise<Response>,
+  couple: () => Response | Promise<Response> = () =>
+    jsonResponse({ ...coupleFixture, home_area: { label: 'Austin', lat: 30.27, lng: -97.74 } }),
 ) {
   const fetchMock = vi.fn<typeof fetch>(async (input) => {
-    const url = String(input);
+    const url = input instanceof Request ? input.url : String(input);
     if (url.endsWith('/api/v1/meta')) {
       if (meta) return meta();
       return jsonResponse({ demo_mode: false, version: 'test', no_login: noLogin });
     }
     if (url.endsWith('/api/v1/auth/choose-profile')) return choose!();
+    if (url.endsWith('/api/v1/couple')) return couple();
+    if (url.endsWith('/api/v1/profiles')) return jsonResponse([]);
     return jsonResponse(signedOut);
   });
   vi.stubGlobal('fetch', fetchMock);
@@ -30,6 +35,7 @@ function mockApi(
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  localStorage.clear();
   document.cookie = `${CSRF_COOKIE}=; max-age=0`;
 });
 
@@ -139,5 +145,54 @@ describe('SignInPage (no-login profile picker)', () => {
       "We couldn't reach the server. Check your connection.",
     );
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+  });
+
+  it('opens /setup after picking a profile when the household has no home area yet', async () => {
+    mockApi(
+      true,
+      () => jsonResponse(wifeSession),
+      undefined,
+      () => jsonResponse(coupleFixture),
+    );
+    const router = renderApp('/signin');
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Husband' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/setup'));
+  });
+
+  it('skips setup on later picks once setup was skipped on this device', async () => {
+    localStorage.setItem('dateapp.setupSkipped', '1');
+    mockApi(
+      true,
+      () => jsonResponse(wifeSession),
+      undefined,
+      () => jsonResponse(coupleFixture),
+    );
+    const router = renderApp('/signin');
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Husband' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+  });
+
+  it('goes to the page you came from when a home area is already set', async () => {
+    mockApi(true, () => jsonResponse(wifeSession));
+    const router = renderApp('/ideas');
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/signin'));
+    await userEvent.click(await screen.findByRole('button', { name: 'Wife' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/ideas'));
+  });
+
+  it('falls back to / when the couple cannot be fetched', async () => {
+    mockApi(
+      true,
+      () => jsonResponse(wifeSession),
+      undefined,
+      () => jsonResponse({ error: { code: 'internal', message: 'Boom' } }, 500),
+    );
+    const router = renderApp('/signin');
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Wife' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
   });
 });
