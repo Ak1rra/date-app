@@ -1,6 +1,57 @@
 {
   "components": {
     "schemas": {
+      "AvailabilityIO": {
+        "description": "Both directions: PUT replaces everything with this, GET returns it.",
+        "properties": {
+          "blocks": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/BlockIO"
+            },
+            "maxItems": 500,
+            "title": "Blocks",
+            "type": "array"
+          },
+          "windows": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/WindowIO"
+            },
+            "maxItems": 100,
+            "title": "Windows",
+            "type": "array"
+          }
+        },
+        "title": "AvailabilityIO",
+        "type": "object"
+      },
+      "BlockIO": {
+        "properties": {
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "required": [
+          "date"
+        ],
+        "title": "BlockIO",
+        "type": "object"
+      },
       "ChooseProfileIn": {
         "properties": {
           "profile": {
@@ -16,6 +67,303 @@
           "profile"
         ],
         "title": "ChooseProfileIn",
+        "type": "object"
+      },
+      "ConstraintsIn": {
+        "description": "A full replace: anything left out is reset to empty (currency to USD).",
+        "properties": {
+          "alcohol": {
+            "anyOf": [
+              {
+                "enum": [
+                  "yes",
+                  "some",
+                  "none"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alcohol"
+          },
+          "budget_max": {
+            "anyOf": [
+              {
+                "maximum": 99999999.99,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Max"
+          },
+          "budget_min": {
+            "anyOf": [
+              {
+                "maximum": 99999999.99,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Min"
+          },
+          "currency": {
+            "default": "USD",
+            "pattern": "^[A-Z]{3}$",
+            "title": "Currency",
+            "type": "string"
+          },
+          "kids_pets_notes": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kids Pets Notes"
+          },
+          "max_radius_km": {
+            "anyOf": [
+              {
+                "maximum": 1000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Radius Km"
+          },
+          "max_travel_minutes": {
+            "anyOf": [
+              {
+                "maximum": 1440.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Travel Minutes"
+          },
+          "transport_modes": {
+            "default": [],
+            "items": {
+              "enum": [
+                "car",
+                "transit",
+                "walk",
+                "rideshare",
+                "bike"
+              ],
+              "type": "string"
+            },
+            "maxItems": 30,
+            "title": "Transport Modes",
+            "type": "array"
+          }
+        },
+        "title": "ConstraintsIn",
+        "type": "object"
+      },
+      "ConstraintsOut": {
+        "properties": {
+          "alcohol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alcohol"
+          },
+          "budget_max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Max"
+          },
+          "budget_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Min"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "kids_pets_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kids Pets Notes"
+          },
+          "max_radius_km": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Radius Km"
+          },
+          "max_travel_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Travel Minutes"
+          },
+          "transport_modes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Transport Modes",
+            "type": "array"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "updated_by_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By User Id"
+          }
+        },
+        "required": [
+          "budget_min",
+          "budget_max",
+          "currency",
+          "max_travel_minutes",
+          "max_radius_km",
+          "transport_modes",
+          "alcohol",
+          "kids_pets_notes",
+          "updated_at",
+          "updated_by_user_id"
+        ],
+        "title": "ConstraintsOut",
+        "type": "object"
+      },
+      "CoupleOut": {
+        "properties": {
+          "home_area": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HomeArea"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/MemberOut"
+            },
+            "title": "Members",
+            "type": "array"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "partner_joined": {
+            "title": "Partner Joined",
+            "type": "boolean"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "timezone",
+          "status",
+          "home_area",
+          "members",
+          "partner_joined"
+        ],
+        "title": "CoupleOut",
+        "type": "object"
+      },
+      "CouplePatch": {
+        "properties": {
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "title": "CouplePatch",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -55,6 +403,188 @@
           "db"
         ],
         "title": "HealthOut",
+        "type": "object"
+      },
+      "HomeArea": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "lat": {
+            "title": "Lat",
+            "type": "number"
+          },
+          "lng": {
+            "title": "Lng",
+            "type": "number"
+          }
+        },
+        "required": [
+          "label",
+          "lat",
+          "lng"
+        ],
+        "title": "HomeArea",
+        "type": "object"
+      },
+      "HomeAreaIn": {
+        "properties": {
+          "query": {
+            "maxLength": 200,
+            "minLength": 2,
+            "title": "Query",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "HomeAreaIn",
+        "type": "object"
+      },
+      "ImportantDateIn": {
+        "properties": {
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "anniversary",
+              "birthday",
+              "custom"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "profile_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Id"
+          },
+          "recurring": {
+            "default": false,
+            "title": "Recurring",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "date",
+          "kind"
+        ],
+        "title": "ImportantDateIn",
+        "type": "object"
+      },
+      "ImportantDateOut": {
+        "properties": {
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "anniversary",
+              "birthday",
+              "custom"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "profile_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Id"
+          },
+          "recurring": {
+            "title": "Recurring",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "date",
+          "recurring",
+          "kind",
+          "profile_id"
+        ],
+        "title": "ImportantDateOut",
+        "type": "object"
+      },
+      "ImportantDatePatch": {
+        "description": "Only the fields present are changed.",
+        "properties": {
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "anniversary",
+              "birthday",
+              "custom"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "profile_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Id"
+          },
+          "recurring": {
+            "title": "Recurring",
+            "type": "boolean"
+          }
+        },
+        "title": "ImportantDatePatch",
         "type": "object"
       },
       "MagicLinkIn": {
@@ -160,6 +690,41 @@
         "title": "MePatch",
         "type": "object"
       },
+      "MemberOut": {
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "role": {
+            "enum": [
+              "owner",
+              "partner"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "display_name",
+          "role"
+        ],
+        "title": "MemberOut",
+        "type": "object"
+      },
       "MetaOut": {
         "properties": {
           "demo_mode": {
@@ -181,6 +746,111 @@
           "version"
         ],
         "title": "MetaOut",
+        "type": "object"
+      },
+      "NoteIn": {
+        "properties": {
+          "about_profile_id": {
+            "format": "uuid",
+            "title": "About Profile Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "note",
+              "mentioned_idea"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "about_profile_id",
+          "kind",
+          "text"
+        ],
+        "title": "NoteIn",
+        "type": "object"
+      },
+      "NoteOut": {
+        "properties": {
+          "about_profile_id": {
+            "format": "uuid",
+            "title": "About Profile Id",
+            "type": "string"
+          },
+          "archived_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived At"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "note",
+              "mentioned_idea"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "about_profile_id",
+          "kind",
+          "text",
+          "created_at",
+          "updated_at",
+          "archived_at"
+        ],
+        "title": "NoteOut",
+        "type": "object"
+      },
+      "NotePatch": {
+        "properties": {
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "text": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "title": "NotePatch",
         "type": "object"
       },
       "OkOut": {
@@ -230,6 +900,410 @@
           "sent_at"
         ],
         "title": "OutboxEntry",
+        "type": "object"
+      },
+      "ProfileIn": {
+        "description": "A full replace: anything left out is reset to empty.",
+        "properties": {
+          "accessibility": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accessibility"
+          },
+          "allergies": {
+            "default": [],
+            "items": {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 30,
+            "title": "Allergies",
+            "type": "array"
+          },
+          "cuisines_disliked": {
+            "default": [],
+            "items": {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 30,
+            "title": "Cuisines Disliked",
+            "type": "array"
+          },
+          "cuisines_liked": {
+            "default": [],
+            "items": {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 30,
+            "title": "Cuisines Liked",
+            "type": "array"
+          },
+          "dietary": {
+            "default": [],
+            "items": {
+              "enum": [
+                "vegetarian",
+                "vegan",
+                "pescatarian",
+                "gluten_free",
+                "dairy_free",
+                "halal",
+                "kosher",
+                "nut_free",
+                "low_carb"
+              ],
+              "type": "string"
+            },
+            "maxItems": 30,
+            "title": "Dietary",
+            "type": "array"
+          },
+          "disliked_categories": {
+            "default": [],
+            "items": {
+              "enum": [
+                "food",
+                "outdoors",
+                "arts",
+                "music",
+                "sports",
+                "games",
+                "learning",
+                "nightlife",
+                "wellness",
+                "travel",
+                "shopping",
+                "nature",
+                "culture",
+                "adventure",
+                "relaxing"
+              ],
+              "type": "string"
+            },
+            "maxItems": 30,
+            "title": "Disliked Categories",
+            "type": "array"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "energy": {
+            "anyOf": [
+              {
+                "maximum": 5.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Energy"
+          },
+          "hard_nos": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hard Nos"
+          },
+          "indoor_outdoor": {
+            "anyOf": [
+              {
+                "enum": [
+                  "indoor",
+                  "outdoor",
+                  "either"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Indoor Outdoor"
+          },
+          "liked_categories": {
+            "default": [],
+            "items": {
+              "enum": [
+                "food",
+                "outdoors",
+                "arts",
+                "music",
+                "sports",
+                "games",
+                "learning",
+                "nightlife",
+                "wellness",
+                "travel",
+                "shopping",
+                "nature",
+                "culture",
+                "adventure",
+                "relaxing"
+              ],
+              "type": "string"
+            },
+            "maxItems": 30,
+            "title": "Liked Categories",
+            "type": "array"
+          },
+          "loves": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loves"
+          },
+          "social_setting": {
+            "anyOf": [
+              {
+                "maximum": 5.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Social Setting"
+          }
+        },
+        "title": "ProfileIn",
+        "type": "object"
+      },
+      "ProfileOut": {
+        "properties": {
+          "accessibility": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accessibility"
+          },
+          "allergies": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Allergies",
+            "type": "array"
+          },
+          "can_edit": {
+            "title": "Can Edit",
+            "type": "boolean"
+          },
+          "confirmed_by_subject_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed By Subject At"
+          },
+          "cuisines_disliked": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Cuisines Disliked",
+            "type": "array"
+          },
+          "cuisines_liked": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Cuisines Liked",
+            "type": "array"
+          },
+          "dietary": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Dietary",
+            "type": "array"
+          },
+          "disliked_categories": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Disliked Categories",
+            "type": "array"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "edited_by_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edited By User Id"
+          },
+          "energy": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Energy"
+          },
+          "hard_nos": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hard Nos"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "indoor_outdoor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Indoor Outdoor"
+          },
+          "is_me": {
+            "title": "Is Me",
+            "type": "boolean"
+          },
+          "liked_categories": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Liked Categories",
+            "type": "array"
+          },
+          "loves": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loves"
+          },
+          "slot": {
+            "enum": [
+              "owner",
+              "partner"
+            ],
+            "title": "Slot",
+            "type": "string"
+          },
+          "social_setting": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Social Setting"
+          },
+          "subject_joined": {
+            "title": "Subject Joined",
+            "type": "boolean"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slot",
+          "is_me",
+          "subject_joined",
+          "can_edit",
+          "display_name",
+          "liked_categories",
+          "disliked_categories",
+          "cuisines_liked",
+          "cuisines_disliked",
+          "energy",
+          "indoor_outdoor",
+          "social_setting",
+          "loves",
+          "hard_nos",
+          "dietary",
+          "allergies",
+          "accessibility",
+          "edited_by_user_id",
+          "confirmed_by_subject_at",
+          "updated_at"
+        ],
+        "title": "ProfileOut",
         "type": "object"
       },
       "SessionOut": {
@@ -318,6 +1392,33 @@
           "token"
         ],
         "title": "VerifyIn",
+        "type": "object"
+      },
+      "WindowIO": {
+        "properties": {
+          "end_time": {
+            "format": "time",
+            "title": "End Time",
+            "type": "string"
+          },
+          "start_time": {
+            "format": "time",
+            "title": "Start Time",
+            "type": "string"
+          },
+          "weekday": {
+            "maximum": 6.0,
+            "minimum": 0.0,
+            "title": "Weekday",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "weekday",
+          "start_time",
+          "end_time"
+        ],
+        "title": "WindowIO",
         "type": "object"
       }
     }
@@ -504,6 +1605,319 @@
         ]
       }
     },
+    "/api/v1/couple": {
+      "get": {
+        "operationId": "get_couple_api_v1_couple_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoupleOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Couple",
+        "tags": [
+          "couple"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_couple_api_v1_couple_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CouplePatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoupleOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Couple",
+        "tags": [
+          "couple"
+        ]
+      }
+    },
+    "/api/v1/couple/constraints": {
+      "get": {
+        "operationId": "get_constraints_api_v1_couple_constraints_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConstraintsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Constraints",
+        "tags": [
+          "couple"
+        ]
+      },
+      "put": {
+        "operationId": "put_constraints_api_v1_couple_constraints_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConstraintsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConstraintsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Constraints",
+        "tags": [
+          "couple"
+        ]
+      }
+    },
+    "/api/v1/couple/home-area": {
+      "put": {
+        "description": "Geocodes the query and stores only the label and coarse coordinates, never the query.",
+        "operationId": "put_home_area_api_v1_couple_home_area_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HomeAreaIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeArea"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Home Area",
+        "tags": [
+          "couple"
+        ]
+      }
+    },
+    "/api/v1/couple/important-dates": {
+      "get": {
+        "operationId": "list_important_dates_api_v1_couple_important_dates_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ImportantDateOut"
+                  },
+                  "title": "Response List Important Dates Api V1 Couple Important Dates Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Important Dates",
+        "tags": [
+          "couple"
+        ]
+      },
+      "post": {
+        "operationId": "create_important_date_api_v1_couple_important_dates_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportantDateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportantDateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Important Date",
+        "tags": [
+          "couple"
+        ]
+      }
+    },
+    "/api/v1/couple/important-dates/{date_id}": {
+      "delete": {
+        "operationId": "delete_important_date_api_v1_couple_important_dates__date_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "date_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Date Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Important Date",
+        "tags": [
+          "couple"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_important_date_api_v1_couple_important_dates__date_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "date_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Date Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportantDatePatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportantDateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Important Date",
+        "tags": [
+          "couple"
+        ]
+      }
+    },
     "/api/v1/dev/outbox": {
       "get": {
         "description": "DEV_OUTBOX only: the console email sender's outbox, newest first, at most 50.",
@@ -640,6 +2054,405 @@
         "summary": "Meta",
         "tags": [
           "meta"
+        ]
+      }
+    },
+    "/api/v1/notes": {
+      "get": {
+        "description": "The caller's own live notes, newest first. Nobody else's are ever visible.",
+        "operationId": "list_notes_api_v1_notes_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "note",
+                    "mentioned_idea"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/NoteOut"
+                  },
+                  "title": "Response List Notes Api V1 Notes Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Notes",
+        "tags": [
+          "notes"
+        ]
+      },
+      "post": {
+        "operationId": "create_note_api_v1_notes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Note",
+        "tags": [
+          "notes"
+        ]
+      }
+    },
+    "/api/v1/notes/{note_id}": {
+      "delete": {
+        "operationId": "delete_note_api_v1_notes__note_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "note_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Note Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Note",
+        "tags": [
+          "notes"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_note_api_v1_notes__note_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "note_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Note Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotePatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Note",
+        "tags": [
+          "notes"
+        ]
+      }
+    },
+    "/api/v1/profiles": {
+      "get": {
+        "operationId": "list_profiles_api_v1_profiles_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProfileOut"
+                  },
+                  "title": "Response List Profiles Api V1 Profiles Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Profiles",
+        "tags": [
+          "profiles"
+        ]
+      }
+    },
+    "/api/v1/profiles/{profile_id}": {
+      "get": {
+        "operationId": "get_profile_api_v1_profiles__profile_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Profile Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Profile",
+        "tags": [
+          "profiles"
+        ]
+      },
+      "put": {
+        "description": "Full replace. 403 if the profile's subject has joined and is not the caller.",
+        "operationId": "put_profile_api_v1_profiles__profile_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Profile Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Profile",
+        "tags": [
+          "profiles"
+        ]
+      }
+    },
+    "/api/v1/profiles/{profile_id}/availability": {
+      "get": {
+        "operationId": "get_availability_api_v1_profiles__profile_id__availability_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Profile Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvailabilityIO"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Availability",
+        "tags": [
+          "profiles"
+        ]
+      },
+      "put": {
+        "description": "Replace-all, under the same edit rule as the profile itself.",
+        "operationId": "put_availability_api_v1_profiles__profile_id__availability_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Profile Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AvailabilityIO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvailabilityIO"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Availability",
+        "tags": [
+          "profiles"
         ]
       }
     }

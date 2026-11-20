@@ -1,4 +1,4 @@
-"""The initial migration against the real database (marker: db): it creates what the models
+"""The migrations against the real database (marker: db): they create what the models
 declare, and downgrade/upgrade round-trips."""
 
 from concurrent.futures import ThreadPoolExecutor
@@ -16,6 +16,41 @@ from app.models.base import Base
 pytestmark = pytest.mark.db
 
 EXPECTED_TABLES = {
+    "users",
+    "magic_link_tokens",
+    "sessions",
+    "couples",
+    "couple_members",
+    "partner_profiles",
+    "availability_windows",
+    "availability_blocks",
+    "couple_constraints",
+    "important_dates",
+    "planner_notes",
+    "jobs",
+    # 0002
+    "ideas",
+    "votes",
+    "invites",
+    "profile_suggestions",
+    "plan_sessions",
+    "itineraries",
+    "stops",
+    "travel_legs",
+    "checklist_items",
+    "plan_templates",
+    "surprise_hints",
+    "ratings",
+    "planner_reads",
+    "taste_summaries",
+    "chat_threads",
+    "chat_messages",
+    "notifications",
+    "push_subscriptions",
+    "provider_cache",
+    "ai_usage",
+}
+V1_TABLES = EXPECTED_TABLES - {
     "users",
     "magic_link_tokens",
     "sessions",
@@ -130,3 +165,57 @@ async def test_downgrade_then_upgrade_round_trips(db_schema: str) -> None:
     finally:
         _alembic(db_schema, "upgrade", "head")
     assert await _inspect(db_schema, tables) == EXPECTED_TABLES | {"alembic_version"}
+
+
+async def test_downgrade_to_0001_drops_only_the_v1_tables(db_schema: str) -> None:
+    def tables(conn: Connection) -> set[str]:
+        return set(inspect(conn).get_table_names())
+
+    try:
+        _alembic(db_schema, "downgrade", "0001")
+        assert await _inspect(db_schema, tables) == (
+            (EXPECTED_TABLES - V1_TABLES) | {"alembic_version"}
+        )
+    finally:
+        _alembic(db_schema, "upgrade", "head")
+    assert await _inspect(db_schema, tables) == EXPECTED_TABLES | {"alembic_version"}
+
+
+async def test_v1_constraints_that_reflection_hides(db_schema: str) -> None:
+    """The stops position uniqueness is deferrable, the plan_sessions <-> itineraries cycle is
+    closed by a named foreign key, and the chat thread indexes are partial and unique."""
+
+    def look(conn: Connection) -> dict[str, tuple[bool, bool] | str]:
+        found: dict[str, tuple[bool, bool] | str] = {}
+        row = conn.execute(
+            text(
+                "SELECT condeferrable, condeferred FROM pg_constraint "
+                "WHERE conname = 'uq_stops_itinerary_id'"
+            )
+        ).one()
+        found["stops"] = (row[0], row[1])
+        found["fk"] = conn.execute(
+            text(
+                "SELECT confdeltype::text FROM pg_constraint "
+                "WHERE conname = 'fk_plan_sessions_itinerary_id_itineraries'"
+            )
+        ).scalar_one()
+        for name, definition in conn.execute(
+            text(
+                "SELECT indexname, indexdef FROM pg_indexes "
+                "WHERE tablename = 'chat_threads' AND indexname LIKE 'uq_%'"
+            )
+        ):
+            found[name] = definition
+        return found
+
+    found = await _inspect(db_schema, look)
+    assert found["stops"] == (True, True)
+    assert found["fk"] == "n"  # ON DELETE SET NULL
+    for name, value in (
+        ("uq_chat_threads_private_owner", "'private'"),
+        ("uq_chat_threads_shared", "'shared'"),
+    ):
+        assert "UNIQUE" in str(found[name])
+        assert "WHERE" in str(found[name])
+        assert value in str(found[name])
