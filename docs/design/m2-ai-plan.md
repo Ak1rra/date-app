@@ -24,6 +24,17 @@ Research notes: `.claude/research/google-maps-platform.md`,
 `ai_cap_ideas_per_day=20`, `ai_cap_builds_per_day=20`, `ai_cap_chat_per_day=100`,
 `ai_monthly_tokens_per_couple=4_000_000`, `ai_global_monthly_usd=25.0`,
 `ai_max_tool_iterations=8`, `ai_effort_smart="medium"`, `ai_effort_fast="low"`;
+**Amended 2026-11-20 (Google terms, see `.claude/research/google-maps-platform.md` §4):
+Google Places, Routes and Geocoding content is never persisted.** Only place ids may be
+stored indefinitely and lat/lng for ≤ 30 days. Those providers use an in-memory per-run
+`RunMemo` only, and the `cache_ttl_places_*`, `cache_ttl_routes` and `cache_ttl_geocode`
+settings below no longer exist. Ticketmaster (6 h) and Open-Meteo (1 h) keep the DB cache.
+Itinerary stops store `place_id`, lat/lng (refreshed when older than 30 days), the stop title
+and the model's description. Venue details (address, rating, hours, website, maps uri) are
+fetched live by place id when an itinerary is read, rather than kept as a snapshot. Caps
+use `caps.reserve()` before a run and `caps.finalize()` after it, each in its own committed
+session; daily caps are exact, token and $ caps soft.
+
 `ai_prices` — $/MTok per model for input/output/cache-read/cache-write
 (haiku-5-5: 0.10/0.50/0.01/0.125; sonnet-5-5: 2.00/10.00/0.10/2.50; unknown model →
 sonnet prices). TTLs (seconds): `cache_ttl_places_search`, `cache_ttl_place_details`,
