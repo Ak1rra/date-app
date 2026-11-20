@@ -1,0 +1,73 @@
+@import 'tailwindcss';
+
+/* Warm palette (UX-1). Every text/background pair used below meets WCAG AA (>= 4.5:1);
+   see the contrast notes in the PR description. Dark values follow the system (UX-3). */
+:root {
+  color-scheme: light dark;
+  --canvas: #fff4ee;
+  --surface: #ffffff;
+  --surface-2: #ffe6da;
+  --ink: #2e1a30;
+  --muted: #6a5068;
+  --border: #f0d3cc;
+  --accent: #6d2a5e;
+  --on-accent: #ffffff;
+  --accent-soft: #f7dceb;
+  --coral: #b4381f;
+  --ring: #6d2a5e;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --canvas: #1f1221;
+    --surface: #2c1b2f;
+    --surface-2: #3a2440;
+    --ink: #fbeef1;
+    --muted: #cdb5c8;
+    --border: #4d3350;
+    --accent: #f2a7c3;
+    --on-accent: #2a1230;
+    --accent-soft: #4a2a4f;
+    --coral: #ff9e85;
+    --ring: #f2a7c3;
+  }
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--border);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-coral: var(--coral);
+  --font-sans:
+    ui-rounded, 'SF Pro Rounded', 'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+html,
+body {
+  background-color: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+}
+
+:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

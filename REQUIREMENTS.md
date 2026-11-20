@@ -80,13 +80,13 @@ A user belongs to **at most one couple** in v1.
 | Layer | Choice |
 |---|---|
 | Backend | **Python 3.12+, FastAPI** (async), Pydantic v2 models, Uvicorn |
-| Database | **PostgreSQL 16**, SQLAlchemy 2.x (async) + **Alembic** migrations |
+| Database | **PostgreSQL 17** (Debian's packaged server; was 16, see §14 decision 6), SQLAlchemy 2.x (async) + **Alembic** migrations |
 | Background jobs | A worker for scheduled work (reminders, reveals, rating prompts, cache refresh). Use a Postgres-backed queue/scheduler or Redis + a task runner (e.g. ARQ/Celery). Dev session decides; it must survive restarts. |
 | Realtime | **WebSockets** (or SSE) from FastAPI so partner actions (votes, matches, schedule changes) appear live |
 | Frontend | **React + TypeScript + Vite**, **Tailwind CSS**, **TanStack Query**, React Router; typed API client generated from FastAPI's OpenAPI schema |
 | PWA | Installable (manifest + service worker), offline read of the calendar and upcoming itineraries, **Web Push** notifications |
 | AI | **Anthropic Claude API** (official `anthropic` Python SDK) with **tool use** |
-| Deploy | **Docker** images (api, worker, web) + `docker-compose.yml` for local dev; deployable to a container host (Fly.io/Railway/etc.) |
+| Deploy | **No Docker** (superseded, see §14 decision 5): one **systemd service** on the owner's Linux box, managed by the app's own `dateapp` CLI in the style of brothereye (`build`, `serve`, `daemon install/update/...`). FastAPI serves the built frontend; the job runner runs in-process. Served over HTTPS by the owner's Caddy at `https://dates.lan`. |
 | Testing | pytest (+ httpx AsyncClient) for backend; Vitest + React Testing Library for frontend; Playwright for a small e2e smoke suite |
 
 All secrets come from environment variables; a `.env.example` documents every one.
@@ -384,7 +384,7 @@ Realtime events: `idea.created`, `vote.updated` (no vote values leaked pre-match
 ### Quality
 - **NFR-QA-1 (MUST)** Backend unit + integration tests (with provider fakes and a mocked Anthropic client); frontend component tests; Playwright smoke, two paths: (a) **solo planner**: sign up → fill both profiles → plan a date (options) → itinerary → schedule as surprise → planner's read; (b) **match**: invite → partner joins → generate → swipe both → match → itinerary → schedule → both rate.
 - **NFR-QA-2 (MUST)** Lint/format/type-check: ruff + mypy (backend), ESLint + Prettier + `tsc --noEmit` (frontend). One command each to run tests and checks, documented in the README.
-- **NFR-QA-3 (MUST)** `docker compose up` brings up db, api, worker and web locally; `DEMO_MODE=1` works with no external keys (fake providers + canned AI responses).
+- **NFR-QA-3 (MUST)** *(amended 2026-11-19, §14 decision 5)* `dateapp build && dateapp serve` brings up the app (API, in-process worker, frontend) against a local Postgres, and `dateapp daemon install` / `dateapp daemon update` deploy it; previously: `docker compose up` brings up db, api, worker and web locally; `DEMO_MODE=1` works with no external keys (fake providers + canned AI responses).
 
 ---
 
@@ -429,7 +429,8 @@ Each milestone should end with its tests passing and a working `docker compose u
 |---|---|---|---|
 | 1 | **Postgres-backed job queue**: a `jobs` table (`run_at`, `status`, `attempts`, unique `dedupe_key`), and a worker that claims due jobs with `SELECT … FOR UPDATE SKIP LOCKED`. No Redis. | 2026-11-19 | One fewer service; job state lives in the same DB, so it survives restarts, and overdue jobs (e.g. a missed reveal) run on recovery (NFR-REL-1). Owner approved. |
 | 2 | **Resend** for magic-link email (`EMAIL_PROVIDER=resend`, `EMAIL_API_KEY`, `EMAIL_FROM`). DEMO_MODE uses a console sender with a dev outbox. | 2026-11-19 | Simplest HTTP API with a free tier; owner approved. |
-| 5 | (Partial) Production runs with **`docker compose` on the owner's own Linux machine**, not a PaaS. Images must build there. | 2026-11-19 | Owner: "This will be deployed on a separate linux machine." |
+| 5 | Production runs **natively (no Docker) as a systemd service** on the owner's Linux box `rogue@192.168.1.167` (Debian 13, aarch64), port **8090** (brothereye already uses 8080 there), managed by a brothereye-style `dateapp` CLI. Public entry is **`https://dates.lan`** through the owner's citadel Caddy + Pi-hole on 192.168.1.164 (HTTPS is required for PWA install, service worker and Web Push). | 2026-11-19 | Owner: deploy like brothereye, "Move date app to rogue@192.168.1.167. Then, add both brothereye and dates to caddy dns". Replaces the earlier docker-compose plan: the docker bridge networks on the Pi had no internet egress. |
+| 6 | **PostgreSQL 17** from Debian's packages (`apt install postgresql`), not 16. | 2026-11-19 | Distro-supported with apt security updates; owner approved. |
 
 ---
 

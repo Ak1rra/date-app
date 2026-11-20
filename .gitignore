@@ -31,3 +31,5 @@ Thumbs.db
 # Local tooling
 .worktrees/
 *.log
+logs/
+backups/

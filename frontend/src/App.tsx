@@ -1,0 +1,48 @@
+import { createBrowserRouter, type RouteObject } from 'react-router';
+import { AppShell } from './components/AppShell';
+import { SessionBootstrap } from './components/SessionBootstrap';
+import { RequireAuth } from './components/RequireAuth';
+import { CalendarPage } from './pages/CalendarPage';
+import { ChatPage } from './pages/ChatPage';
+import { HomePage } from './pages/HomePage';
+import { IdeasPage } from './pages/IdeasPage';
+import { PlanPage } from './pages/PlanPage';
+import { SetupPage } from './pages/SetupPage';
+import { SignInPage } from './pages/SignInPage';
+import { UsPage } from './pages/UsPage';
+import { VerifyPage } from './pages/VerifyPage';
+
+export const routes: RouteObject[] = [
+  {
+    element: <SessionBootstrap />,
+    children: [
+      { path: '/signin', element: <SignInPage /> },
+      { path: '/auth/verify', element: <VerifyPage /> },
+      {
+        path: '/setup',
+        element: (
+          <RequireAuth allowIncompleteProfile>
+            <SetupPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        element: (
+          <RequireAuth>
+            <AppShell />
+          </RequireAuth>
+        ),
+        children: [
+          { path: '/', element: <HomePage /> },
+          { path: '/ideas', element: <IdeasPage /> },
+          { path: '/calendar', element: <CalendarPage /> },
+          { path: '/chat', element: <ChatPage /> },
+          { path: '/us', element: <UsPage /> },
+          { path: '/plan', element: <PlanPage /> },
+        ],
+      },
+    ],
+  },
+];
+
+export const router = createBrowserRouter(routes);
