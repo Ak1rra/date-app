@@ -14,6 +14,7 @@ from typing import Any, cast
 from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import Settings
 from app.errors import ApiError
 from app.models import Couple, CoupleMember, Idea, Itinerary, Vote
 from app.schemas.ideas import (
@@ -33,6 +34,7 @@ from app.services.ideas_access import (
     shared_deck_ideas,
     shared_listed_ideas,
 )
+from app.services.notify import notify
 
 DECK_SIZE = 20
 UNDO_WINDOW = timedelta(minutes=10)
@@ -43,9 +45,27 @@ EARTH_RADIUS_KM = 6371.0
 _OPTIONAL_FIELDS = ("category", "est_cost", "duration_minutes", "best_time", "indoor_outdoor")
 
 
-async def on_match(session: AsyncSession, idea: Idea, last_voter_user_id: uuid.UUID) -> None:
-    """Called once when an idea becomes a match (both said yes). A hook: realtime and
-    notifications attach here."""
+async def on_match(
+    session: AsyncSession,
+    idea: Idea,
+    last_voter_user_id: uuid.UUID,
+    settings: Settings,
+) -> None:
+    """Notify the earlier voter when an idea becomes a match."""
+    partner = await partner_user_id(session, idea.couple_id, last_voter_user_id)
+    if partner is None:
+        return
+    await notify(
+        session,
+        partner,
+        "match",
+        "It's a match! 💘",
+        f"You both said yes to “{idea.title[:80]}”.",
+        {"url": "/ideas"},
+        couple_id=idea.couple_id,
+        dedupe_key=f"match:{idea.id}",
+        settings=settings,
+    )
 
 
 async def get_couple(session: AsyncSession, couple_id: uuid.UUID) -> Couple:
@@ -348,6 +368,7 @@ async def cast_vote(
     me: uuid.UUID,
     idea_id: uuid.UUID,
     value: str,
+    settings: Settings,
 ) -> Idea:
     """Record or change my vote on a shared idea. When that turns the idea into a match,
     `on_match` is called (not again when a match is re-voted yes)."""
@@ -372,7 +393,7 @@ async def cast_vote(
         existing.updated_at = now()
     await session.flush()
     if value == "yes" and theirs == "yes" and not was_match:
-        await on_match(session, idea, me)
+        await on_match(session, idea, me, settings)
     return idea
 
 

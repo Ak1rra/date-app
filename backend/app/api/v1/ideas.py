@@ -3,8 +3,9 @@ import uuid
 from fastapi import APIRouter, Depends, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import Settings
 from app.db import get_session
-from app.deps import CurrentUser, current_user
+from app.deps import CurrentUser, current_user, get_app_settings
 from app.models import Idea
 from app.schemas.ideas import (
     DeckOut,
@@ -114,11 +115,17 @@ async def get_deck(
 async def vote(
     idea_id: uuid.UUID,
     body: VoteIn,
+    settings: Settings = Depends(get_app_settings),
     session: AsyncSession = Depends(get_session),
     current: CurrentUser = Depends(current_user),
 ) -> IdeaOut:
     idea = await idea_service.cast_vote(
-        session, require_couple_id(current.couple_id), current.user.id, idea_id, body.value
+        session,
+        require_couple_id(current.couple_id),
+        current.user.id,
+        idea_id,
+        body.value,
+        settings,
     )
     await session.commit()
     return await _out(session, current, idea)

@@ -24,7 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings
 from app.errors import ApiError
-from app.models import ChecklistItem, Couple, Itinerary, Stop, TravelLeg
+from app.models import ChecklistItem, Couple, CoupleMember, Itinerary, Stop, TravelLeg
 from app.providers.registry import Providers
 from app.providers.types import LatLng, Place, ProviderUnavailable, to_jsonable
 from app.providers.weather.base import ATTRIBUTION as WEATHER_ATTRIBUTION
@@ -46,6 +46,7 @@ from app.schemas.itineraries import (
 )
 from app.services.couple import _money, not_found, now
 from app.services.itinerary_access import visible_itineraries
+from app.services.notify import notify
 
 logger = logging.getLogger(__name__)
 
@@ -440,8 +441,38 @@ async def compute_warnings(
     return list(itinerary.warnings or [])
 
 
-async def on_scheduled(session: AsyncSession, itinerary: Itinerary) -> None:
-    """Hook run after an itinerary is scheduled (reminders and notifications attach here)."""
+async def on_scheduled(session: AsyncSession, itinerary: Itinerary, settings: Settings) -> None:
+    """Notify the non-planner member after an announced date is scheduled."""
+    if itinerary.announced_at is None or itinerary.is_surprise or itinerary.starts_at is None:
+        return
+    couple = await session.get(Couple, itinerary.couple_id)
+    if couple is None:
+        return
+    partner = (
+        await session.execute(
+            select(CoupleMember.user_id).where(
+                CoupleMember.couple_id == itinerary.couple_id,
+                CoupleMember.user_id != itinerary.planner_user_id,
+                CoupleMember.left_at.is_(None),
+            )
+        )
+    ).scalar_one_or_none()
+    if partner is None:
+        return
+    local = itinerary.starts_at.astimezone(zone_for(couple.timezone))
+    hour = local.strftime("%I").lstrip("0") or "0"
+    local_time = f"{local:%a} {local.day} {local:%b}, {hour}:{local:%M} {local:%p}"
+    await notify(
+        session,
+        partner,
+        "date_announced",
+        "You've got a date 📅",
+        f"{itinerary.title} — {local_time}",
+        {"url": f"/itineraries/{itinerary.id}"},
+        couple_id=itinerary.couple_id,
+        dedupe_key=f"announced:{itinerary.id}:{itinerary.starts_at.isoformat()}",
+        settings=settings,
+    )
 
 
 def zone_for(name: str) -> ZoneInfo:
@@ -770,7 +801,7 @@ async def schedule(
     itinerary.updated_at = now()
     await session.flush()
     await revalidate(session, itinerary, providers, settings)
-    await on_scheduled(session, itinerary)
+    await on_scheduled(session, itinerary, settings)
 
 
 async def cancel(session: AsyncSession, itinerary: Itinerary) -> None:

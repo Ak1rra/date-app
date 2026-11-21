@@ -887,7 +887,7 @@ async def test_schedule_announce_makes_the_date_visible_and_runs_the_hook(
     async with world(db_app) as w:
         hooked: list[uuid.UUID] = []
 
-        async def on_scheduled(session: Any, itinerary: Itinerary) -> None:
+        async def on_scheduled(session: Any, itinerary: Itinerary, settings: Any) -> None:
             hooked.append(itinerary.id)
 
         monkeypatch.setattr(service, "on_scheduled", on_scheduled)

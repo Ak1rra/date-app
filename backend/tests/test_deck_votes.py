@@ -148,7 +148,9 @@ async def test_match_hook_fires_on_the_transition_into_a_match_only(
 ) -> None:
     calls: list[tuple[str, uuid.UUID]] = []
 
-    async def record(session: AsyncSession, idea: Idea, last_voter: uuid.UUID) -> None:
+    async def record(
+        session: AsyncSession, idea: Idea, last_voter: uuid.UUID, settings: object
+    ) -> None:
         calls.append((idea.title, last_voter))
 
     monkeypatch.setattr(idea_service, "on_match", record)
@@ -176,7 +178,9 @@ async def test_match_hook_fires_on_the_transition_into_a_match_only(
 async def test_one_yes_is_not_a_match(db_app: FastAPI, monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[str] = []
 
-    async def record(session: AsyncSession, idea: Idea, last_voter: uuid.UUID) -> None:
+    async def record(
+        session: AsyncSession, idea: Idea, last_voter: uuid.UUID, settings: object
+    ) -> None:
         calls.append(idea.title)
 
     monkeypatch.setattr(idea_service, "on_match", record)
