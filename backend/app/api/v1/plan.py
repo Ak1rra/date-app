@@ -8,10 +8,12 @@ from app.api.v1.itineraries import get_itinerary_providers
 from app.config import Settings
 from app.db import get_session
 from app.deps import CurrentUser, current_user, get_app_settings
+from app.models import Idea
 from app.models.plan import PlanSession
 from app.providers.registry import Providers
 from app.schemas.itineraries import ItineraryOut
 from app.schemas.plan import (
+    IdeaItineraryIn,
     PlanBuildIn,
     PlanOptionsIn,
     PlanOptionsOut,
@@ -21,8 +23,10 @@ from app.schemas.plan import (
 from app.services import itineraries as itinerary_service
 from app.services import planning as service
 from app.services.couple import require_couple_id
+from app.services.ideas_access import get_visible_idea
 
 router = APIRouter(prefix="/plan", tags=["plan"])
+idea_router = APIRouter(tags=["plan"])
 
 
 @router.post("/sessions", response_model=PlanSessionOut, status_code=201)
@@ -145,6 +149,47 @@ async def plan_all(
         sessionmaker=request.app.state.sessionmaker,
         plan=plan,
         requester_user_id=current.user.id,
+    )
+    await session.commit()
+    return await itinerary_service.itinerary_out(
+        session, itinerary, current.user.id, providers, settings=settings
+    )
+
+
+async def visible_idea(
+    idea_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    current: CurrentUser = Depends(current_user),
+) -> Idea:
+    """An idea the caller may see, else 404 — resolved before the AI and provider dependencies,
+    so nobody learns anything about an idea they can't see."""
+    return await get_visible_idea(
+        session, require_couple_id(current.couple_id), current.user.id, idea_id
+    )
+
+
+@idea_router.post("/ideas/{idea_id}/itinerary", response_model=ItineraryOut, status_code=201)
+async def make_it_a_date(
+    body: IdeaItineraryIn,
+    request: Request,
+    idea: Idea = Depends(visible_idea),
+    ai: AIClient = Depends(get_ai),
+    settings: Settings = Depends(get_app_settings),
+    providers: Providers = Depends(get_itinerary_providers),
+    session: AsyncSession = Depends(get_session),
+    current: CurrentUser = Depends(current_user),
+) -> ItineraryOut:
+    """One build from an idea; with no start time, the first time you're both free."""
+    itinerary = await service.build_from_idea(
+        session,
+        ai=ai,
+        providers=providers,
+        settings=settings,
+        sessionmaker=request.app.state.sessionmaker,
+        couple_id=require_couple_id(current.couple_id),
+        requester_user_id=current.user.id,
+        idea_id=idea.id,
+        body=body,
     )
     await session.commit()
     return await itinerary_service.itinerary_out(

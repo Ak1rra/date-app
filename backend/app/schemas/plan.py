@@ -26,6 +26,15 @@ class PlanSessionIn(BaseModel):
     surprise: bool = False
 
 
+class IdeaItineraryIn(BaseModel):
+    """ "Make it a date" from an idea. With no `starts_at`, the first time you're both free."""
+
+    starts_at: AwareDatetime | None = None
+    ends_at: AwareDatetime | None = None
+    stop_count: Annotated[int, Field(ge=1, le=5)] | None = None
+    budget_max: Cost | None = None
+
+
 class PlanOptionsIn(BaseModel):
     more: bool = False
 

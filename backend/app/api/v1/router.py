@@ -15,6 +15,7 @@ from app.api.v1 import (
     places,
     plan,
     profiles,
+    templates,
 )
 
 router = APIRouter()
@@ -32,3 +33,5 @@ router.include_router(places.router)
 router.include_router(notes.router)
 router.include_router(ideas.router)
 router.include_router(plan.router)
+router.include_router(plan.idea_router)
+router.include_router(templates.router)
