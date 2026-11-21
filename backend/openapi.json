@@ -366,6 +366,76 @@
         "title": "CouplePatch",
         "type": "object"
       },
+      "DeckOut": {
+        "properties": {
+          "cards": {
+            "items": {
+              "$ref": "#/components/schemas/IdeaOut"
+            },
+            "title": "Cards",
+            "type": "array"
+          },
+          "partner_joined": {
+            "title": "Partner Joined",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "cards",
+          "partner_joined"
+        ],
+        "title": "DeckOut",
+        "type": "object"
+      },
+      "EventOut": {
+        "properties": {
+          "local_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Local Date"
+          },
+          "local_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Local Time"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "required": [
+          "name",
+          "local_date",
+          "local_time",
+          "url"
+        ],
+        "title": "EventOut",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -441,6 +511,450 @@
           "query"
         ],
         "title": "HomeAreaIn",
+        "type": "object"
+      },
+      "IdeaIn": {
+        "properties": {
+          "best_time": {
+            "anyOf": [
+              {
+                "enum": [
+                  "day",
+                  "evening",
+                  "weekend",
+                  "any"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Time"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "duration_minutes": {
+            "anyOf": [
+              {
+                "maximum": 1440.0,
+                "minimum": 15.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Minutes"
+          },
+          "est_cost": {
+            "anyOf": [
+              {
+                "maximum": 99999999.99,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Est Cost"
+          },
+          "indoor_outdoor": {
+            "anyOf": [
+              {
+                "enum": [
+                  "indoor",
+                  "outdoor",
+                  "either"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Indoor Outdoor"
+          },
+          "pitch": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Pitch",
+            "type": "string"
+          },
+          "tags": {
+            "default": [],
+            "items": {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 10,
+            "title": "Tags",
+            "type": "array"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "IdeaIn",
+        "type": "object"
+      },
+      "IdeaListsOut": {
+        "properties": {
+          "matches": {
+            "items": {
+              "$ref": "#/components/schemas/IdeaOut"
+            },
+            "title": "Matches",
+            "type": "array"
+          },
+          "maybes": {
+            "items": {
+              "$ref": "#/components/schemas/IdeaOut"
+            },
+            "title": "Maybes",
+            "type": "array"
+          },
+          "passed": {
+            "items": {
+              "$ref": "#/components/schemas/IdeaOut"
+            },
+            "title": "Passed",
+            "type": "array"
+          },
+          "pending_partner": {
+            "items": {
+              "$ref": "#/components/schemas/IdeaOut"
+            },
+            "title": "Pending Partner",
+            "type": "array"
+          }
+        },
+        "required": [
+          "matches",
+          "maybes",
+          "pending_partner",
+          "passed"
+        ],
+        "title": "IdeaListsOut",
+        "type": "object"
+      },
+      "IdeaOut": {
+        "properties": {
+          "attributions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Attributions",
+            "type": "array"
+          },
+          "best_time": {
+            "anyOf": [
+              {
+                "enum": [
+                  "day",
+                  "evening",
+                  "weekend",
+                  "any"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Time"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "created_by_me": {
+            "title": "Created By Me",
+            "type": "boolean"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "duration_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Minutes"
+          },
+          "est_cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Est Cost"
+          },
+          "event": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EventOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "grounded": {
+            "title": "Grounded",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "indoor_outdoor": {
+            "anyOf": [
+              {
+                "enum": [
+                  "indoor",
+                  "outdoor",
+                  "either"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Indoor Outdoor"
+          },
+          "may_have_changed": {
+            "title": "May Have Changed",
+            "type": "boolean"
+          },
+          "pitch": {
+            "title": "Pitch",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "ai",
+              "chat",
+              "manual",
+              "plan",
+              "mentioned"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "archived",
+              "expired"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "valid_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Until"
+          },
+          "venue": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VenueOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "visibility": {
+            "enum": [
+              "private",
+              "shared"
+            ],
+            "title": "Visibility",
+            "type": "string"
+          },
+          "votes": {
+            "$ref": "#/components/schemas/VotesOut"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "pitch",
+          "tags",
+          "category",
+          "est_cost",
+          "currency",
+          "duration_minutes",
+          "best_time",
+          "indoor_outdoor",
+          "grounded",
+          "venue",
+          "event",
+          "valid_until",
+          "status",
+          "may_have_changed",
+          "visibility",
+          "source",
+          "created_by_me",
+          "votes",
+          "attributions"
+        ],
+        "title": "IdeaOut",
+        "type": "object"
+      },
+      "IdeaPatch": {
+        "properties": {
+          "best_time": {
+            "anyOf": [
+              {
+                "enum": [
+                  "day",
+                  "evening",
+                  "weekend",
+                  "any"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Time"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "duration_minutes": {
+            "anyOf": [
+              {
+                "maximum": 1440.0,
+                "minimum": 15.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Minutes"
+          },
+          "est_cost": {
+            "anyOf": [
+              {
+                "maximum": 99999999.99,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Est Cost"
+          },
+          "indoor_outdoor": {
+            "anyOf": [
+              {
+                "enum": [
+                  "indoor",
+                  "outdoor",
+                  "either"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Indoor Outdoor"
+          },
+          "pitch": {
+            "maxLength": 2000,
+            "title": "Pitch",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 10,
+            "title": "Tags",
+            "type": "array"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "title": "IdeaPatch",
         "type": "object"
       },
       "ImportantDateIn": {
@@ -1370,6 +1884,74 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "VenueOut": {
+        "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "distance_km": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance Km"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "price_level": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Level"
+          },
+          "rating": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating"
+          }
+        },
+        "required": [
+          "name",
+          "rating",
+          "price_level",
+          "address",
+          "distance_km"
+        ],
+        "title": "VenueOut",
+        "type": "object"
+      },
       "VerifyIn": {
         "properties": {
           "timezone": {
@@ -1392,6 +1974,67 @@
           "token"
         ],
         "title": "VerifyIn",
+        "type": "object"
+      },
+      "VoteIn": {
+        "properties": {
+          "value": {
+            "enum": [
+              "yes",
+              "no",
+              "maybe"
+            ],
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "title": "VoteIn",
+        "type": "object"
+      },
+      "VotesOut": {
+        "description": "`partner` stays null until both members have voted (FR-VOTE-2).",
+        "properties": {
+          "mine": {
+            "anyOf": [
+              {
+                "enum": [
+                  "yes",
+                  "no",
+                  "maybe"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mine"
+          },
+          "partner": {
+            "anyOf": [
+              {
+                "enum": [
+                  "yes",
+                  "no",
+                  "maybe"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partner"
+          }
+        },
+        "required": [
+          "mine",
+          "partner"
+        ],
+        "title": "VotesOut",
         "type": "object"
       },
       "WindowIO": {
@@ -1918,6 +2561,52 @@
         ]
       }
     },
+    "/api/v1/deck": {
+      "get": {
+        "operationId": "get_deck_api_v1_deck_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeckOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Deck",
+        "tags": [
+          "ideas"
+        ]
+      }
+    },
+    "/api/v1/deck/undo": {
+      "post": {
+        "description": "Takes back my latest vote if it is under ten minutes old and not locked.",
+        "operationId": "undo_api_v1_deck_undo_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdeaOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "204": {
+            "description": "Nothing to undo."
+          }
+        },
+        "summary": "Undo",
+        "tags": [
+          "ideas"
+        ]
+      }
+    },
     "/api/v1/dev/outbox": {
       "get": {
         "description": "DEV_OUTBOX only: the console email sender's outbox, newest first, at most 50.",
@@ -1972,6 +2661,317 @@
         "summary": "Health",
         "tags": [
           "meta"
+        ]
+      }
+    },
+    "/api/v1/ideas": {
+      "get": {
+        "description": "`private` is the caller's own ideas, `shared` is the couple's.",
+        "operationId": "list_ideas_api_v1_ideas_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "visibility",
+            "required": false,
+            "schema": {
+              "default": "private",
+              "enum": [
+                "private",
+                "shared"
+              ],
+              "title": "Visibility",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": "active",
+              "enum": [
+                "active",
+                "archived",
+                "expired"
+              ],
+              "title": "Status",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/IdeaOut"
+                  },
+                  "title": "Response List Ideas Api V1 Ideas Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Ideas",
+        "tags": [
+          "ideas"
+        ]
+      },
+      "post": {
+        "operationId": "create_idea_api_v1_ideas_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdeaIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdeaOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Idea",
+        "tags": [
+          "ideas"
+        ]
+      }
+    },
+    "/api/v1/ideas/lists": {
+      "get": {
+        "operationId": "idea_lists_api_v1_ideas_lists_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdeaListsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Idea Lists",
+        "tags": [
+          "ideas"
+        ]
+      }
+    },
+    "/api/v1/ideas/{idea_id}": {
+      "delete": {
+        "description": "Archives the idea; nothing is deleted.",
+        "operationId": "delete_idea_api_v1_ideas__idea_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "idea_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Idea Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Idea",
+        "tags": [
+          "ideas"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_idea_api_v1_ideas__idea_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "idea_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Idea Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdeaPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdeaOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Idea",
+        "tags": [
+          "ideas"
+        ]
+      }
+    },
+    "/api/v1/ideas/{idea_id}/share": {
+      "post": {
+        "operationId": "share_idea_api_v1_ideas__idea_id__share_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "idea_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Idea Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdeaOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Share Idea",
+        "tags": [
+          "ideas"
+        ]
+      }
+    },
+    "/api/v1/ideas/{idea_id}/vote": {
+      "put": {
+        "operationId": "vote_api_v1_ideas__idea_id__vote_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "idea_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Idea Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdeaOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Vote",
+        "tags": [
+          "ideas"
         ]
       }
     },

@@ -210,6 +210,43 @@ export interface paths {
         patch: operations["patch_important_date_api_v1_couple_important_dates__date_id__patch"];
         trace?: never;
     };
+    "/api/v1/deck": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Deck */
+        get: operations["get_deck_api_v1_deck_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deck/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Undo
+         * @description Takes back my latest vote if it is under ten minutes old and not locked.
+         */
+        post: operations["undo_api_v1_deck_undo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dev/outbox": {
         parameters: {
             query?: never;
@@ -240,6 +277,99 @@ export interface paths {
         /** Health */
         get: operations["health_api_v1_health_get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ideas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Ideas
+         * @description `private` is the caller's own ideas, `shared` is the couple's.
+         */
+        get: operations["list_ideas_api_v1_ideas_get"];
+        put?: never;
+        /** Create Idea */
+        post: operations["create_idea_api_v1_ideas_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ideas/lists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Idea Lists */
+        get: operations["idea_lists_api_v1_ideas_lists_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ideas/{idea_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Idea
+         * @description Archives the idea; nothing is deleted.
+         */
+        delete: operations["delete_idea_api_v1_ideas__idea_id__delete"];
+        options?: never;
+        head?: never;
+        /** Patch Idea */
+        patch: operations["patch_idea_api_v1_ideas__idea_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/ideas/{idea_id}/share": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Share Idea */
+        post: operations["share_idea_api_v1_ideas__idea_id__share_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ideas/{idea_id}/vote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Vote */
+        put: operations["vote_api_v1_ideas__idea_id__vote_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -501,6 +631,24 @@ export interface components {
             /** Timezone */
             timezone?: string;
         };
+        /** DeckOut */
+        DeckOut: {
+            /** Cards */
+            cards: components["schemas"]["IdeaOut"][];
+            /** Partner Joined */
+            partner_joined: boolean;
+        };
+        /** EventOut */
+        EventOut: {
+            /** Local Date */
+            local_date: string | null;
+            /** Local Time */
+            local_time: string | null;
+            /** Name */
+            name: string;
+            /** Url */
+            url: string | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -532,6 +680,115 @@ export interface components {
         HomeAreaIn: {
             /** Query */
             query: string;
+        };
+        /** IdeaIn */
+        IdeaIn: {
+            /** Best Time */
+            best_time?: ("day" | "evening" | "weekend" | "any") | null;
+            /** Category */
+            category?: string | null;
+            /** Duration Minutes */
+            duration_minutes?: number | null;
+            /** Est Cost */
+            est_cost?: number | null;
+            /** Indoor Outdoor */
+            indoor_outdoor?: ("indoor" | "outdoor" | "either") | null;
+            /**
+             * Pitch
+             * @default
+             */
+            pitch: string;
+            /**
+             * Tags
+             * @default []
+             */
+            tags: string[];
+            /** Title */
+            title: string;
+        };
+        /** IdeaListsOut */
+        IdeaListsOut: {
+            /** Matches */
+            matches: components["schemas"]["IdeaOut"][];
+            /** Maybes */
+            maybes: components["schemas"]["IdeaOut"][];
+            /** Passed */
+            passed: components["schemas"]["IdeaOut"][];
+            /** Pending Partner */
+            pending_partner: components["schemas"]["IdeaOut"][];
+        };
+        /** IdeaOut */
+        IdeaOut: {
+            /** Attributions */
+            attributions: string[];
+            /** Best Time */
+            best_time: ("day" | "evening" | "weekend" | "any") | null;
+            /** Category */
+            category: string | null;
+            /** Created By Me */
+            created_by_me: boolean;
+            /** Currency */
+            currency: string;
+            /** Duration Minutes */
+            duration_minutes: number | null;
+            /** Est Cost */
+            est_cost: number | null;
+            event: components["schemas"]["EventOut"] | null;
+            /** Grounded */
+            grounded: boolean;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Indoor Outdoor */
+            indoor_outdoor: ("indoor" | "outdoor" | "either") | null;
+            /** May Have Changed */
+            may_have_changed: boolean;
+            /** Pitch */
+            pitch: string;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "ai" | "chat" | "manual" | "plan" | "mentioned";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "archived" | "expired";
+            /** Tags */
+            tags: string[];
+            /** Title */
+            title: string;
+            /** Valid Until */
+            valid_until: string | null;
+            venue: components["schemas"]["VenueOut"] | null;
+            /**
+             * Visibility
+             * @enum {string}
+             */
+            visibility: "private" | "shared";
+            votes: components["schemas"]["VotesOut"];
+        };
+        /** IdeaPatch */
+        IdeaPatch: {
+            /** Best Time */
+            best_time?: ("day" | "evening" | "weekend" | "any") | null;
+            /** Category */
+            category?: string | null;
+            /** Duration Minutes */
+            duration_minutes?: number | null;
+            /** Est Cost */
+            est_cost?: number | null;
+            /** Indoor Outdoor */
+            indoor_outdoor?: ("indoor" | "outdoor" | "either") | null;
+            /** Pitch */
+            pitch?: string;
+            /** Tags */
+            tags?: string[];
+            /** Title */
+            title?: string;
         };
         /** ImportantDateIn */
         ImportantDateIn: {
@@ -854,12 +1111,43 @@ export interface components {
             /** Error Type */
             type: string;
         };
+        /** VenueOut */
+        VenueOut: {
+            /** Address */
+            address: string | null;
+            /** Distance Km */
+            distance_km: number | null;
+            /** Name */
+            name: string | null;
+            /** Price Level */
+            price_level: number | null;
+            /** Rating */
+            rating: number | null;
+        };
         /** VerifyIn */
         VerifyIn: {
             /** Timezone */
             timezone?: string | null;
             /** Token */
             token: string;
+        };
+        /** VoteIn */
+        VoteIn: {
+            /**
+             * Value
+             * @enum {string}
+             */
+            value: "yes" | "no" | "maybe";
+        };
+        /**
+         * VotesOut
+         * @description `partner` stays null until both members have voted (FR-VOTE-2).
+         */
+        VotesOut: {
+            /** Mine */
+            mine: ("yes" | "no" | "maybe") | null;
+            /** Partner */
+            partner: ("yes" | "no" | "maybe") | null;
         };
         /** WindowIO */
         WindowIO: {
@@ -1296,6 +1584,53 @@ export interface operations {
             };
         };
     };
+    get_deck_api_v1_deck_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeckOut"];
+                };
+            };
+        };
+    };
+    undo_api_v1_deck_undo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdeaOut"];
+                };
+            };
+            /** @description Nothing to undo. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     outbox_api_v1_dev_outbox_get: {
         parameters: {
             query?: never;
@@ -1341,6 +1676,221 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthOut"];
+                };
+            };
+        };
+    };
+    list_ideas_api_v1_ideas_get: {
+        parameters: {
+            query?: {
+                visibility?: "private" | "shared";
+                status?: "active" | "archived" | "expired";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdeaOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_idea_api_v1_ideas_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IdeaIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdeaOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    idea_lists_api_v1_ideas_lists_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdeaListsOut"];
+                };
+            };
+        };
+    };
+    delete_idea_api_v1_ideas__idea_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                idea_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_idea_api_v1_ideas__idea_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                idea_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IdeaPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdeaOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    share_idea_api_v1_ideas__idea_id__share_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                idea_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdeaOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    vote_api_v1_ideas__idea_id__vote_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                idea_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoteIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdeaOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

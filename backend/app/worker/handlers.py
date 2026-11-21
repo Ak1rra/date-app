@@ -3,13 +3,14 @@
 Handlers are idempotent and leave committing to the job runner (see app.worker.jobs).
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import delete, func, or_
+from sqlalchemy import delete, func, or_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.ai import ProviderCache
+from app.models.ideas import Idea
 from app.models.jobs import Job
 from app.models.user import MagicLinkToken, UserSession
 from app.worker.jobs import enqueue, register
@@ -32,6 +33,36 @@ def _hour_start(moment: datetime) -> datetime:
 
 def _cleanup_key(hour: datetime) -> str:
     return f"{AUTH_CLEANUP}:{hour.strftime('%Y-%m-%dT%H')}"
+
+
+IDEAS_EXPIRE = "ideas.expire"
+
+
+def _expire_key(day: date) -> str:
+    return f"{IDEAS_EXPIRE}:{day.isoformat()}"
+
+
+async def schedule_ideas_expire(session: AsyncSession, *, next_day: bool) -> bool:
+    """Enqueue the ideas.expire job for today (due now) or tomorrow (due at 00:00 UTC). One job
+    per day: the dedupe key is the date, so repeats are no-ops. The caller commits."""
+    day = _utcnow().astimezone(UTC).date()
+    if next_day:
+        day += timedelta(days=1)
+        run_at = datetime.combine(day, datetime.min.time(), tzinfo=UTC)
+        return await enqueue(session, IDEAS_EXPIRE, {}, run_at=run_at, dedupe_key=_expire_key(day))
+    return await enqueue(session, IDEAS_EXPIRE, {}, dedupe_key=_expire_key(day))
+
+
+@register(IDEAS_EXPIRE)
+async def ideas_expire(session: AsyncSession, payload: dict[str, Any]) -> None:
+    """Mark active grounded ideas whose `valid_until` has passed as expired (FR-IDEA-4), then
+    schedule the next run. Self-scheduling, so a missed day just runs late."""
+    await session.execute(
+        update(Idea)
+        .where(Idea.grounded.is_(True), Idea.status == "active", Idea.valid_until < func.now())
+        .values(status="expired", updated_at=func.now())
+    )
+    await schedule_ideas_expire(session, next_day=True)
 
 
 async def schedule_auth_cleanup(session: AsyncSession, *, next_hour: bool) -> bool:

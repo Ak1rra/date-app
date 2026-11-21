@@ -495,7 +495,7 @@ async def test_worker_enqueues_the_current_hours_cleanup_at_startup_and_runs_it(
     task = asyncio.create_task(runner.run_worker(make_settings(), stop, sessionmaker))
     try:
         async with asyncio.timeout(10):
-            while await count_jobs(sessionmaker, status="done") < 1:  # noqa: ASYNC110
+            while await count_jobs(sessionmaker, kind="auth.cleanup", status="done") < 1:  # noqa: ASYNC110
                 await asyncio.sleep(0.05)  # polling the database
     finally:
         stop.set()
