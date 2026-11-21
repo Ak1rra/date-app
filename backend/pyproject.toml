@@ -55,6 +55,10 @@ strict = true
 plugins = ["pydantic.mypy"]
 files = ["app"]
 
+[[tool.mypy.overrides]]
+module = ["pywebpush", "py_vapid"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"

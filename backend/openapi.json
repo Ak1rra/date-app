@@ -1367,6 +1367,126 @@
         "title": "NotePatch",
         "type": "object"
       },
+      "NotificationOut": {
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "data": {
+            "additionalProperties": true,
+            "title": "Data",
+            "type": "object"
+          },
+          "deliver_after": {
+            "format": "date-time",
+            "title": "Deliver After",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "pushed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pushed At"
+          },
+          "read_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read At"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "body",
+          "data",
+          "deliver_after",
+          "created_at",
+          "pushed_at",
+          "read_at"
+        ],
+        "title": "NotificationOut",
+        "type": "object"
+      },
+      "NotificationSettings": {
+        "properties": {
+          "kinds": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "title": "Kinds",
+            "type": "object"
+          },
+          "quiet_end": {
+            "title": "Quiet End",
+            "type": "string"
+          },
+          "quiet_start": {
+            "title": "Quiet Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kinds",
+          "quiet_start",
+          "quiet_end"
+        ],
+        "title": "NotificationSettings",
+        "type": "object"
+      },
+      "NotificationSettingsPatch": {
+        "properties": {
+          "kinds": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "title": "Kinds",
+            "type": "object"
+          },
+          "quiet_end": {
+            "title": "Quiet End",
+            "type": "string"
+          },
+          "quiet_start": {
+            "title": "Quiet Start",
+            "type": "string"
+          }
+        },
+        "title": "NotificationSettingsPatch",
+        "type": "object"
+      },
       "OkOut": {
         "properties": {
           "ok": {
@@ -1820,6 +1940,67 @@
         "title": "ProfileOut",
         "type": "object"
       },
+      "PushConfigOut": {
+        "properties": {
+          "public_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Public Key"
+          }
+        },
+        "required": [
+          "public_key"
+        ],
+        "title": "PushConfigOut",
+        "type": "object"
+      },
+      "PushKeys": {
+        "properties": {
+          "auth": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Auth",
+            "type": "string"
+          },
+          "p256dh": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "P256Dh",
+            "type": "string"
+          }
+        },
+        "required": [
+          "p256dh",
+          "auth"
+        ],
+        "title": "PushKeys",
+        "type": "object"
+      },
+      "PushSubscriptionIn": {
+        "properties": {
+          "endpoint": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Endpoint",
+            "type": "string"
+          },
+          "keys": {
+            "$ref": "#/components/schemas/PushKeys"
+          }
+        },
+        "required": [
+          "endpoint",
+          "keys"
+        ],
+        "title": "PushSubscriptionIn",
+        "type": "object"
+      },
       "SessionOut": {
         "properties": {
           "authenticated": {
@@ -1842,6 +2023,32 @@
           "user"
         ],
         "title": "SessionOut",
+        "type": "object"
+      },
+      "UnreadCountOut": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count"
+        ],
+        "title": "UnreadCountOut",
+        "type": "object"
+      },
+      "UpdatedOut": {
+        "properties": {
+          "updated": {
+            "title": "Updated",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "updated"
+        ],
+        "title": "UpdatedOut",
         "type": "object"
       },
       "ValidationError": {
@@ -3036,6 +3243,160 @@
         ]
       }
     },
+    "/api/v1/me/notification-settings": {
+      "get": {
+        "operationId": "get_notification_settings_api_v1_me_notification_settings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Notification Settings",
+        "tags": [
+          "notifications"
+        ]
+      },
+      "put": {
+        "operationId": "put_notification_settings_api_v1_me_notification_settings_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationSettingsPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Notification Settings",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/api/v1/me/push-subscriptions": {
+      "delete": {
+        "operationId": "delete_push_subscription_api_v1_me_push_subscriptions_delete",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "endpoint",
+            "required": true,
+            "schema": {
+              "maxLength": 2000,
+              "minLength": 1,
+              "title": "Endpoint",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Push Subscription",
+        "tags": [
+          "notifications"
+        ]
+      },
+      "post": {
+        "operationId": "add_push_subscription_api_v1_me_push_subscriptions_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "user-agent",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "User-Agent"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushSubscriptionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Push Subscription",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
     "/api/v1/meta": {
       "get": {
         "operationId": "meta_api_v1_meta_get",
@@ -3238,6 +3599,171 @@
         "summary": "Patch Note",
         "tags": [
           "notes"
+        ]
+      }
+    },
+    "/api/v1/notifications": {
+      "get": {
+        "operationId": "list_notifications_api_v1_notifications_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "unread",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Unread",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/NotificationOut"
+                  },
+                  "title": "Response List Notifications Api V1 Notifications Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Notifications",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/api/v1/notifications/push-config": {
+      "get": {
+        "operationId": "push_config_api_v1_notifications_push_config_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushConfigOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Push Config",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/api/v1/notifications/read-all": {
+      "post": {
+        "operationId": "read_all_notifications_api_v1_notifications_read_all_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdatedOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read All Notifications",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/api/v1/notifications/unread-count": {
+      "get": {
+        "operationId": "unread_count_api_v1_notifications_unread_count_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnreadCountOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Unread Count",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/api/v1/notifications/{notification_id}/read": {
+      "post": {
+        "operationId": "mark_notification_read_api_v1_notifications__notification_id__read_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notification_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Notification Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mark Notification Read",
+        "tags": [
+          "notifications"
         ]
       }
     },

@@ -22,6 +22,7 @@ One entry point for building, running and deploying the app. Installed with
 from __future__ import annotations
 
 import asyncio
+import base64
 import getpass
 import os
 import re
@@ -34,6 +35,7 @@ from typing import Any, NoReturn
 
 import click
 import httpx
+from cryptography.hazmat.primitives.asymmetric import ec
 from sqlalchemy.engine import make_url
 
 from app import __version__
@@ -282,6 +284,29 @@ def _run_backup(keep: int) -> str:
 @click.group()
 def cli() -> None:
     """DATE APP command-line interface."""
+
+
+@cli.group()
+def vapid() -> None:
+    """Manage Web Push VAPID keys."""
+
+
+@vapid.command("generate")
+def vapid_generate() -> None:
+    """Generate a VAPID key pair suitable for the .env file."""
+    private_key = ec.generate_private_key(ec.SECP256R1())
+    private_numbers = private_key.private_numbers()
+    private_bytes = private_numbers.private_value.to_bytes(32, "big")
+    public_numbers = private_numbers.public_numbers
+    public_bytes = (
+        b"\x04" + public_numbers.x.to_bytes(32, "big") + public_numbers.y.to_bytes(32, "big")
+    )
+
+    def encode(value: bytes) -> str:
+        return base64.urlsafe_b64encode(value).rstrip(b"=").decode("ascii")
+
+    click.echo(f"VAPID_PUBLIC_KEY={encode(public_bytes)}")
+    click.echo(f"VAPID_PRIVATE_KEY={encode(private_bytes)}")
 
 
 @cli.command()

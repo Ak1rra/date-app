@@ -3,17 +3,28 @@
 Handlers are idempotent and leave committing to the job runner (see app.worker.jobs).
 """
 
+import asyncio
+import json
+import logging
+import unicodedata
+import uuid
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
+from urllib.parse import urlsplit
 
-from sqlalchemy import delete, func, or_, update
+from pywebpush import WebPushException, webpush
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.models.ai import ProviderCache
 from app.models.ideas import Idea
 from app.models.jobs import Job
+from app.models.notify import Notification, PushSubscription
 from app.models.user import MagicLinkToken, UserSession
 from app.worker.jobs import enqueue, register
+
+logger = logging.getLogger("app.worker")
 
 AUTH_CLEANUP = "auth.cleanup"
 CACHE_CLEANUP = "cache.cleanup"
@@ -21,6 +32,22 @@ CACHE_CLEANUP = "cache.cleanup"
 MAGIC_LINK_RETENTION = timedelta(days=1)  # after expires_at
 SESSION_RETENTION = timedelta(days=7)  # after expires_at or revoked_at
 JOB_RETENTION = timedelta(days=7)  # finished (done or failed) jobs, after finished_at
+
+
+def _push_url(data: dict[str, Any]) -> str:
+    value = data.get("url")
+    if (
+        isinstance(value, str)
+        and len(value) <= 300
+        and value.startswith("/")
+        and not value.startswith("//")
+        and not urlsplit(value).scheme
+        and "\\" not in value  # browsers can read /\evil as //evil
+        # control (incl. C1) and format (bidi, zero-width) characters
+        and not any(unicodedata.category(ch) in ("Cc", "Cf") for ch in value)
+    ):
+        return value
+    return "/"
 
 
 def _utcnow() -> datetime:
@@ -122,3 +149,67 @@ async def cache_cleanup(session: AsyncSession, payload: dict[str, Any]) -> None:
     Self-scheduling, so a missed hour just runs late."""
     await session.execute(delete(ProviderCache).where(ProviderCache.expires_at < func.now()))
     await schedule_cache_cleanup(session, next_hour=True)
+
+
+@register("push.send")
+async def push_send(session: AsyncSession, payload: dict[str, Any]) -> None:
+    """Deliver one notification to all of its current subscriptions."""
+    try:
+        notification_id = uuid.UUID(str(payload.get("notification_id")))
+    except (AttributeError, ValueError):
+        return
+    notification = await session.get(Notification, notification_id)
+    settings = get_settings()
+    if (
+        notification is None
+        or notification.pushed_at is not None
+        or notification.read_at is not None
+        or not settings.vapid_private_key
+        or not settings.vapid_public_key
+    ):
+        return
+
+    subscriptions = (
+        (
+            await session.execute(
+                select(PushSubscription).where(PushSubscription.user_id == notification.user_id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    data = notification.data if isinstance(notification.data, dict) else {}
+    push_data = json.dumps(
+        {"title": notification.title, "body": notification.body, "url": _push_url(data)}
+    )
+    delivered = False
+    retryable_failure = False
+    for subscription in subscriptions:
+        try:
+            await asyncio.to_thread(
+                webpush,
+                subscription_info={
+                    "endpoint": subscription.endpoint,
+                    "keys": {"p256dh": subscription.p256dh, "auth": subscription.auth},
+                },
+                data=push_data,
+                vapid_private_key=settings.vapid_private_key,
+                vapid_claims={"sub": settings.vapid_subject or "mailto:admin@dates.lan"},
+                ttl=86400,
+            )
+        except WebPushException as exc:
+            status = getattr(getattr(exc, "response", None), "status_code", None)
+            if status in (404, 410):
+                await session.delete(subscription)
+            else:
+                retryable_failure = True
+                logger.warning("push delivery failed: %s", type(exc).__name__)
+        except Exception as exc:  # pragma: no cover - vendor/client errors vary by backend
+            retryable_failure = True
+            logger.warning("push delivery failed: %s", type(exc).__name__)
+        else:
+            delivered = True
+            subscription.last_used_at = _utcnow()
+    if retryable_failure and not delivered:
+        raise RuntimeError("all push deliveries failed")
+    notification.pushed_at = _utcnow()
