@@ -118,6 +118,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/calendar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Calendar
+         * @description The dates the caller may see plus the couple's important dates, in a range of at most
+         *     120 days. `from` and `to` are dates or timestamps; a date `to` includes that whole day.
+         */
+        get: operations["get_calendar_api_v1_calendar_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/calendar/suggest-times": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Suggest Times
+         * @description Up to three times when both of you are free, soonest first (weekend evenings first when
+         *     the time of day doesn't matter). Deterministic: no AI.
+         */
+        post: operations["suggest_times_api_v1_calendar_suggest_times_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/couple": {
         parameters: {
             query?: never;
@@ -913,6 +955,38 @@ export interface components {
             date: string;
             /** Note */
             note?: string | null;
+        };
+        /** CalendarEntry */
+        CalendarEntry: {
+            /** All Day */
+            all_day: boolean;
+            /** Announced */
+            announced?: boolean | null;
+            /** Ends At */
+            ends_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Surprise */
+            is_surprise?: boolean | null;
+            /** Itinerary Id */
+            itinerary_id?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "date" | "occasion";
+            /**
+             * Starts At
+             * Format: date-time
+             */
+            starts_at: string;
+            /** Status */
+            status?: string | null;
+            /** Title */
+            title: string;
         };
         /** ChecklistIn */
         ChecklistIn: {
@@ -2018,6 +2092,40 @@ export interface components {
             /** Stops */
             stops: components["schemas"]["StopIn"][];
         };
+        /** SuggestTimesIn */
+        SuggestTimesIn: {
+            /** Best Time */
+            best_time?: ("day" | "evening" | "weekend" | "any") | null;
+            /** Duration Minutes */
+            duration_minutes: number;
+            /** Idea Id */
+            idea_id?: string | null;
+            /**
+             * Weeks
+             * @default 3
+             */
+            weeks: number;
+        };
+        /** SuggestTimesOut */
+        SuggestTimesOut: {
+            /** Slots */
+            slots: components["schemas"]["TimeSlot"][];
+        };
+        /** TimeSlot */
+        TimeSlot: {
+            /**
+             * Ends At
+             * Format: date-time
+             */
+            ends_at: string;
+            /** Reason */
+            reason: string;
+            /**
+             * Starts At
+             * Format: date-time
+             */
+            starts_at: string;
+        };
         /** TravelOut */
         TravelOut: {
             /** Distance M */
@@ -2284,6 +2392,71 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SessionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_calendar_api_v1_calendar_get: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarEntry"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    suggest_times_api_v1_calendar_suggest_times_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuggestTimesIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuggestTimesOut"];
                 };
             };
             /** @description Validation Error */

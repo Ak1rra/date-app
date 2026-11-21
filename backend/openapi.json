@@ -52,6 +52,103 @@
         "title": "BlockIO",
         "type": "object"
       },
+      "CalendarEntry": {
+        "properties": {
+          "all_day": {
+            "title": "All Day",
+            "type": "boolean"
+          },
+          "announced": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Announced"
+          },
+          "ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_surprise": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Surprise"
+          },
+          "itinerary_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Itinerary Id"
+          },
+          "kind": {
+            "enum": [
+              "date",
+              "occasion"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "starts_at": {
+            "format": "date-time",
+            "title": "Starts At",
+            "type": "string"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "title",
+          "starts_at",
+          "ends_at",
+          "all_day"
+        ],
+        "title": "CalendarEntry",
+        "type": "object"
+      },
       "ChecklistIn": {
         "properties": {
           "due_at": {
@@ -3609,6 +3706,98 @@
         "title": "StopsPut",
         "type": "object"
       },
+      "SuggestTimesIn": {
+        "properties": {
+          "best_time": {
+            "anyOf": [
+              {
+                "enum": [
+                  "day",
+                  "evening",
+                  "weekend",
+                  "any"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Time"
+          },
+          "duration_minutes": {
+            "maximum": 720.0,
+            "minimum": 30.0,
+            "title": "Duration Minutes",
+            "type": "integer"
+          },
+          "idea_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idea Id"
+          },
+          "weeks": {
+            "default": 3,
+            "maximum": 6.0,
+            "minimum": 1.0,
+            "title": "Weeks",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "duration_minutes"
+        ],
+        "title": "SuggestTimesIn",
+        "type": "object"
+      },
+      "SuggestTimesOut": {
+        "properties": {
+          "slots": {
+            "items": {
+              "$ref": "#/components/schemas/TimeSlot"
+            },
+            "title": "Slots",
+            "type": "array"
+          }
+        },
+        "required": [
+          "slots"
+        ],
+        "title": "SuggestTimesOut",
+        "type": "object"
+      },
+      "TimeSlot": {
+        "properties": {
+          "ends_at": {
+            "format": "date-time",
+            "title": "Ends At",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "starts_at": {
+            "format": "date-time",
+            "title": "Starts At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "starts_at",
+          "ends_at",
+          "reason"
+        ],
+        "title": "TimeSlot",
+        "type": "object"
+      },
       "TravelOut": {
         "properties": {
           "distance_m": {
@@ -4177,6 +4366,104 @@
         "summary": "Verify",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/v1/calendar": {
+      "get": {
+        "description": "The dates the caller may see plus the couple's important dates, in a range of at most\n120 days. `from` and `to` are dates or timestamps; a date `to` includes that whole day.",
+        "operationId": "get_calendar_api_v1_calendar_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "title": "From",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "title": "To",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CalendarEntry"
+                  },
+                  "title": "Response Get Calendar Api V1 Calendar Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Calendar",
+        "tags": [
+          "calendar"
+        ]
+      }
+    },
+    "/api/v1/calendar/suggest-times": {
+      "post": {
+        "description": "Up to three times when both of you are free, soonest first (weekend evenings first when\nthe time of day doesn't matter). Deterministic: no AI.",
+        "operationId": "suggest_times_api_v1_calendar_suggest_times_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuggestTimesIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuggestTimesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Suggest Times",
+        "tags": [
+          "calendar"
         ]
       }
     },

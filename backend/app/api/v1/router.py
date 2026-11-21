@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.api.v1 import (
     auth,
+    calendar,
     couple,
     dev,
     health,
@@ -26,6 +27,7 @@ router.include_router(dev.router)
 router.include_router(couple.router)
 router.include_router(profiles.router)
 router.include_router(itineraries.router)
+router.include_router(calendar.router)
 router.include_router(places.router)
 router.include_router(notes.router)
 router.include_router(ideas.router)
