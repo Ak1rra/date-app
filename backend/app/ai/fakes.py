@@ -13,12 +13,14 @@ from app.ai.client import FAKE_RESPONDERS, ToolRunner
 from app.ai.schemas import (
     DraftChecklistItem,
     DraftStop,
+    HintSuggestions,
     ItineraryDraft,
     PlanOption,
     PlanOptions,
     PlanOptionStop,
     PolishedInvitation,
     StopKind,
+    SuggestedHint,
 )
 
 # Per-person cost guess by Google price level (USD); the fake venues carry no real prices.
@@ -336,5 +338,18 @@ async def fake_polished_invitation(
     return PolishedInvitation(text=draft[:996] + " 💕")
 
 
+async def fake_hint_suggestions(
+    tools: ToolRunner | None, context: str, messages: list[dict[str, Any]]
+) -> HintSuggestions:
+    return HintSuggestions(
+        hints=[
+            SuggestedHint(kind="dress_code", text="Dress for a cozy evening — comfy shoes win."),
+            SuggestedHint(kind="eat", text="Come a little hungry."),
+            SuggestedHint(kind="ready_by", text="Be ready by the start time with a smile."),
+        ]
+    )
+
+
 FAKE_RESPONDERS[ItineraryDraft] = fake_itinerary
 FAKE_RESPONDERS[PolishedInvitation] = fake_polished_invitation
+FAKE_RESPONDERS[HintSuggestions] = fake_hint_suggestions

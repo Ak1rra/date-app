@@ -547,6 +547,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/itineraries/{itinerary_id}/hints/suggest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Suggest Hints
+         * @description Suggestions only: nothing is saved; the planner adds the ones they like with POST /hints.
+         */
+        post: operations["suggest_hints_api_v1_itineraries__itinerary_id__hints_suggest_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/itineraries/{itinerary_id}/hints/{hint_id}": {
         parameters: {
             query?: never;
@@ -1523,6 +1543,21 @@ export interface components {
             release_at?: string | null;
             /** Text */
             text?: string | null;
+        };
+        /** HintSuggestionOut */
+        HintSuggestionOut: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "dress_code" | "bring" | "ready_by" | "eat" | "energy" | "indoor_outdoor" | "weather" | "travel" | "custom";
+            /** Text */
+            text: string;
+        };
+        /** HintSuggestionsOut */
+        HintSuggestionsOut: {
+            /** Suggestions */
+            suggestions: components["schemas"]["HintSuggestionOut"][];
         };
         /** HomeArea */
         HomeArea: {
@@ -3898,6 +3933,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HintOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    suggest_hints_api_v1_itineraries__itinerary_id__hints_suggest_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                itinerary_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HintSuggestionsOut"];
                 };
             };
             /** @description Validation Error */

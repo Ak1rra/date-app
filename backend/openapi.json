@@ -906,6 +906,51 @@
         "title": "HintPatch",
         "type": "object"
       },
+      "HintSuggestionOut": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "dress_code",
+              "bring",
+              "ready_by",
+              "eat",
+              "energy",
+              "indoor_outdoor",
+              "weather",
+              "travel",
+              "custom"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "text"
+        ],
+        "title": "HintSuggestionOut",
+        "type": "object"
+      },
+      "HintSuggestionsOut": {
+        "properties": {
+          "suggestions": {
+            "items": {
+              "$ref": "#/components/schemas/HintSuggestionOut"
+            },
+            "title": "Suggestions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "suggestions"
+        ],
+        "title": "HintSuggestionsOut",
+        "type": "object"
+      },
       "HomeArea": {
         "properties": {
           "label": {
@@ -6520,6 +6565,50 @@
           }
         },
         "summary": "Create Hint",
+        "tags": [
+          "surprise"
+        ]
+      }
+    },
+    "/api/v1/itineraries/{itinerary_id}/hints/suggest": {
+      "post": {
+        "description": "Suggestions only: nothing is saved; the planner adds the ones they like with POST /hints.",
+        "operationId": "suggest_hints_api_v1_itineraries__itinerary_id__hints_suggest_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "itinerary_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Itinerary Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HintSuggestionsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Suggest Hints",
         "tags": [
           "surprise"
         ]

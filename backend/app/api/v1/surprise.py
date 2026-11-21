@@ -1,8 +1,9 @@
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.client import AIClient, get_ai
 from app.api.v1.itineraries import get_itinerary_providers
 from app.config import Settings
 from app.db import get_session
@@ -10,9 +11,10 @@ from app.deps import CurrentUser, current_user, get_app_settings
 from app.models import Itinerary
 from app.providers.registry import Providers
 from app.schemas.itineraries import ItineraryOut
-from app.schemas.surprise import HintIn, HintOut, HintPatch, RevealAtIn
+from app.schemas.surprise import HintIn, HintOut, HintPatch, HintSuggestionsOut, RevealAtIn
 from app.services import itineraries as itinerary_service
 from app.services import surprise as service
+from app.services import surprise_ai
 from app.services.couple import now, require_couple_id
 from app.services.itinerary_access import get_editable
 
@@ -45,6 +47,29 @@ async def list_hints(
     session: AsyncSession = Depends(get_session),
 ) -> list[HintOut]:
     return await service.list_hints(session, itinerary)
+
+
+@router.post("/{itinerary_id}/hints/suggest", response_model=HintSuggestionsOut)
+async def suggest_hints(
+    request: Request,
+    itinerary: Itinerary = Depends(surprise_itinerary),
+    providers: Providers = Depends(get_itinerary_providers),
+    ai: AIClient = Depends(get_ai),
+    settings: Settings = Depends(get_app_settings),
+    session: AsyncSession = Depends(get_session),
+    current: CurrentUser = Depends(current_user),
+) -> HintSuggestionsOut:
+    """Suggestions only: nothing is saved; the planner adds the ones they like with POST /hints."""
+    suggestions = await surprise_ai.suggest_hints(
+        session,
+        ai=ai,
+        providers=providers,
+        settings=settings,
+        sessionmaker=request.app.state.sessionmaker,
+        user_id=current.user.id,
+        itinerary=itinerary,
+    )
+    return HintSuggestionsOut(suggestions=suggestions)
 
 
 @router.post("/{itinerary_id}/hints", response_model=HintOut, status_code=201)

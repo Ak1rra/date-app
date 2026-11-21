@@ -82,6 +82,25 @@ class PolishedInvitation(_Strict):
     text: Annotated[str, Field(min_length=1, max_length=1000)]
 
 
+class SuggestedHint(_Strict):
+    kind: Literal[  # = schemas.surprise.HintKind
+        "dress_code",
+        "bring",
+        "ready_by",
+        "eat",
+        "energy",
+        "indoor_outdoor",
+        "weather",
+        "travel",
+        "custom",
+    ]
+    text: Annotated[str, Field(min_length=1, max_length=300)]
+
+
+class HintSuggestions(_Strict):
+    hints: Annotated[list[SuggestedHint], Field(min_length=1, max_length=5)]
+
+
 @dataclass(frozen=True)
 class Issue:
     """A problem `validate_itinerary` found. Not model output. `stop_index` is None for an

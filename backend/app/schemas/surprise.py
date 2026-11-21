@@ -43,5 +43,14 @@ class HintOut(BaseModel):
     released_at: dt.datetime | None
 
 
+class HintSuggestionOut(BaseModel):
+    kind: HintKind
+    text: str
+
+
+class HintSuggestionsOut(BaseModel):
+    suggestions: list[HintSuggestionOut]
+
+
 class RevealAtIn(BaseModel):
     reveal_at: AwareDatetime | None = None
