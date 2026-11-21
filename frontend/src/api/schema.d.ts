@@ -377,6 +377,147 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/itineraries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Itineraries
+         * @description The dates the caller may see (never a hidden surprise or an unannounced draft).
+         */
+        get: operations["list_itineraries_api_v1_itineraries_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/itineraries/{itinerary_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Itinerary */
+        get: operations["get_itinerary_api_v1_itineraries__itinerary_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Itinerary */
+        patch: operations["patch_itinerary_api_v1_itineraries__itinerary_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/itineraries/{itinerary_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Itinerary */
+        post: operations["cancel_itinerary_api_v1_itineraries__itinerary_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/itineraries/{itinerary_id}/checklist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Checklist Item */
+        post: operations["add_checklist_item_api_v1_itineraries__itinerary_id__checklist_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/itineraries/{itinerary_id}/checklist/{item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Checklist Item */
+        delete: operations["delete_checklist_item_api_v1_itineraries__itinerary_id__checklist__item_id__delete"];
+        options?: never;
+        head?: never;
+        /** Patch Checklist Item */
+        patch: operations["patch_checklist_item_api_v1_itineraries__itinerary_id__checklist__item_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/itineraries/{itinerary_id}/react": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** React To Itinerary */
+        post: operations["react_to_itinerary_api_v1_itineraries__itinerary_id__react_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/itineraries/{itinerary_id}/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Schedule Itinerary */
+        post: operations["schedule_itinerary_api_v1_itineraries__itinerary_id__schedule_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/itineraries/{itinerary_id}/stops": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Stops */
+        put: operations["put_stops_api_v1_itineraries__itinerary_id__stops_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me": {
         parameters: {
             query?: never;
@@ -575,6 +716,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/places/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Places
+         * @description Venues near the couple's home, for "add a stop". Live provider data, never stored.
+         */
+        get: operations["search_places_api_v1_places_search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profiles": {
         parameters: {
             query?: never;
@@ -663,6 +824,61 @@ export interface components {
             date: string;
             /** Note */
             note?: string | null;
+        };
+        /** ChecklistIn */
+        ChecklistIn: {
+            /** Due At */
+            due_at?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "reserve" | "buy" | "bring" | "arrange" | "wear" | "other";
+            /** Link */
+            link?: string | null;
+            /** Text */
+            text: string;
+        };
+        /** ChecklistItemOut */
+        ChecklistItemOut: {
+            /** Done */
+            done: boolean;
+            /** Done At */
+            done_at: string | null;
+            /** Due At */
+            due_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "reserve" | "buy" | "bring" | "arrange" | "wear" | "other";
+            /** Link */
+            link: string | null;
+            /** Position */
+            position: number;
+            /** Text */
+            text: string;
+        };
+        /** ChecklistPatch */
+        ChecklistPatch: {
+            /** Done */
+            done?: boolean;
+            /** Due At */
+            due_at?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind?: "reserve" | "buy" | "bring" | "arrange" | "wear" | "other";
+            /** Link */
+            link?: string | null;
+            /** Text */
+            text?: string;
         };
         /** ChooseProfileIn */
         ChooseProfileIn: {
@@ -884,7 +1100,7 @@ export interface components {
             title: string;
             /** Valid Until */
             valid_until: string | null;
-            venue: components["schemas"]["VenueOut"] | null;
+            venue: components["schemas"]["app__schemas__ideas__VenueOut"] | null;
             /**
              * Visibility
              * @enum {string}
@@ -979,6 +1195,128 @@ export interface components {
             /** Recurring */
             recurring?: boolean;
         };
+        /** ItineraryOut */
+        ItineraryOut: {
+            /** Announced At */
+            announced_at: string | null;
+            /** Attributions */
+            attributions: string[];
+            /** Backup Plan */
+            backup_plan: string | null;
+            /** Bring Wear */
+            bring_wear: string | null;
+            /** Budget */
+            budget: number | null;
+            /** Checklist */
+            checklist: components["schemas"]["ChecklistItemOut"][];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Currency */
+            currency: string;
+            /** Ends At */
+            ends_at: string | null;
+            /** Est Total */
+            est_total: number | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Idea Id */
+            idea_id: string | null;
+            /** Invitation Message */
+            invitation_message: string | null;
+            /** Is Planner */
+            is_planner: boolean;
+            /** Is Surprise */
+            is_surprise: boolean;
+            partner_reaction: components["schemas"]["PartnerReaction"] | null;
+            /**
+             * Planner User Id
+             * Format: uuid
+             */
+            planner_user_id: string;
+            /** Reveal At */
+            reveal_at: string | null;
+            /** Revealed At */
+            revealed_at: string | null;
+            /** Seen By Partner At */
+            seen_by_partner_at: string | null;
+            /** Starts At */
+            starts_at: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "draft" | "scheduled" | "completed" | "cancelled";
+            /** Stops */
+            stops: components["schemas"]["StopOut"][];
+            /** Title */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Warnings */
+            warnings: {
+                [key: string]: unknown;
+            }[];
+            /** Weather */
+            weather: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * ItineraryPatch
+         * @description Leaving a field out means "unchanged"; an explicit null clears the optional ones.
+         */
+        ItineraryPatch: {
+            /** Backup Plan */
+            backup_plan?: string | null;
+            /** Bring Wear */
+            bring_wear?: string | null;
+            /** Budget */
+            budget?: number | null;
+            /** Ends At */
+            ends_at?: string | null;
+            /** Invitation Message */
+            invitation_message?: string | null;
+            /** Starts At */
+            starts_at?: string | null;
+            /** Title */
+            title?: string;
+        };
+        /** ItinerarySummary */
+        ItinerarySummary: {
+            /** Announced */
+            announced: boolean;
+            /** Ends At */
+            ends_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Planner */
+            is_planner: boolean;
+            /** Is Surprise */
+            is_surprise: boolean;
+            /** Starts At */
+            starts_at: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "draft" | "scheduled" | "completed" | "cancelled";
+            /** Stop Count */
+            stop_count: number;
+            /** Title */
+            title: string;
+        };
         /** MagicLinkIn */
         MagicLinkIn: {
             /**
@@ -986,6 +1324,15 @@ export interface components {
              * Format: email
              */
             email: string;
+        };
+        /** MapsOut */
+        MapsOut: {
+            /** Apple */
+            apple?: string | null;
+            /** Directions From Previous */
+            directions_from_previous?: string | null;
+            /** Google */
+            google?: string | null;
         };
         /** MeOut */
         MeOut: {
@@ -1163,6 +1510,47 @@ export interface components {
             /** To */
             to: string;
         };
+        /** PartnerReaction */
+        PartnerReaction: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "heart" | "move";
+            /** Note */
+            note?: string | null;
+            /** Suggested Start */
+            suggested_start?: string | null;
+        };
+        /**
+         * PlaceOut
+         * @description A venue search hit. Live provider data: never stored.
+         */
+        PlaceOut: {
+            /** Address */
+            address: string | null;
+            /** Attributions */
+            attributions: string[];
+            /** Lat */
+            lat: number | null;
+            /** Lng */
+            lng: number | null;
+            /** Name */
+            name: string;
+            /** Open Now */
+            open_now: boolean | null;
+            /** Place Id */
+            place_id: string;
+            /** Price Level */
+            price_level: number | null;
+            /** Rating */
+            rating: number | null;
+        };
         /**
          * ProfileIn
          * @description A full replace: anything left out is reset to empty.
@@ -1285,11 +1673,135 @@ export interface components {
             endpoint: string;
             keys: components["schemas"]["PushKeys"];
         };
+        /** ReactIn */
+        ReactIn: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "heart" | "move";
+            /** Note */
+            note?: string | null;
+            /** Suggested Start */
+            suggested_start?: string | null;
+        };
+        /** ScheduleIn */
+        ScheduleIn: {
+            /** Ends At */
+            ends_at?: string | null;
+            /** Invitation Message */
+            invitation_message?: string | null;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "announce" | "surprise";
+            /**
+             * Starts At
+             * Format: date-time
+             */
+            starts_at: string;
+        };
         /** SessionOut */
         SessionOut: {
             /** Authenticated */
             authenticated: boolean;
             user: components["schemas"]["MeOut"] | null;
+        };
+        /** StopIn */
+        StopIn: {
+            /** Description */
+            description?: string | null;
+            /**
+             * Ends At
+             * Format: date-time
+             */
+            ends_at: string;
+            /** Est Cost */
+            est_cost?: number | null;
+            /** Id */
+            id?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /** Place Id */
+            place_id?: string | null;
+            /**
+             * Reveal Policy
+             * @default with_itinerary
+             * @enum {string}
+             */
+            reveal_policy: "with_itinerary" | "at_stop_time";
+            /**
+             * Starts At
+             * Format: date-time
+             */
+            starts_at: string;
+            /** Title */
+            title: string;
+        };
+        /** StopOut */
+        StopOut: {
+            /** Booking Url */
+            booking_url: string | null;
+            /** Description */
+            description: string | null;
+            /** Ends At */
+            ends_at: string | null;
+            /** Est Cost */
+            est_cost: number | null;
+            /** Event */
+            event: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            maps: components["schemas"]["MapsOut"];
+            /** Notes */
+            notes: string | null;
+            /** Place Id */
+            place_id: string | null;
+            /** Position */
+            position: number;
+            /**
+             * Reveal Policy
+             * @enum {string}
+             */
+            reveal_policy: "with_itinerary" | "at_stop_time";
+            /** Starts At */
+            starts_at: string | null;
+            /** Title */
+            title: string;
+            travel_to_next: components["schemas"]["TravelOut"] | null;
+            venue: components["schemas"]["app__schemas__itineraries__VenueOut"] | null;
+            /** Warnings */
+            warnings: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** StopsPut */
+        StopsPut: {
+            /** Stops */
+            stops: components["schemas"]["StopIn"][];
+        };
+        /** TravelOut */
+        TravelOut: {
+            /** Distance M */
+            distance_m: number | null;
+            /** Duration Minutes */
+            duration_minutes: number;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "drive" | "transit" | "walk" | "bicycle" | "rideshare";
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "live" | "estimate";
         };
         /** UnreadCountOut */
         UnreadCountOut: {
@@ -1313,19 +1825,6 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
-        };
-        /** VenueOut */
-        VenueOut: {
-            /** Address */
-            address: string | null;
-            /** Distance Km */
-            distance_km: number | null;
-            /** Name */
-            name: string | null;
-            /** Price Level */
-            price_level: number | null;
-            /** Rating */
-            rating: number | null;
         };
         /** VerifyIn */
         VerifyIn: {
@@ -1366,6 +1865,41 @@ export interface components {
             start_time: string;
             /** Weekday */
             weekday: number;
+        };
+        /** VenueOut */
+        app__schemas__ideas__VenueOut: {
+            /** Address */
+            address: string | null;
+            /** Distance Km */
+            distance_km: number | null;
+            /** Name */
+            name: string | null;
+            /** Price Level */
+            price_level: number | null;
+            /** Rating */
+            rating: number | null;
+        };
+        /**
+         * VenueOut
+         * @description What we know about the place. Only lat/lng are ever stored; the rest is fetched live.
+         */
+        app__schemas__itineraries__VenueOut: {
+            /** Address */
+            address?: string | null;
+            /** Lat */
+            lat?: number | null;
+            /** Lng */
+            lng?: number | null;
+            /** Maps Uri */
+            maps_uri?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Price Level */
+            price_level?: number | null;
+            /** Rating */
+            rating?: number | null;
+            /** Website */
+            website?: string | null;
         };
     };
     responses: never;
@@ -2098,6 +2632,342 @@ export interface operations {
             };
         };
     };
+    list_itineraries_api_v1_itineraries_get: {
+        parameters: {
+            query?: {
+                status?: ("draft" | "scheduled" | "completed" | "cancelled") | null;
+                from?: string | null;
+                to?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItinerarySummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_itinerary_api_v1_itineraries__itinerary_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                itinerary_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItineraryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_itinerary_api_v1_itineraries__itinerary_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                itinerary_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItineraryPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItineraryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_itinerary_api_v1_itineraries__itinerary_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                itinerary_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItineraryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_checklist_item_api_v1_itineraries__itinerary_id__checklist_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                itinerary_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChecklistIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChecklistItemOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_checklist_item_api_v1_itineraries__itinerary_id__checklist__item_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                itinerary_id: string;
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_checklist_item_api_v1_itineraries__itinerary_id__checklist__item_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                itinerary_id: string;
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChecklistPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChecklistItemOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    react_to_itinerary_api_v1_itineraries__itinerary_id__react_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                itinerary_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReactIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItineraryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    schedule_itinerary_api_v1_itineraries__itinerary_id__schedule_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                itinerary_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScheduleIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItineraryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_stops_api_v1_itineraries__itinerary_id__stops_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                itinerary_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StopsPut"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItineraryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_me_api_v1_me_get: {
         parameters: {
             query?: never;
@@ -2526,6 +3396,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NotificationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_places_api_v1_places_search_get: {
+        parameters: {
+            query: {
+                q: string;
+                open_at?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaceOut"][];
                 };
             };
             /** @description Validation Error */

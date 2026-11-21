@@ -6,10 +6,12 @@ from app.api.v1 import (
     dev,
     health,
     ideas,
+    itineraries,
     me,
     meta,
     notes,
     notifications,
+    places,
     profiles,
 )
 
@@ -22,5 +24,7 @@ router.include_router(meta.router)
 router.include_router(dev.router)
 router.include_router(couple.router)
 router.include_router(profiles.router)
+router.include_router(itineraries.router)
+router.include_router(places.router)
 router.include_router(notes.router)
 router.include_router(ideas.router)
