@@ -418,6 +418,8 @@ def get_ai_client(settings: Settings) -> AIClient | None:
     if settings.anthropic_api_key:
         return AnthropicAIClient(settings)
     if settings.demo_mode:
+        import app.ai.fakes  # noqa: F401  (importing registers the demo responders)
+
         return FakeAIClient(FAKE_RESPONDERS)
     return None
 

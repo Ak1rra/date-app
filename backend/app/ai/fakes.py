@@ -1,0 +1,255 @@
+"""Deterministic stand-ins for the planning model (DEMO_MODE and tests).
+
+Each responder calls the real tools through the runner, so the fake providers are exercised, and
+builds its output only from the places the tools returned (grounded) or from clearly evergreen
+stops. Nothing is invented. Registered into `FAKE_RESPONDERS` on import.
+"""
+
+import datetime as dt
+import json
+from typing import Any
+
+from app.ai.client import FAKE_RESPONDERS, ToolRunner
+from app.ai.schemas import (
+    DraftChecklistItem,
+    DraftStop,
+    ItineraryDraft,
+    PlanOption,
+    PlanOptions,
+    PlanOptionStop,
+    StopKind,
+)
+
+# Per-person cost guess by Google price level (USD); the fake venues carry no real prices.
+_PRICE_USD = {0: 0.0, 1: 15.0, 2: 30.0, 3: 55.0, 4: 90.0}
+_PEOPLE = 2
+
+
+class _Found:
+    """The few fields of a tool-returned place the fakes use."""
+
+    def __init__(self, raw: dict[str, Any]) -> None:
+        self.place_id: str = raw["place_id"]
+        self.name: str = raw["name"]
+        price = raw.get("price_level")
+        self.cost: float | None = None if price is None else _PRICE_USD.get(price, 30.0) * _PEOPLE
+
+
+async def _search(
+    tools: ToolRunner | None, query: str, open_at: dt.datetime | None = None
+) -> list[_Found]:
+    if tools is None:
+        return []
+    args: dict[str, Any] = {"query": query, "max_results": 4}
+    if open_at is not None:
+        args["open_at"] = open_at.isoformat()
+    try:
+        result = json.loads(await tools.execute("search_places", args))
+    except ValueError:
+        return []
+    if not isinstance(result, dict) or "data" not in result:
+        return []
+    return [_Found(raw) for raw in result["data"]]
+
+
+def _total(costs: list[float | None]) -> float | None:
+    known = [c for c in costs if c is not None]
+    return sum(known) if known else None
+
+
+def _stop(title: str, kind: StopKind, found: _Found | None, cost: float | None) -> PlanOptionStop:
+    return PlanOptionStop(
+        title=title[:120],
+        kind=kind,
+        place_id=found.place_id if found else None,
+        evergreen=found is None,
+        est_cost=cost if found else None,
+    )
+
+
+def _option(
+    title: str, pitch: str, why: str, stops: list[PlanOptionStop], *, occasion: str | None = None
+) -> PlanOption:
+    return PlanOption(
+        title=title,
+        pitch=pitch,
+        why_for_them=why,
+        stops=stops,
+        est_cost=_total([s.est_cost for s in stops]),
+        grounded=all(not s.evergreen for s in stops),
+        occasion=occasion,
+    )
+
+
+async def fake_plan_options(
+    tools: ToolRunner | None, context: str, messages: list[dict[str, Any]]
+) -> PlanOptions:
+    dinners = await _search(tools, "dinner")
+    desserts = await _search(tools, "dessert")
+    parks = await _search(tools, "park")
+
+    def pick(found: list[_Found], i: int) -> _Found | None:
+        return found[i % len(found)] if found else None
+
+    dinner, dessert, park = pick(dinners, 0), pick(desserts, 0), pick(parks, 0)
+    dessert2 = pick(desserts, 1)
+
+    def named(found: _Found | None, fallback: str) -> str:
+        return found.name if found else fallback
+
+    options = [
+        _option(
+            "Dinner, then something sweet",
+            "A proper sit-down dinner and a dessert stop after, because you deserve both "
+            "and I intend to steal bites.",
+            "Good food, good company and zero rushing: made for a relaxed evening together.",
+            [
+                _stop(
+                    f"Dinner at {named(dinner, 'your favourite local spot')}",
+                    "food",
+                    dinner,
+                    dinner.cost if dinner else None,
+                ),
+                _stop(
+                    f"Dessert at {named(dessert, 'a cosy dessert place')}",
+                    "food",
+                    dessert,
+                    dessert.cost if dessert else None,
+                ),
+            ],
+        ),
+        _option(
+            "A stroll and a treat",
+            "Walk somewhere pretty, hold hands shamelessly, then reward ourselves with "
+            "something sweet.",
+            "Easy, outdoorsy and unhurried, with plenty of time to talk.",
+            [
+                _stop(f"Stroll at {named(park, 'a nearby park')}", "outdoors", park, None),
+                _stop(
+                    f"Treat at {named(dessert2, 'a sweet spot on the way home')}",
+                    "food",
+                    dessert2,
+                    dessert2.cost if dessert2 else None,
+                ),
+            ],
+        ),
+        _option(
+            "Cosy night in, chef edition",
+            "Stay in, cook something ambitious together, and see who is better at it. Spoiler: me.",
+            "A low-key night that is all about the two of you.",
+            [
+                _stop("Cook a new recipe together", "activity", None, None),
+                _stop("Movie night with homemade dessert", "other", None, None),
+            ],
+        ),
+    ]
+    return PlanOptions(options=options)
+
+
+# --- Itinerary ---------------------------------------------------------------------------------
+
+
+def _last_user_text(messages: list[dict[str, Any]]) -> str:
+    for message in reversed(messages):
+        if message.get("role") != "user":
+            continue
+        content = message.get("content")
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            return "".join(
+                str(block.get("text", "")) for block in content if isinstance(block, dict)
+            )
+    return ""
+
+
+def _parse_window(messages: list[dict[str, Any]]) -> tuple[dt.datetime, dt.datetime]:
+    text = _last_user_text(messages)
+    start, end = (dt.datetime.fromisoformat(f"{_tomorrow()}T{t}+00:00") for t in ("18:00", "22:00"))
+    lo, hi = text.find("{"), text.rfind("}")
+    if lo == -1 or hi <= lo:
+        return start, end
+    try:
+        data = json.loads(text[lo : hi + 1])
+        ws = dt.datetime.fromisoformat(str(data["window_start"]))
+        we = dt.datetime.fromisoformat(str(data["window_end"]))
+    except (ValueError, KeyError, TypeError):
+        return start, end
+    if ws.tzinfo is None or we.tzinfo is None or we <= ws:
+        return start, end
+    return ws, we
+
+
+def _tomorrow() -> str:
+    return (dt.datetime.now(dt.UTC).date() + dt.timedelta(days=1)).isoformat()
+
+
+# (search query, evergreen title, minutes)
+_PLAN = (
+    ("dinner", "Dinner somewhere you both love", 75),
+    ("dessert", "Dessert and a little something sweet", 45),
+    ("park", "A slow walk, no destination", 45),
+)
+_GAP_MINUTES = 30  # between stops: travel plus a buffer
+
+
+async def fake_itinerary(
+    tools: ToolRunner | None, context: str, messages: list[dict[str, Any]]
+) -> ItineraryDraft:
+    window_start, window_end = _parse_window(messages)
+    stops: list[DraftStop] = []
+    checklist: list[DraftChecklistItem] = []
+    cursor = window_start
+    for query, evergreen_title, minutes in _PLAN:
+        starts = cursor
+        ends = starts + dt.timedelta(minutes=minutes)
+        if ends > window_end:
+            break
+        found = (await _search(tools, query, open_at=starts))[:1]
+        place = found[0] if found else None
+        stops.append(
+            DraftStop(
+                title=(place.name if place else evergreen_title)[:120],
+                place_id=place.place_id if place else None,
+                evergreen=place is None,
+                starts_at=starts,
+                ends_at=ends,
+                description=(
+                    f"Enjoy {place.name} together, no phones, plenty of eye contact."
+                    if place
+                    else f"{evergreen_title}. Keep it relaxed and make it yours."
+                ),
+                est_cost=place.cost if place else None,
+            )
+        )
+        if place and query == "dinner":
+            checklist.append(
+                DraftChecklistItem(text=f"Book a table at {place.name}", kind="reserve")
+            )
+        cursor = ends + dt.timedelta(minutes=_GAP_MINUTES)
+    if not stops:
+        stops.append(
+            DraftStop(
+                title="A cosy evening together",
+                evergreen=True,
+                starts_at=window_start,
+                ends_at=window_end,
+                description="Keep it simple and spend the time together.",
+            )
+        )
+    return ItineraryDraft(
+        title="A date made for two",
+        stops=stops,
+        transport_mode="drive",
+        backup_plan="If the weather turns, swap the walk for a cosy night in with a film.",
+        bring_wear="Comfortable shoes and a light layer; dress up a little, I will notice.",
+        checklist=checklist,
+        invitation_message=(
+            "I have planned something for us. Clear your evening, wear something that makes "
+            "me forget my own name, and leave the rest to me."
+        ),
+    )
+
+
+FAKE_RESPONDERS[PlanOptions] = fake_plan_options
+FAKE_RESPONDERS[ItineraryDraft] = fake_itinerary
