@@ -10,6 +10,9 @@ export type ChecklistIn = Schemas['ChecklistIn'];
 export type ChecklistPatch = Schemas['ChecklistPatch'];
 export type ReactIn = Schemas['ReactIn'];
 export type ScheduleIn = Schemas['ScheduleIn'];
+export type StopIn = Schemas['StopIn'];
+export type ItineraryPatch = Schemas['ItineraryPatch'];
+export type PlaceOut = Schemas['PlaceOut'];
 
 export const itinerariesKey = (userId: string | undefined) => ['itineraries', userId] as const;
 export const itineraryKey = (userId: string | undefined, id: string | undefined) =>
@@ -118,6 +121,59 @@ export function useCancelItinerary(id: string) {
         }),
       ),
     onSuccess: () => invalidateItinerary(queryClient, userId, id),
+  });
+}
+
+function replaceItinerary(
+  queryClient: ReturnType<typeof useQueryClient>,
+  userId: string | undefined,
+  id: string,
+  data: ItineraryOut,
+) {
+  queryClient.setQueryData(itineraryKey(userId, id), data);
+  void queryClient.invalidateQueries({ queryKey: itinerariesKey(userId) });
+}
+
+export function useReplaceStops(id: string) {
+  const userId = useViewerId();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (stops: StopIn[]) =>
+      unwrap(
+        await client.PUT('/api/v1/itineraries/{itinerary_id}/stops', {
+          params: { path: { itinerary_id: id } },
+          body: { stops },
+        }),
+      ),
+    onSuccess: (data) => replaceItinerary(queryClient, userId, id, data),
+  });
+}
+
+export function useUpdateItinerary(id: string) {
+  const userId = useViewerId();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: ItineraryPatch) =>
+      unwrap(
+        await client.PATCH('/api/v1/itineraries/{itinerary_id}', {
+          params: { path: { itinerary_id: id } },
+          body,
+        }),
+      ),
+    onSuccess: (data) => replaceItinerary(queryClient, userId, id, data),
+  });
+}
+
+export function usePlaceSearch(query: string) {
+  const userId = useViewerId();
+  const q = query.trim();
+  return useQuery({
+    queryKey: ['places', userId, q] as const,
+    enabled: !!userId && q.length >= 2,
+    queryFn: async () =>
+      unwrap(await client.GET('/api/v1/places/search', { params: { query: { q } } })),
+    retry: false,
+    staleTime: 60_000,
   });
 }
 

@@ -77,8 +77,37 @@ const itinerary: ItineraryOut = {
   attributions: ['Weather data by Open-Meteo.com'],
 };
 
-function setup(data: ItineraryOut | Response = itinerary) {
+const dinner = itinerary.stops[0]!;
+const dessert: ItineraryOut['stops'][number] = {
+  ...dinner,
+  id: 's2',
+  position: 1,
+  title: 'Dessert',
+  place_id: 'p-dessert',
+  starts_at: '2026-12-10T19:30:00Z',
+  ends_at: '2026-12-10T20:30:00Z',
+  est_cost: null,
+  venue: null,
+};
+const twoStops: ItineraryOut = { ...itinerary, stops: [dinner, dessert] };
+
+function setup(data: ItineraryOut | Response = itinerary, extra: Record<string, unknown> = {}) {
   return mockApi({
+    'PUT /api/v1/itineraries/i1/stops': twoStops,
+    'PATCH /api/v1/itineraries/i1': itinerary,
+    'GET /api/v1/places/search': [
+      {
+        place_id: 'p-new',
+        name: 'Moonlight Mini Golf',
+        address: '9 Park Ave',
+        rating: 4.6,
+        price_level: 1,
+        lat: null,
+        lng: null,
+        open_now: null,
+        attributions: [],
+      },
+    ],
     'GET /api/v1/auth/session': session,
     'GET /api/v1/itineraries/i1': data,
     'PATCH /api/v1/itineraries/i1/checklist/c1': { ...itinerary.checklist[0], done: true },
@@ -87,6 +116,7 @@ function setup(data: ItineraryOut | Response = itinerary) {
     'POST /api/v1/itineraries/i1/cancel': itinerary,
     'POST /api/v1/itineraries/i1/react': itinerary,
     'DELETE /api/v1/itineraries/i1/checklist/c1': new Response(null, { status: 204 }),
+    ...extra,
   });
 }
 
@@ -269,5 +299,223 @@ describe('ItineraryPage', () => {
     await waitFor(() =>
       expect(api.find('DELETE', '/api/v1/itineraries/i1/checklist/c1')).toHaveLength(1),
     );
+  });
+});
+
+describe('ItineraryPage editing', () => {
+  it('reorders stops and saves the full ordered list', async () => {
+    const api = setup(twoStops);
+    renderApp('/itineraries/i1');
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit stops' }));
+    expect(screen.getByRole('button', { name: 'Move Dinner up' })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Move Dinner down' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Save stops' }));
+    await waitFor(() =>
+      expect(api.body('PUT', '/api/v1/itineraries/i1/stops')).toEqual({
+        stops: [
+          expect.objectContaining({
+            id: 's2',
+            title: 'Dessert',
+            place_id: 'p-dessert',
+            starts_at: '2026-12-10T19:30:00Z',
+            ends_at: '2026-12-10T20:30:00Z',
+          }),
+          expect.objectContaining({
+            id: 's1',
+            title: 'Dinner',
+            place_id: null,
+            starts_at: '2026-12-10T18:00:00Z',
+            ends_at: '2026-12-10T19:30:00Z',
+            description: 'A table for two',
+            est_cost: 95,
+          }),
+        ],
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Save stops' })).not.toBeInTheDocument(),
+    );
+  });
+
+  it('retimes a stop', async () => {
+    const api = setup();
+    renderApp('/itineraries/i1');
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit stops' }));
+    fireEvent.change(screen.getByLabelText('End time for Dinner'), {
+      target: { value: '2026-12-10T21:00' },
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'Save stops' }));
+    await waitFor(() =>
+      expect(api.body('PUT', '/api/v1/itineraries/i1/stops')).toMatchObject({
+        stops: [
+          {
+            id: 's1',
+            starts_at: '2026-12-10T18:00:00Z',
+            ends_at: new Date('2026-12-10T21:00').toISOString(),
+          },
+        ],
+      }),
+    );
+  });
+
+  it('rejects an end before the start without calling the server', async () => {
+    const api = setup();
+    renderApp('/itineraries/i1');
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit stops' }));
+    fireEvent.change(screen.getByLabelText('End time for Dinner'), {
+      target: { value: '2000-01-01T00:00' },
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'Save stops' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Dinner needs to end after it starts',
+    );
+    expect(api.find('PUT', '/api/v1/itineraries/i1/stops')).toHaveLength(0);
+  });
+
+  it('adds a stop found by venue search', async () => {
+    const api = setup();
+    renderApp('/itineraries/i1');
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit stops' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Add a stop' }));
+    await userEvent.type(screen.getByLabelText('Search for a venue'), 'golf');
+    const result = await screen.findByRole('button', { name: /Moonlight Mini Golf/ });
+    expect(result).toHaveTextContent('9 Park Ave');
+    expect(result).toHaveTextContent('4.6');
+    await userEvent.click(result);
+    await userEvent.click(screen.getByRole('button', { name: 'Save stops' }));
+    await waitFor(() =>
+      expect(api.body('PUT', '/api/v1/itineraries/i1/stops')).toMatchObject({
+        stops: [
+          { id: 's1' },
+          {
+            title: 'Moonlight Mini Golf',
+            place_id: 'p-new',
+            starts_at: new Date('2026-12-10T19:30:00Z').toISOString(),
+            ends_at: new Date('2026-12-10T20:30:00Z').toISOString(),
+          },
+        ],
+      }),
+    );
+  });
+
+  it('adds a custom stop without a place', async () => {
+    const api = setup();
+    renderApp('/itineraries/i1');
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit stops' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Add a stop' }));
+    await userEvent.type(screen.getByLabelText('Or add a custom stop'), 'Sunset walk');
+    await userEvent.click(screen.getByRole('button', { name: 'Add custom stop' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Save stops' }));
+    await waitFor(() =>
+      expect(api.body('PUT', '/api/v1/itineraries/i1/stops')).toMatchObject({
+        stops: [{ id: 's1' }, { title: 'Sunset walk', place_id: null }],
+      }),
+    );
+  });
+
+  it('says so when venue search is unavailable', async () => {
+    setup(itinerary, {
+      'GET /api/v1/places/search': jsonResponse(
+        { error: { code: 'unavailable', message: 'nope' } },
+        503,
+      ),
+    });
+    renderApp('/itineraries/i1');
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit stops' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Add a stop' }));
+    await userEvent.type(screen.getByLabelText('Search for a venue'), 'golf');
+    expect(await screen.findByText('Venue search is unavailable right now')).toBeInTheDocument();
+  });
+
+  it('removes a stop after confirming', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const api = setup(twoStops);
+    renderApp('/itineraries/i1');
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit stops' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Remove Dinner' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Save stops' }));
+    await waitFor(() => {
+      const body = api.body('PUT', '/api/v1/itineraries/i1/stops') as { stops: { id: string }[] };
+      expect(body.stops.map((stop) => stop.id)).toEqual(['s2']);
+    });
+  });
+
+  it('keeps a stop when removal is not confirmed, and discards on cancel', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const api = setup();
+    renderApp('/itineraries/i1');
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit stops' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Remove Dinner' }));
+    expect(screen.getByLabelText('Name of stop 1')).toHaveValue('Dinner');
+    await userEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
+    expect(screen.getByRole('heading', { name: 'Dinner' })).toBeInTheDocument();
+    expect(api.find('PUT', '/api/v1/itineraries/i1/stops')).toHaveLength(0);
+  });
+
+  it("shows the server's message when saving stops fails", async () => {
+    setup(itinerary, {
+      'PUT /api/v1/itineraries/i1/stops': jsonResponse(
+        { error: { code: 'invalid_stops', message: 'Stops overlap in time.' } },
+        422,
+      ),
+    });
+    renderApp('/itineraries/i1');
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit stops' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Save stops' }));
+    expect(await screen.findByText(/Stops overlap in time\./)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save stops' })).toBeInTheDocument();
+  });
+
+  it('sends only the changed details', async () => {
+    const api = setup();
+    renderApp('/itineraries/i1');
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit details' }));
+    const title = screen.getByLabelText('Title');
+    await userEvent.clear(title);
+    await userEvent.type(title, 'A lovelier night');
+    await userEvent.clear(screen.getByLabelText('Backup plan'));
+    await userEvent.click(screen.getByRole('button', { name: 'Save details' }));
+    await waitFor(() =>
+      expect(api.body('PATCH', '/api/v1/itineraries/i1')).toEqual({
+        title: 'A lovelier night',
+        backup_plan: null,
+      }),
+    );
+  });
+
+  it('shows no editing controls to the partner', async () => {
+    setup({ ...itinerary, is_planner: false });
+    renderApp('/itineraries/i1');
+    expect(await screen.findByRole('button', { name: /I'm in/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit stops' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit details' })).not.toBeInTheDocument();
+  });
+
+  it('disables Remove on the last stop and says why', async () => {
+    setup();
+    renderApp('/itineraries/i1');
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit stops' }));
+    expect(screen.getByRole('button', { name: 'Remove Dinner' })).toBeDisabled();
+    expect(screen.getByText('A date needs at least one stop.')).toBeInTheDocument();
+  });
+
+  it('shows the checklist read-only on a completed itinerary', async () => {
+    setup({ ...itinerary, status: 'completed' });
+    renderApp('/itineraries/i1');
+    expect(await screen.findByText('Reserve the table')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Mark Reserve the table done' })).toBeDisabled();
+    expect(
+      screen.queryByRole('button', { name: 'Delete Reserve the table' }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Add a finishing touch')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add item' })).not.toBeInTheDocument();
+  });
+
+  it('hides editing on a completed itinerary', async () => {
+    setup({ ...itinerary, status: 'completed' });
+    renderApp('/itineraries/i1');
+    expect(await screen.findByRole('heading', { name: 'A very good night' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit stops' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit details' })).not.toBeInTheDocument();
   });
 });

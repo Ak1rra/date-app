@@ -8,10 +8,12 @@ import { usePersonTheme } from '../hooks/usePersonTheme';
 import { useSession } from '../hooks/useSession';
 import { useCancelItinerary, useItinerary, type ItineraryOut } from '../hooks/useItineraries';
 import { ChecklistSection } from './itinerary/ChecklistSection';
+import { DetailsEditor } from './itinerary/DetailsEditor';
 import { Money } from './itinerary/Money';
 import { ReactionBar } from './itinerary/ReactionBar';
 import { ScheduleSheet } from './itinerary/ScheduleSheet';
 import { StopCard } from './itinerary/StopCard';
+import { StopEditor } from './itinerary/StopEditor';
 import { formatDateWindow } from './itinerary/dateWindow';
 
 function warningText(value: Record<string, unknown>) {
@@ -53,6 +55,8 @@ export function ItineraryPage() {
   const itinerary = useItinerary(id);
   const cancel = useCancelItinerary(id ?? '');
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [editingStops, setEditingStops] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   if (itinerary.isPending) return <Skeleton label="Loading your itinerary" />;
   if (itinerary.isError) {
@@ -92,6 +96,16 @@ export function ItineraryPage() {
       {data.is_planner ? (
         <div className="flex flex-wrap gap-2">
           {canChange ? <Button onClick={() => setScheduleOpen(true)}>Schedule</Button> : null}
+          {canChange && !editingStops ? (
+            <Button variant="secondary" onClick={() => setEditingStops(true)}>
+              Edit stops
+            </Button>
+          ) : null}
+          {canChange ? (
+            <Button variant="secondary" onClick={() => setDetailsOpen(true)}>
+              Edit details
+            </Button>
+          ) : null}
           {canChange ? (
             <Button
               variant="secondary"
@@ -110,12 +124,16 @@ export function ItineraryPage() {
         <ReactionBar itineraryId={data.id} />
       )}
 
-      <section className="flex flex-col gap-4" aria-label="Stops">
-        <h2 className="text-xl font-semibold">The plan</h2>
-        {data.stops.map((stop) => (
-          <StopCard key={stop.id} stop={stop} currency={data.currency} />
-        ))}
-      </section>
+      {editingStops && data.is_planner && canChange ? (
+        <StopEditor itinerary={data} onClose={() => setEditingStops(false)} />
+      ) : (
+        <section className="flex flex-col gap-4" aria-label="Stops">
+          <h2 className="text-xl font-semibold">The plan</h2>
+          {data.stops.map((stop) => (
+            <StopCard key={stop.id} stop={stop} currency={data.currency} />
+          ))}
+        </section>
+      )}
 
       <Card title="The little details">
         <div className="grid gap-4 pt-3 sm:grid-cols-2">
@@ -163,7 +181,7 @@ export function ItineraryPage() {
         </Card>
       ) : null}
 
-      <ChecklistSection itinerary={data} canEdit={data.is_planner} />
+      <ChecklistSection itinerary={data} canEdit={data.is_planner && canChange} />
 
       {data.attributions.length > 0 ? (
         <footer className="flex flex-col gap-1 border-t border-line pt-4 text-xs text-muted">
@@ -171,6 +189,10 @@ export function ItineraryPage() {
             <p key={`${attribution}-${index}`}>{attribution}</p>
           ))}
         </footer>
+      ) : null}
+
+      {detailsOpen && data.is_planner && canChange ? (
+        <DetailsEditor itinerary={data} onClose={() => setDetailsOpen(false)} />
       ) : null}
 
       {scheduleOpen ? (
