@@ -20,6 +20,7 @@ import { SaveTemplateSheet } from './itinerary/SaveTemplateSheet';
 import { ScheduleSheet } from './itinerary/ScheduleSheet';
 import { StopCard } from './itinerary/StopCard';
 import { StopEditor } from './itinerary/StopEditor';
+import { SurpriseSection } from './itinerary/SurpriseSection';
 import { formatDateWindow } from './itinerary/dateWindow';
 
 function warningText(value: Record<string, unknown>) {
@@ -208,6 +209,12 @@ export function ItineraryPage() {
             ))}
           </ul>
         </Card>
+      ) : null}
+
+      {data.is_planner &&
+      data.is_surprise &&
+      (data.status === 'draft' || data.status === 'scheduled') ? (
+        <SurpriseSection itinerary={data} />
       ) : null}
 
       <ChecklistSection itinerary={data} canEdit={data.is_planner && canChange} />
