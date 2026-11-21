@@ -7,6 +7,8 @@ import { ChatPage } from './pages/ChatPage';
 import { HomePage } from './pages/HomePage';
 import { IdeasPage } from './pages/IdeasPage';
 import { InstallPage } from './pages/InstallPage';
+import { ItinerariesPage } from './pages/ItinerariesPage';
+import { ItineraryPage } from './pages/ItineraryPage';
 import { PlanPage } from './pages/PlanPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { SetupPage } from './pages/SetupPage';
@@ -43,6 +45,8 @@ export const routes: RouteObject[] = [
           { path: '/profile', element: <ProfilePage /> },
           { path: '/plan', element: <PlanPage /> },
           { path: '/install', element: <InstallPage /> },
+          { path: '/itineraries', element: <ItinerariesPage /> },
+          { path: '/itineraries/:id', element: <ItineraryPage /> },
         ],
       },
     ],
