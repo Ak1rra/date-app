@@ -225,17 +225,20 @@ export function TagInput({
   value,
   onChange,
   placeholder,
+  max = TAG_MAX_COUNT,
 }: {
   label: string;
   value: string[];
   onChange: (next: string[]) => void;
   placeholder?: string;
+  /** How many tags the list may hold (the API's cap for this field). */
+  max?: number;
 }) {
   const id = useId();
   const [draft, setDraft] = useState('');
   const commit = () => {
     const tag = draft.trim();
-    if (value.length >= TAG_MAX_COUNT) return;
+    if (value.length >= max) return;
     if (tag && !value.some((v) => v.toLowerCase() === tag.toLowerCase())) onChange([...value, tag]);
     setDraft('');
   };
@@ -250,7 +253,7 @@ export function TagInput({
           value={draft}
           placeholder={placeholder}
           maxLength={TAG_MAX_LENGTH}
-          disabled={value.length >= TAG_MAX_COUNT}
+          disabled={value.length >= max}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
@@ -263,7 +266,7 @@ export function TagInput({
         <Button
           variant="secondary"
           onClick={commit}
-          disabled={value.length >= TAG_MAX_COUNT}
+          disabled={value.length >= max}
           aria-label={`Add to ${label}`}
         >
           Add

@@ -1,6 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { mockApi } from '../test/mockApi';
 import { mockSession, renderApp, signedIn } from '../test/renderApp';
 
 afterEach(() => {
@@ -34,12 +35,17 @@ describe('AppShell navigation', () => {
   });
 
   it('shows a teaching empty state on Ideas with the invite CTA', async () => {
-    mockSession(signedIn);
+    mockApi({
+      'GET /api/v1/auth/session': signedIn,
+      'GET /api/v1/profiles': [],
+      'GET /api/v1/deck': { cards: [], partner_joined: false },
+      'GET /api/v1/ideas/lists': { matches: [], maybes: [], pending_partner: [], passed: [] },
+    });
     renderApp('/ideas');
     expect(
       await screen.findByRole('button', { name: 'Invite your partner to swipe together' }),
     ).toBeInTheDocument();
-    expect(screen.getByText('No ideas saved yet')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'My ideas' })).toBeInTheDocument();
   });
 
   it('skip link moves keyboard focus to the main landmark', async () => {
