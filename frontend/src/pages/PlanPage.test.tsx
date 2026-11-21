@@ -377,3 +377,29 @@ describe('PlanPage', () => {
     });
   });
 });
+
+describe('PlanPage prefill from the calendar', () => {
+  it('uses a valid date, start and end from the URL', async () => {
+    setup();
+    renderApp('/plan?date=2026-12-24&start=14:30&end=16:00');
+    expect(await screen.findByLabelText('Date')).toHaveValue('2026-12-24');
+    expect(screen.getByLabelText('Start time')).toHaveValue('14:30');
+    expect(screen.getByLabelText('End time')).toHaveValue('16:00');
+  });
+
+  it('ignores malformed values and keeps the defaults', async () => {
+    setup();
+    renderApp('/plan?date=tomorrow&start=7pm&end=25:00');
+    expect(await screen.findByLabelText('Date')).not.toHaveValue('tomorrow');
+    expect(screen.getByLabelText('Start time')).toHaveValue('18:00');
+    expect(screen.getByLabelText('End time')).toHaveValue('23:00');
+  });
+
+  it('ignores an impossible date instead of rolling it over', async () => {
+    setup();
+    renderApp('/plan?date=2026-02-30&start=19:00&end=22:00');
+    const date = await screen.findByLabelText('Date');
+    expect(date).not.toHaveValue('2026-02-30');
+    expect(date).not.toHaveValue('2026-03-02');
+  });
+});

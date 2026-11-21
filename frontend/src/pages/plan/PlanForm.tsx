@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { Button } from '../../components/Button';
 import { Segmented, TextAreaField, TextField } from '../../components/forms';
 import type { PlanSessionIn } from '../../hooks/usePlan';
@@ -10,6 +11,26 @@ const MUST_INCLUDE_MAX_LENGTH = 200;
 
 export type PlanAction = 'options' | 'plan-all';
 
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/** A link's `?date=`, `?start=` or `?end=` when it is well formed (the calendar prefills these). */
+function prefill(value: string | null, pattern: RegExp, fallback: string) {
+  if (!value || !pattern.test(value)) return fallback;
+  if (pattern === DATE_PATTERN) {
+    // Round-trip check: JS rolls 2026-02-30 over to March 2 instead of rejecting it.
+    const [year, month, day] = value.split('-').map(Number) as [number, number, number];
+    const parsed = new Date(year, month - 1, day);
+    if (
+      parsed.getFullYear() !== year ||
+      parsed.getMonth() !== month - 1 ||
+      parsed.getDate() !== day
+    )
+      return fallback;
+  }
+  return value;
+}
+
 interface PlanFormProps {
   /** Disables the fields and both buttons while a request is running. */
   disabled: boolean;
@@ -20,9 +41,14 @@ interface PlanFormProps {
 
 /** When, how much, and what kind of night; then either three options or the whole plan. */
 export function PlanForm({ disabled, onSubmit, windowError }: PlanFormProps) {
-  const [date, setDate] = useState(() => todayLocal());
-  const [start, setStart] = useState(DEFAULT_PRESET.start);
-  const [end, setEnd] = useState(DEFAULT_PRESET.end);
+  const [params] = useSearchParams();
+  const [date, setDate] = useState(() => prefill(params.get('date'), DATE_PATTERN, todayLocal()));
+  const [start, setStart] = useState(() =>
+    prefill(params.get('start'), TIME_PATTERN, DEFAULT_PRESET.start),
+  );
+  const [end, setEnd] = useState(() =>
+    prefill(params.get('end'), TIME_PATTERN, DEFAULT_PRESET.end),
+  );
   const [budget, setBudget] = useState('');
   const [steer, setSteer] = useState('');
   const [mustInclude, setMustInclude] = useState('');

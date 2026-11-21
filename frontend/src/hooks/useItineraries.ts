@@ -18,16 +18,18 @@ export const itinerariesKey = (userId: string | undefined) => ['itineraries', us
 export const itineraryKey = (userId: string | undefined, id: string | undefined) =>
   ['itinerary', userId, id] as const;
 
+export const fetchItinerary = async (id: string) =>
+  unwrap(
+    await client.GET('/api/v1/itineraries/{itinerary_id}', {
+      params: { path: { itinerary_id: id } },
+    }),
+  );
+
 export function itineraryQueryOptions(userId: string | undefined, id: string | undefined) {
   return {
     queryKey: itineraryKey(userId, id),
     enabled: !!userId && !!id,
-    queryFn: async () =>
-      unwrap(
-        await client.GET('/api/v1/itineraries/{itinerary_id}', {
-          params: { path: { itinerary_id: id! } },
-        }),
-      ),
+    queryFn: () => fetchItinerary(id!),
     retry: (count: number, error: unknown) =>
       !(error instanceof ApiError && error.status === 404) && count < 2,
   };
