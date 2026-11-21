@@ -198,6 +198,72 @@ describe('CalendarPage', () => {
     expect(within(agenda).queryByText('Christmas dinner')).not.toBeInTheDocument();
   });
 
+  it('links a surprise for the viewer to its surprise page, with no private badge', async () => {
+    setup({
+      'GET /api/v1/calendar': [
+        ...entries,
+        {
+          id: 'e7',
+          kind: 'date',
+          title: 'Mystery evening',
+          starts_at: at(2026, 11, 26, 18),
+          ends_at: null,
+          all_day: false,
+          announced: false,
+          is_surprise: true,
+          status: 'scheduled',
+          itinerary_id: 's9',
+        },
+      ],
+      'GET /api/v1/surprises': [
+        { id: 's9', starts_at: at(2026, 11, 26, 18), ends_at: null, reveal_at: null, hints: [] },
+      ],
+    });
+    renderApp('/calendar');
+    const agenda = await screen.findByRole('region', { name: 'Agenda' });
+
+    const mystery = await within(agenda).findByRole('link', { name: 'Mystery evening' });
+    expect(mystery).toHaveAttribute('href', '/surprise/s9');
+    const mysteryItem = mystery.closest('li')!;
+    expect(within(mysteryItem).getByText('Surprise ✨')).toBeInTheDocument();
+    expect(within(mysteryItem).queryByText('Only you can see this')).not.toBeInTheDocument();
+
+    // The planner's own surprise is unchanged.
+    const own = within(agenda).getByRole('link', { name: 'Secret rooftop' });
+    expect(own).toHaveAttribute('href', '/itineraries/i2');
+    const ownItem = own.closest('li')!;
+    expect(within(ownItem).getByText('Only you can see this')).toBeInTheDocument();
+    expect(within(ownItem).queryByText('Surprise ✨')).not.toBeInTheDocument();
+  });
+
+  it('treats a failed surprises list as empty: no surprise link or pill', async () => {
+    setup({
+      'GET /api/v1/calendar': [
+        ...entries,
+        {
+          id: 'e7',
+          kind: 'date',
+          title: 'Mystery evening',
+          starts_at: at(2026, 11, 26, 18),
+          ends_at: null,
+          all_day: false,
+          announced: false,
+          is_surprise: true,
+          status: 'scheduled',
+          itinerary_id: 's9',
+        },
+      ],
+      'GET /api/v1/surprises': () =>
+        jsonResponse({ error: { code: 'internal_error', message: 'Boom.' } }, 500),
+    });
+    renderApp('/calendar');
+    const agenda = await screen.findByRole('region', { name: 'Agenda' });
+
+    const mystery = await within(agenda).findByRole('link', { name: 'Mystery evening' });
+    expect(mystery).toHaveAttribute('href', '/itineraries/s9');
+    expect(within(agenda).queryByText('Surprise ✨')).not.toBeInTheDocument();
+  });
+
   it('shows the entries of a clicked day, with the surprise badge', async () => {
     setup();
     renderApp('/calendar');

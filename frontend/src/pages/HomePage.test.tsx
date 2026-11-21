@@ -1,8 +1,9 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ItineraryOut, ItinerarySummary } from '../hooks/useItineraries';
 import { countdownLabel, nextOccurrence } from '../hooks/useHome';
 import type { ImportantDateOut } from '../hooks/useImportantDates';
+import type { SurpriseOut } from '../hooks/useSurpriseView';
 import { mockApi } from '../test/mockApi';
 import { mockSession, renderApp, signedIn } from '../test/renderApp';
 
@@ -27,14 +28,17 @@ function setupHome({
   itineraries = [],
   dates = [],
   details = {},
+  surprises,
 }: {
   itineraries?: ItinerarySummary[];
   dates?: ImportantDateOut[];
   details?: Record<string, ItineraryOut>;
+  surprises?: SurpriseOut[];
 } = {}) {
   return mockApi({
     'GET /api/v1/auth/session': signedIn,
     'GET /api/v1/itineraries': itineraries,
+    ...(surprises ? { 'GET /api/v1/surprises': surprises } : {}),
     'GET /api/v1/couple/important-dates': dates,
     ...Object.fromEntries(
       Object.entries(details).map(([id, detail]) => [`GET /api/v1/itineraries/${id}`, detail]),
@@ -98,6 +102,48 @@ describe('HomePage', () => {
     for (const name of ['Next date', 'Finishing touches due', 'Upcoming occasions']) {
       expect(await screen.findByRole('region', { name })).toBeInTheDocument();
     }
+  });
+
+  it('lists upcoming surprises for the surprisee, first in the grid', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-21T12:00:00Z'));
+    setupHome({
+      surprises: [
+        {
+          id: 's1',
+          starts_at: '2026-11-23T18:00:00Z',
+          ends_at: null,
+          reveal_at: null,
+          hints: [
+            { id: 'h1', kind: 'bring', text: 'A scarf', released_at: '2026-11-20T10:00:00Z' },
+            {
+              id: 'h2',
+              kind: 'eat',
+              text: 'Bring an appetite',
+              released_at: '2026-11-21T10:00:00Z',
+            },
+          ],
+        },
+      ],
+    });
+    renderApp('/');
+
+    const card = await screen.findByRole('region', { name: 'A surprise for you ✨' });
+    expect(within(card).getByRole('link', { name: /A surprise is coming/ })).toHaveAttribute(
+      'href',
+      '/surprise/s1',
+    );
+    expect(within(card).getByText('In 2 days')).toBeInTheDocument();
+    expect(within(card).getByText('2 hints so far')).toBeInTheDocument();
+    const regions = screen.getAllByRole('region');
+    expect(regions[0]).toBe(card);
+  });
+
+  it('has no surprise card without surprises, even when the list fails to load', async () => {
+    setupHome({ surprises: [] });
+    renderApp('/');
+    expect(await screen.findByRole('region', { name: 'Next date' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'A surprise for you ✨' })).not.toBeInTheDocument();
   });
 
   it('shows the soonest scheduled date and links to it', async () => {

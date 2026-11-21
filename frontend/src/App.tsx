@@ -9,6 +9,7 @@ import { IdeasPage } from './pages/IdeasPage';
 import { InstallPage } from './pages/InstallPage';
 import { ItinerariesPage } from './pages/ItinerariesPage';
 import { ItineraryPage } from './pages/ItineraryPage';
+import { SurprisePage } from './pages/SurprisePage';
 import { NotificationsPage } from './pages/NotificationsPage';
 import { PlanPage } from './pages/PlanPage';
 import { ProfilePage } from './pages/ProfilePage';
@@ -50,6 +51,7 @@ export const routes: RouteObject[] = [
           { path: '/install', element: <InstallPage /> },
           { path: '/itineraries', element: <ItinerariesPage /> },
           { path: '/itineraries/:id', element: <ItineraryPage /> },
+          { path: '/surprise/:id', element: <SurprisePage /> },
           { path: '/templates', element: <TemplatesPage /> },
         ],
       },

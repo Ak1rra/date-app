@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { client, unwrap, type Schemas } from '../api/client';
+import { ApiError } from '../api/http';
 import { useViewerId } from './useSession';
 
 export type ProfileOut = Schemas['ProfileOut'];
@@ -83,5 +84,92 @@ export function useSaveAvailability(id: string) {
         }),
       ),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: availabilityKey(userId, id) }),
+  });
+}
+
+export type ProfileSuggestionOut = Schemas['ProfileSuggestionOut'];
+export type ProfileSuggestionIn = Schemas['ProfileSuggestionIn'];
+export type ProfileChanges = Schemas['ProfileChanges'];
+
+const suggestionsKey = (userId: string | undefined, id: string) =>
+  ['profiles', userId, id, 'suggestions'] as const;
+
+/** POST /profiles/{id}/confirm: the subject confirms a profile their partner filled in. */
+export function useConfirmProfile(id: string) {
+  const userId = useViewerId();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      unwrap(
+        await client.POST('/api/v1/profiles/{profile_id}/confirm', {
+          params: { path: { profile_id: id } },
+        }),
+      ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: profilesKey(userId) }),
+  });
+}
+
+/** GET /profiles/{id}/suggestions?status=pending (the subject sees all; others only their own). */
+export function useSuggestions(id: string, enabled: boolean) {
+  const userId = useViewerId();
+  return useQuery({
+    queryKey: suggestionsKey(userId, id),
+    enabled: !!userId && enabled,
+    queryFn: async () =>
+      unwrap(
+        await client.GET('/api/v1/profiles/{profile_id}/suggestions', {
+          params: { path: { profile_id: id }, query: { status: 'pending' } },
+        }),
+      ),
+  });
+}
+
+/** POST /profiles/{id}/suggestions. A 409 `edit_directly` means the caller may edit it now. */
+export function useCreateSuggestion(id: string) {
+  const userId = useViewerId();
+  const queryClient = useQueryClient();
+  const refresh = () => queryClient.invalidateQueries({ queryKey: profilesKey(userId) });
+  return useMutation({
+    mutationFn: async (body: ProfileSuggestionIn) =>
+      unwrap(
+        await client.POST('/api/v1/profiles/{profile_id}/suggestions', {
+          params: { path: { profile_id: id } },
+          body,
+        }),
+      ),
+    onSuccess: refresh,
+    onError: (error) => {
+      if (error instanceof ApiError && error.code === 'edit_directly') void refresh();
+    },
+  });
+}
+
+/** POST /profiles/{id}/suggestions/{sid}/accept (subject only). */
+export function useAcceptSuggestion(id: string) {
+  const userId = useViewerId();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (suggestionId: string) =>
+      unwrap(
+        await client.POST('/api/v1/profiles/{profile_id}/suggestions/{suggestion_id}/accept', {
+          params: { path: { profile_id: id, suggestion_id: suggestionId } },
+        }),
+      ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: profilesKey(userId) }),
+  });
+}
+
+/** POST /profiles/{id}/suggestions/{sid}/decline (subject only). */
+export function useDeclineSuggestion(id: string) {
+  const userId = useViewerId();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (suggestionId: string) =>
+      unwrap(
+        await client.POST('/api/v1/profiles/{profile_id}/suggestions/{suggestion_id}/decline', {
+          params: { path: { profile_id: id, suggestion_id: suggestionId } },
+        }),
+      ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: profilesKey(userId) }),
   });
 }

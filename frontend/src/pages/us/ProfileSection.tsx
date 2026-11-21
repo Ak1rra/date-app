@@ -1,17 +1,7 @@
 import { useState } from 'react';
 import { Button } from '../../components/Button';
 import { EmptyState } from '../../components/EmptyState';
-import {
-  ChipGroup,
-  FormError,
-  LoadError,
-  Segmented,
-  SliderField,
-  Skeleton,
-  TagInput,
-  TextAreaField,
-  TextField,
-} from '../../components/forms';
+import { FormError, LoadError, Skeleton } from '../../components/forms';
 import {
   toProfileIn,
   useProfiles,
@@ -19,7 +9,11 @@ import {
   type ProfileIn,
   type ProfileOut,
 } from '../../hooks/useProfiles';
-import { CATEGORIES, DIETARY, INDOOR_OUTDOOR, PERSON_CARD, personOf, pretty } from './options';
+import { HandoverBanner } from './HandoverBanner';
+import { FIELD_LABELS, ProfileFields } from './ProfileFields';
+import { SuggestChange } from './SuggestChangeSheet';
+import { SuggestionsReview } from './SuggestionsReview';
+import { PERSON_CARD, personOf, pretty } from './options';
 
 const FALLBACK_NAME = 'your partner';
 
@@ -59,24 +53,24 @@ const list = (values: string[]) => values.map(pretty).join(', ');
 function ProfileSummary({ profile }: { profile: ProfileOut }) {
   return (
     <dl className="flex flex-col gap-3">
-      <Row term="Likes">{list(profile.liked_categories)}</Row>
-      <Row term="Not into">{list(profile.disliked_categories)}</Row>
-      <Row term="Cuisines they like">{profile.cuisines_liked.join(', ')}</Row>
-      <Row term="Cuisines they avoid">{profile.cuisines_disliked.join(', ')}</Row>
-      <Row term="Energy">
+      <Row term={FIELD_LABELS.liked_categories}>{list(profile.liked_categories)}</Row>
+      <Row term={FIELD_LABELS.disliked_categories}>{list(profile.disliked_categories)}</Row>
+      <Row term={FIELD_LABELS.cuisines_liked}>{profile.cuisines_liked.join(', ')}</Row>
+      <Row term={FIELD_LABELS.cuisines_disliked}>{profile.cuisines_disliked.join(', ')}</Row>
+      <Row term={FIELD_LABELS.energy}>
         {profile.energy ? `${profile.energy} of 5 (chill to adventurous)` : null}
       </Row>
-      <Row term="Social setting">
+      <Row term={FIELD_LABELS.social_setting}>
         {profile.social_setting ? `${profile.social_setting} of 5 (quiet to lively)` : null}
       </Row>
-      <Row term="Indoor or outdoor">
+      <Row term={FIELD_LABELS.indoor_outdoor}>
         {profile.indoor_outdoor ? pretty(profile.indoor_outdoor) : null}
       </Row>
-      <Row term="Loves">{profile.loves}</Row>
-      <Row term="Hard no's">{profile.hard_nos}</Row>
-      <Row term="Dietary">{list(profile.dietary)}</Row>
-      <Row term="Allergies">{profile.allergies.join(', ')}</Row>
-      <Row term="Accessibility">{profile.accessibility}</Row>
+      <Row term={FIELD_LABELS.loves}>{profile.loves}</Row>
+      <Row term={FIELD_LABELS.hard_nos}>{profile.hard_nos}</Row>
+      <Row term={FIELD_LABELS.dietary}>{list(profile.dietary)}</Row>
+      <Row term={FIELD_LABELS.allergies}>{profile.allergies.join(', ')}</Row>
+      <Row term={FIELD_LABELS.accessibility}>{profile.accessibility}</Row>
     </dl>
   );
 }
@@ -95,88 +89,7 @@ function ProfileForm({ profile, onDone }: { profile: ProfileOut; onDone: () => v
         save.mutate({ id: profile.id, body: form }, { onSuccess: onDone });
       }}
     >
-      <TextField
-        label="First name"
-        value={form.display_name ?? ''}
-        onChange={(e) => set('display_name', e.target.value)}
-      />
-      <ChipGroup
-        label="Kinds of dates they like"
-        options={CATEGORIES}
-        value={form.liked_categories}
-        onChange={(v) => set('liked_categories', v)}
-        describe={pretty}
-      />
-      <ChipGroup
-        label="Kinds of dates they are not into"
-        options={CATEGORIES}
-        value={form.disliked_categories}
-        onChange={(v) => set('disliked_categories', v)}
-        describe={pretty}
-      />
-      <TagInput
-        label="Cuisines they like"
-        value={form.cuisines_liked}
-        onChange={(v) => set('cuisines_liked', v)}
-        placeholder="e.g. Thai"
-      />
-      <TagInput
-        label="Cuisines they avoid"
-        value={form.cuisines_disliked}
-        onChange={(v) => set('cuisines_disliked', v)}
-        placeholder="e.g. Seafood"
-      />
-      <SliderField
-        label="Energy"
-        low="Chill"
-        high="Adventurous"
-        value={form.energy}
-        onChange={(v) => set('energy', v)}
-      />
-      <SliderField
-        label="Social setting"
-        low="Quiet"
-        high="Lively"
-        value={form.social_setting}
-        onChange={(v) => set('social_setting', v)}
-      />
-      <Segmented
-        label="Indoor or outdoor"
-        options={INDOOR_OUTDOOR}
-        value={form.indoor_outdoor}
-        onChange={(v) => set('indoor_outdoor', v)}
-      />
-      <TextAreaField
-        label="Loves"
-        hint="Things that always make them happy."
-        value={form.loves ?? ''}
-        onChange={(e) => set('loves', e.target.value)}
-      />
-      <TextAreaField
-        label="Hard no's"
-        hint="Anything that is off the table."
-        value={form.hard_nos ?? ''}
-        onChange={(e) => set('hard_nos', e.target.value)}
-      />
-      <ChipGroup
-        label="Dietary needs"
-        options={DIETARY}
-        value={form.dietary}
-        onChange={(v) => set('dietary', v)}
-        describe={pretty}
-      />
-      <TagInput
-        label="Allergies"
-        value={form.allergies}
-        onChange={(v) => set('allergies', v)}
-        placeholder="e.g. Peanuts"
-      />
-      <TextAreaField
-        label="Accessibility"
-        hint="Anything that affects where you can go, like stairs or long walks."
-        value={form.accessibility ?? ''}
-        onChange={(e) => set('accessibility', e.target.value)}
-      />
+      <ProfileFields form={form} set={set} />
       <FormError error={save.error} />
       <div className="flex flex-wrap gap-2">
         <Button type="submit" disabled={save.isPending}>
@@ -190,7 +103,7 @@ function ProfileForm({ profile, onDone }: { profile: ProfileOut; onDone: () => v
   );
 }
 
-function ProfileCard({ profile }: { profile: ProfileOut }) {
+function ProfileCard({ profile, partnerName }: { profile: ProfileOut; partnerName: string }) {
   const [editing, setEditing] = useState(false);
   const person = personOf(profile.slot);
   const name = profileName(profile);
@@ -219,6 +132,12 @@ function ProfileCard({ profile }: { profile: ProfileOut }) {
         <ProfileForm profile={profile} onDone={() => setEditing(false)} />
       ) : (
         <>
+          <HandoverBanner
+            profile={profile}
+            partnerName={partnerName}
+            onEdit={() => setEditing(true)}
+          />
+          <SuggestionsReview profile={profile} partnerName={partnerName} />
           {hasAnyDetail(profile) ? (
             <ProfileSummary profile={profile} />
           ) : (
@@ -235,6 +154,7 @@ function ProfileCard({ profile }: { profile: ProfileOut }) {
               </Button>
             </div>
           ) : null}
+          <SuggestChange profile={profile} name={name} />
         </>
       )}
     </section>
@@ -247,10 +167,12 @@ export function ProfileSection() {
   if (profiles.isError) {
     return <LoadError error={profiles.error} onRetry={() => void profiles.refetch()} />;
   }
+  const partner = profiles.data.find((p) => !p.is_me);
+  const partnerName = partner ? profileName(partner) : FALLBACK_NAME;
   return (
     <div className="flex flex-col gap-6">
       {profiles.data.map((p) => (
-        <ProfileCard key={p.id} profile={p} />
+        <ProfileCard key={p.id} profile={p} partnerName={partnerName} />
       ))}
     </div>
   );

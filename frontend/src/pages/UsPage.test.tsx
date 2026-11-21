@@ -80,7 +80,12 @@ describe('UsPage', () => {
     ).closest('section')!;
     expect(within(theirs).getByText(/keeps their own profile/)).toBeInTheDocument();
     expect(within(theirs).getByText('Pottery')).toBeInTheDocument();
-    expect(within(theirs).queryByRole('button')).not.toBeInTheDocument();
+    // The only action on a joined partner's profile is suggesting a change (no direct edit).
+    expect(
+      within(theirs)
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual(['Suggest a change']);
     expect(screen.getByRole('button', { name: 'Edit my profile' })).toBeInTheDocument();
   });
 

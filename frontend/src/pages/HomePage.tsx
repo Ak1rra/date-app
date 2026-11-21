@@ -3,6 +3,7 @@ import { SparkleIcon } from '../components/Icons';
 import { FinishingTouchesCard } from './home/FinishingTouchesCard';
 import { NextDateCard } from './home/NextDateCard';
 import { OccasionsCard } from './home/OccasionsCard';
+import { SurprisesCard } from './home/SurprisesCard';
 
 export function HomePage() {
   return (
@@ -14,6 +15,7 @@ export function HomePage() {
       </ButtonLink>
 
       <div className="grid gap-4 md:grid-cols-2">
+        <SurprisesCard />
         <NextDateCard />
         <FinishingTouchesCard />
         <OccasionsCard />
