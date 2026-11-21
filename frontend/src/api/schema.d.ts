@@ -347,6 +347,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ideas/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate Ideas
+         * @description New AI ideas: shared ones for the deck (`match`) or private ones (`plan`). `degraded`
+         *     lists providers that were down.
+         */
+        post: operations["generate_ideas_api_v1_ideas_generate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ideas/lists": {
         parameters: {
             query?: never;
@@ -1482,6 +1503,46 @@ export interface components {
             name: string;
             /** Url */
             url: string | null;
+        };
+        /**
+         * GenerateIdeasIn
+         * @description What to dream up. `match` saves shared ideas for the deck, `plan` private ones.
+         */
+        GenerateIdeasIn: {
+            /** Budget Max */
+            budget_max?: number | null;
+            /** Category */
+            category?: ("food" | "drink" | "activity" | "event" | "outdoors" | "other") | null;
+            /**
+             * Count
+             * @default 8
+             */
+            count: number;
+            /** Indoor Outdoor */
+            indoor_outdoor?: ("indoor" | "outdoor" | "either") | null;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "match" | "plan";
+            /**
+             * Surprise Me
+             * @default false
+             */
+            surprise_me: boolean;
+            /** Vibe */
+            vibe?: string | null;
+            /** Window End */
+            window_end?: string | null;
+            /** Window Start */
+            window_start?: string | null;
+        };
+        /** GenerateIdeasOut */
+        GenerateIdeasOut: {
+            /** Degraded */
+            degraded: string[];
+            /** Ideas */
+            ideas: components["schemas"]["IdeaOut"][];
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -3451,6 +3512,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IdeaOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_ideas_api_v1_ideas_generate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GenerateIdeasIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenerateIdeasOut"];
                 };
             };
             /** @description Validation Error */

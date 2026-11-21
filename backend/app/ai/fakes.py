@@ -11,9 +11,13 @@ from typing import Any
 
 from app.ai.client import FAKE_RESPONDERS, ToolRunner
 from app.ai.schemas import (
+    BestTime,
     DraftChecklistItem,
     DraftStop,
+    GeneratedIdea,
+    GeneratedIdeas,
     HintSuggestions,
+    IndoorOutdoor,
     ItineraryDraft,
     PlanOption,
     PlanOptions,
@@ -350,6 +354,137 @@ async def fake_hint_suggestions(
     )
 
 
+# --- Ideas -------------------------------------------------------------------------------------
+
+
+async def _first_event(tools: ToolRunner | None) -> dict[str, Any] | None:
+    if tools is None:
+        return None
+    start = dt.datetime.fromisoformat(f"{_tomorrow()}T00:00:00+00:00")
+    args = {"start": start.isoformat(), "end": (start + dt.timedelta(days=7)).isoformat()}
+    try:
+        result = json.loads(await tools.execute("search_events", args))
+    except ValueError:
+        return None
+    if not isinstance(result, dict) or not result.get("data"):
+        return None
+    first: dict[str, Any] = result["data"][0]
+    return first
+
+
+async def fake_generated_ideas(
+    tools: ToolRunner | None, context: str, messages: list[dict[str, Any]]
+) -> GeneratedIdeas:
+    dinners = await _search(tools, "dinner")
+    parks = await _search(tools, "park")
+    desserts = await _search(tools, "dessert")
+    event = await _first_event(tools)
+    dinner = dinners[0] if dinners else None
+    park = parks[0] if parks else None
+    dessert = desserts[0] if desserts else None
+
+    def idea(
+        title: str,
+        pitch: str,
+        category: StopKind,
+        found: _Found | None = None,
+        *,
+        tags: list[str],
+        indoor_outdoor: IndoorOutdoor,
+        best_time: BestTime = "any",
+    ) -> GeneratedIdea:
+        return GeneratedIdea(
+            title=title[:120],
+            pitch=pitch,
+            tags=tags,
+            category=category,
+            place_ids=[found.place_id] if found else [],
+            evergreen=found is None,
+            est_cost=found.cost if found else None,
+            duration_minutes=120,
+            best_time=best_time,
+            indoor_outdoor=indoor_outdoor,
+        )
+
+    ideas = [
+        idea(
+            f"Dinner at {dinner.name if dinner else 'your favourite local spot'}",
+            "A proper sit-down dinner, because you deserve it and I intend to steal bites.",
+            "food",
+            dinner,
+            tags=["dinner", "cosy"],
+            indoor_outdoor="indoor",
+            best_time="evening",
+        ),
+        idea(
+            f"Stroll at {park.name if park else 'a nearby park'}",
+            "Walk somewhere pretty and hold hands shamelessly.",
+            "outdoors",
+            park,
+            tags=["walk", "easy"],
+            indoor_outdoor="outdoor",
+            best_time="day",
+        ),
+    ]
+    if event is not None:
+        ideas.append(
+            GeneratedIdea(
+                title=str(event["name"])[:120],
+                pitch="Live and loud and ours: grab tickets and make a night of it.",
+                tags=["live", "event"],
+                category="event",
+                event_id=event["event_id"],
+                evergreen=False,
+                duration_minutes=180,
+                best_time="evening",
+                indoor_outdoor="either",
+            )
+        )
+    ideas += [
+        idea(
+            "Cook a new recipe together",
+            "Stay in, cook something ambitious, and see who is better at it. Spoiler: me.",
+            "activity",
+            tags=["cooking", "night in"],
+            indoor_outdoor="indoor",
+            best_time="evening",
+        ),
+        idea(
+            f"Dessert at {dessert.name if dessert else 'a cosy dessert place'}",
+            "Skip the main course and go straight to the sweet part.",
+            "food",
+            dessert,
+            tags=["dessert"],
+            indoor_outdoor="indoor",
+        ),
+        idea(
+            "Movie night with homemade popcorn",
+            "Blankets, a film we both pick and popcorn we definitely over-salt.",
+            "other",
+            tags=["movie", "night in"],
+            indoor_outdoor="indoor",
+            best_time="evening",
+        ),
+        idea(
+            "Sunrise picnic on a blanket",
+            "Coffee, pastries and a very early start for a very pretty view.",
+            "outdoors",
+            tags=["picnic", "sunrise"],
+            indoor_outdoor="outdoor",
+            best_time="day",
+        ),
+        idea(
+            "Board game tournament",
+            "Loser does the dishes. Winner gloats. Everyone is happy.",
+            "activity",
+            tags=["games", "night in"],
+            indoor_outdoor="indoor",
+        ),
+    ]
+    return GeneratedIdeas(ideas=ideas)
+
+
 FAKE_RESPONDERS[ItineraryDraft] = fake_itinerary
 FAKE_RESPONDERS[PolishedInvitation] = fake_polished_invitation
 FAKE_RESPONDERS[HintSuggestions] = fake_hint_suggestions
+FAKE_RESPONDERS[GeneratedIdeas] = fake_generated_ideas

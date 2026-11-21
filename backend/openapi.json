@@ -717,6 +717,145 @@
         "title": "EventOut",
         "type": "object"
       },
+      "GenerateIdeasIn": {
+        "additionalProperties": false,
+        "description": "What to dream up. `match` saves shared ideas for the deck, `plan` private ones.",
+        "properties": {
+          "budget_max": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 10000.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Max"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "enum": [
+                  "food",
+                  "drink",
+                  "activity",
+                  "event",
+                  "outdoors",
+                  "other"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "count": {
+            "default": 8,
+            "maximum": 10.0,
+            "minimum": 5.0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "indoor_outdoor": {
+            "anyOf": [
+              {
+                "enum": [
+                  "indoor",
+                  "outdoor",
+                  "either"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Indoor Outdoor"
+          },
+          "mode": {
+            "enum": [
+              "match",
+              "plan"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "surprise_me": {
+            "default": false,
+            "title": "Surprise Me",
+            "type": "boolean"
+          },
+          "vibe": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vibe"
+          },
+          "window_end": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Window End"
+          },
+          "window_start": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Window Start"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "title": "GenerateIdeasIn",
+        "type": "object"
+      },
+      "GenerateIdeasOut": {
+        "properties": {
+          "degraded": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Degraded",
+            "type": "array"
+          },
+          "ideas": {
+            "items": {
+              "$ref": "#/components/schemas/IdeaOut"
+            },
+            "title": "Ideas",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ideas",
+          "degraded"
+        ],
+        "title": "GenerateIdeasOut",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -5817,6 +5956,48 @@
           }
         },
         "summary": "Create Idea",
+        "tags": [
+          "ideas"
+        ]
+      }
+    },
+    "/api/v1/ideas/generate": {
+      "post": {
+        "description": "New AI ideas: shared ones for the deck (`match`) or private ones (`plan`). `degraded`\nlists providers that were down.",
+        "operationId": "generate_ideas_api_v1_ideas_generate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateIdeasIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerateIdeasOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate Ideas",
         "tags": [
           "ideas"
         ]

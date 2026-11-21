@@ -28,6 +28,7 @@ from app.models import ChecklistItem, Couple, CoupleMember, Itinerary, Stop, Tra
 from app.providers.registry import Providers
 from app.providers.types import LatLng, Place, ProviderUnavailable, to_jsonable
 from app.providers.weather.base import ATTRIBUTION as WEATHER_ATTRIBUTION
+from app.realtime import emit_itinerary
 from app.schemas.itineraries import (
     ChecklistIn,
     ChecklistItemOut,
@@ -666,6 +667,7 @@ async def patch_itinerary(
     await session.flush()
     if times_changed and itinerary.status == "scheduled":
         await revalidate(session, itinerary, providers, settings)
+    emit_itinerary(session, itinerary, "itinerary.updated")
 
 
 async def replace_stops(
@@ -730,6 +732,7 @@ async def replace_stops(
     itinerary.warnings = await compute_warnings(session, itinerary, providers, settings)
     itinerary.updated_at = now()
     await session.flush()
+    emit_itinerary(session, itinerary, "itinerary.updated")
 
 
 async def _lookup_snapshot(providers: Providers, place_id: str) -> dict[str, Any] | None:
@@ -779,6 +782,7 @@ async def add_checklist_item(
     )
     session.add(item)
     await session.flush()
+    emit_itinerary(session, itinerary, "itinerary.updated")
     return _checklist_out(item)
 
 
@@ -816,6 +820,7 @@ async def patch_checklist_item(
         elif item.done_at is None:
             item.done_at = now()
     await session.flush()
+    emit_itinerary(session, itinerary, "itinerary.updated")
     return _checklist_out(item)
 
 
@@ -824,6 +829,7 @@ async def delete_checklist_item(
 ) -> None:
     await session.delete(await _get_item(session, itinerary, item_id))
     await session.flush()
+    emit_itinerary(session, itinerary, "itinerary.updated")
 
 
 # --- Schedule, cancel, react
@@ -867,6 +873,7 @@ async def schedule(
         moment = now()
         await surprise.process_due(session, itinerary, settings, moment)
         await surprise.schedule_due_jobs(session, itinerary, moment)
+    emit_itinerary(session, itinerary, "date.scheduled")
 
 
 async def cancel(session: AsyncSession, itinerary: Itinerary) -> None:
@@ -875,6 +882,7 @@ async def cancel(session: AsyncSession, itinerary: Itinerary) -> None:
     itinerary.status = "cancelled"
     itinerary.updated_at = now()
     await session.flush()
+    emit_itinerary(session, itinerary, "date.cancelled")
 
 
 async def react(
@@ -891,3 +899,4 @@ async def react(
     }
     itinerary.updated_at = now()
     await session.flush()
+    emit_itinerary(session, itinerary, "itinerary.updated")

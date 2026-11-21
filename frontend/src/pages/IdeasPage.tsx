@@ -1,10 +1,10 @@
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { Card } from '../components/EmptyState';
 import { useIdeaLists, type IdeaOut } from '../hooks/useIdeas';
 import { useViewerId } from '../hooks/useSession';
+import { useMatchCelebration } from '../realtime/RealtimeProvider';
 import { DeckTab } from './ideas/DeckTab';
 import { IdeaLists, type ListName } from './ideas/IdeaLists';
-import { MatchCelebration } from './ideas/MatchCelebration';
 import { MyIdeasTab } from './ideas/MyIdeasTab';
 import { usePeople } from './ideas/usePeople';
 
@@ -24,8 +24,9 @@ function IdeasBody() {
   const people = usePeople();
   const lists = useIdeaLists().data;
   const [tab, setTab] = useState<TabId>('deck');
-  const [match, setMatch] = useState<IdeaOut | null>(null);
-  const closeMatch = useCallback(() => setMatch(null), []);
+  // The overlay lives in RealtimeProvider so a match found anywhere raises the same one.
+  const celebration = useMatchCelebration();
+  const onMatch = (idea: IdeaOut) => celebration.celebrate(idea.id, idea.title);
 
   const count = (name: ListName) => (lists ? ` (${lists[name].length})` : '');
   const tabs: { id: TabId; label: string }[] = [
@@ -70,15 +71,18 @@ function IdeasBody() {
       <Card>
         <div role="tabpanel" id="ideas-panel" aria-labelledby={`ideas-tab-${tab}`}>
           {tab === 'deck' ? (
-            <DeckTab partnerName={people.partnerName} paused={match !== null} onMatch={setMatch} />
+            <DeckTab
+              partnerName={people.partnerName}
+              paused={celebration.active}
+              onMatch={onMatch}
+            />
           ) : tab === 'mine' ? (
             <MyIdeasTab partnerName={people.partnerName} />
           ) : (
-            <IdeaLists which={tab} people={people} onMatch={setMatch} />
+            <IdeaLists which={tab} people={people} onMatch={onMatch} />
           )}
         </div>
       </Card>
-      {match ? <MatchCelebration idea={match} onClose={closeMatch} /> : null}
     </div>
   );
 }

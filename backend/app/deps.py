@@ -60,11 +60,9 @@ class CurrentUser:
     role: str | None
 
 
-async def optional_current_user(
-    request: Request, session: AsyncSession = Depends(get_session)
-) -> CurrentUser | None:
-    """Resolve the `session` cookie to a user, or None if it is missing or no longer valid."""
-    raw = request.cookies.get(SESSION_COOKIE_NAME)
+async def user_from_cookie(session: AsyncSession, raw: str | None) -> CurrentUser | None:
+    """Resolve a raw `session` cookie value to a user, or None if it is missing or no longer
+    valid. Shared by the HTTP dependency and the WebSocket handshake."""
     if not raw:
         return None
     row = (
@@ -95,6 +93,13 @@ async def optional_current_user(
         await session.commit()
     couple_id, role = await membership(session, user.id)
     return CurrentUser(user=user, session_id=user_session.id, couple_id=couple_id, role=role)
+
+
+async def optional_current_user(
+    request: Request, session: AsyncSession = Depends(get_session)
+) -> CurrentUser | None:
+    """Resolve the `session` cookie to a user, or None if it is missing or no longer valid."""
+    return await user_from_cookie(session, request.cookies.get(SESSION_COOKIE_NAME))
 
 
 async def current_user(

@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import Settings
 from app.errors import ApiError
 from app.models import Couple, CoupleMember, Idea, Itinerary, Vote
+from app.realtime import emit
 from app.schemas.ideas import (
     DeckOut,
     EventOut,
@@ -53,10 +54,11 @@ async def on_match(
     last_voter_user_id: uuid.UUID,
     settings: Settings,
 ) -> None:
-    """Notify the earlier voter when an idea becomes a match."""
+    """Notify the earlier voter when an idea becomes a match, and tell both live."""
     partner = await partner_user_id(session, idea.couple_id, last_voter_user_id)
-    if partner is None:
+    if partner is None or idea.is_surprise:  # a surprise idea is hidden from the partner
         return
+    emit(session, idea.couple_id, "match.created", {"idea_id": str(idea.id), "title": idea.title})
     await notify(
         session,
         partner,
@@ -332,6 +334,8 @@ async def share_idea(
         idea.shared_at = stamp
         idea.updated_at = stamp
         await session.flush()
+        if not idea.is_surprise:  # a surprise idea stays with its creator
+            emit(session, idea.couple_id, "idea.created", {"id": str(idea.id)}, except_user=me)
     return idea
 
 
@@ -395,6 +399,8 @@ async def cast_vote(
         existing.value = value
         existing.updated_at = now()
     await session.flush()
+    if not idea.is_surprise:  # the partner can't see a surprise idea, so not even its id
+        emit(session, couple_id, "vote.updated", {"idea_id": str(idea.id)}, except_user=me)
     if value == "yes" and theirs == "yes" and not was_match:
         await on_match(session, idea, me, settings)
     return idea
@@ -420,6 +426,8 @@ async def undo_vote(session: AsyncSession, couple_id: uuid.UUID, me: uuid.UUID) 
     idea = (await session.execute(select(Idea).where(Idea.id == vote.idea_id))).scalar_one()
     await session.delete(vote)
     await session.flush()
+    if not idea.is_surprise:  # the partner can't see a surprise idea, so not even its id
+        emit(session, couple_id, "vote.updated", {"idea_id": str(idea.id)}, except_user=me)
     return idea
 
 

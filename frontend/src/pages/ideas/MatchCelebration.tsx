@@ -1,12 +1,17 @@
 import { useEffect, useRef } from 'react';
 import { Button } from '../../components/Button';
-import type { IdeaOut } from '../../hooks/useIdeas';
 
 /**
  * "It's a match" overlay. The hearts only move under `motion-safe`, so with reduced motion
  * it is a plain static card. Escape or the button dismisses it.
  */
-export function MatchCelebration({ idea, onClose }: { idea: IdeaOut; onClose: () => void }) {
+export function MatchCelebration({
+  idea,
+  onClose,
+}: {
+  idea: { title: string };
+  onClose: () => void;
+}) {
   const button = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {

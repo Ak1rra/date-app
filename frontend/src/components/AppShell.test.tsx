@@ -10,7 +10,14 @@ afterEach(() => {
 
 describe('AppShell navigation', () => {
   it('renders the six tabs with accessible names and marks the active one', async () => {
-    mockSession(signedIn);
+    // Every other route answers with real shapes: mockSession would hand Ideas the session
+    // object as its profile list, and the page would crash as soon as that reply landed.
+    mockApi({
+      'GET /api/v1/auth/session': signedIn,
+      'GET /api/v1/profiles': [],
+      'GET /api/v1/deck': { cards: [], partner_joined: false },
+      'GET /api/v1/ideas/lists': { matches: [], maybes: [], pending_partner: [], passed: [] },
+    });
     renderApp('/ideas');
 
     const tabs = await screen.findByRole('navigation', { name: 'Main tabs' });

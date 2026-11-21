@@ -1,12 +1,13 @@
 """Plan mode: a planning session, its three options, and the itinerary built from them
 (m2-ai-plan.md, "Pipelines").
 
-Every AI run goes through `_planning_run`: the home area is refreshed, the run is reserved
-against the caps, and its usage row is always finalized (ok False when the run failed). What
-the model returns is never trusted: ids it did not get from a tool are dropped, `grounded` is
-recomputed, and a stop's venue comes only from the provider place or event the tools returned.
-Nothing Google-derived is stored but the place id and {lat, lng, fetched_at}; booking links and
-checklist links the model wrote are discarded; travel legs are our own estimate.
+Every AI run goes through `ai_run` (`_planning_run` for a session): the home area is refreshed,
+the run is reserved against the caps, and its usage row is always finalized (ok False when the
+run failed). What the model returns is never trusted: ids it did not get from a tool are
+dropped, `grounded` is recomputed, and a stop's venue comes only from the provider place or event
+the tools returned. Nothing Google-derived is stored but the place id and {lat, lng, fetched_at};
+booking links and checklist links the model wrote are discarded; travel legs are our own
+estimate.
 
 Functions flush but leave the commit to the caller (the AI-run bookkeeping commits on its own).
 """
@@ -16,7 +17,7 @@ import json
 import logging
 import uuid
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from decimal import Decimal
 from typing import Any
 
@@ -237,20 +238,21 @@ class _Run:
 
 
 @asynccontextmanager
-async def _planning_run(
+async def ai_run(
     session: AsyncSession,
     *,
     ai: AIClient,
     providers: Providers,
     settings: Settings,
     sessionmaker: SessionMaker,
-    plan: PlanSession,
+    couple_id: uuid.UUID,
+    user_id: uuid.UUID,
+    recipient_profile_id: uuid.UUID,
     feature: Feature,
 ) -> AsyncIterator[_Run]:
     """Refresh the home area, reserve the run against the caps, and finalize its usage row on the
     way out whatever happened. Only the AI calls belong inside the block: it records ok=False
     when the block raises."""
-    couple_id = plan.couple_id
     if providers.geocoder is not None:
         await couple_service.refresh_home_if_stale(session, providers.geocoder, couple_id)
     couple = await session.get(Couple, couple_id)
@@ -267,7 +269,7 @@ async def _planning_run(
         sessionmaker,
         settings,
         couple_id=couple_id,
-        user_id=plan.planner_user_id,
+        user_id=user_id,
         feature=feature,
     )
     run: _Run | None = None
@@ -276,16 +278,16 @@ async def _planning_run(
         context = await build_context(
             session,
             couple_id,
-            plan.planner_user_id,
-            plan.recipient_profile_id,
+            user_id,
+            recipient_profile_id,
             exclude_surprises_for=None,
         )
         executor = ToolExecutor(
             providers,
             session,
             couple_id=couple_id,
-            requester_user_id=plan.planner_user_id,
-            recipient_profile_id=plan.recipient_profile_id,
+            requester_user_id=user_id,
+            recipient_profile_id=recipient_profile_id,
             home=LatLng(float(couple.home_lat), float(couple.home_lng)),
             timezone=couple.timezone,
             radius_km=float(radius_km or DEFAULT_RADIUS_KM),
@@ -302,6 +304,30 @@ async def _planning_run(
             ok=ok,
             tool_calls=run.tool_calls if run else 0,
         )
+
+
+def _planning_run(
+    session: AsyncSession,
+    *,
+    ai: AIClient,
+    providers: Providers,
+    settings: Settings,
+    sessionmaker: SessionMaker,
+    plan: PlanSession,
+    feature: Feature,
+) -> AbstractAsyncContextManager[_Run]:
+    """`ai_run` for a planning session's couple, planner and recipient."""
+    return ai_run(
+        session,
+        ai=ai,
+        providers=providers,
+        settings=settings,
+        sessionmaker=sessionmaker,
+        couple_id=plan.couple_id,
+        user_id=plan.planner_user_id,
+        recipient_profile_id=plan.recipient_profile_id,
+        feature=feature,
+    )
 
 
 def _inputs_message(plan: PlanSession, **extra: Any) -> list[dict[str, Any]]:

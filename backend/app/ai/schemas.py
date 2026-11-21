@@ -12,6 +12,8 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
 StopKind = Literal["food", "drink", "activity", "event", "outdoors", "other"]
 TransportMode = Literal["drive", "walk", "transit", "bicycle", "rideshare"]  # = travel_legs.mode
+BestTime = Literal["day", "evening", "weekend", "any"]  # = ideas.best_time
+IndoorOutdoor = Literal["indoor", "outdoor", "either"]  # = ideas.indoor_outdoor
 ChecklistKind = Literal["reserve", "buy", "bring", "arrange", "wear", "other"]
 
 Cost = Annotated[float, Field(ge=0, le=100_000)]
@@ -43,6 +45,24 @@ class PlanOption(_Strict):
 
 class PlanOptions(_Strict):
     options: Annotated[list[PlanOption], Field(min_length=3, max_length=3)]
+
+
+class GeneratedIdea(_Strict):
+    title: Annotated[str, Field(min_length=1, max_length=120)]
+    pitch: Annotated[str, Field(max_length=400)]
+    tags: Annotated[list[Annotated[str, Field(min_length=1, max_length=24)]], Field(max_length=5)]
+    category: StopKind
+    place_ids: Annotated[list[Id], Field(max_length=3)] = Field(default_factory=list)
+    event_id: Id | None = None
+    evergreen: bool
+    est_cost: Cost | None = None
+    duration_minutes: Annotated[int, Field(ge=30, le=720)] | None = None
+    best_time: BestTime | None = None
+    indoor_outdoor: IndoorOutdoor | None = None
+
+
+class GeneratedIdeas(_Strict):
+    ideas: Annotated[list[GeneratedIdea], Field(min_length=1, max_length=10)]
 
 
 class DraftStop(_Strict):

@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import Settings
 from app.errors import ApiError
 from app.models import CoupleMember, Itinerary, SurpriseHint
+from app.realtime import emit, emit_itinerary
 from app.schemas.surprise import HintIn, HintOut, HintPatch, RevealAtIn
 from app.services.couple import not_found, now
 from app.services.notify import notify
@@ -97,6 +98,7 @@ async def create_hint(session: AsyncSession, itinerary: Itinerary, body: HintIn)
     )
     session.add(hint)
     await session.flush()
+    emit_itinerary(session, itinerary, "itinerary.updated", notify_partner=False)
     return hint
 
 
@@ -116,6 +118,7 @@ async def patch_hint(
     if "release_at" in fields:
         hint.release_at = body.release_at or now()
     await session.flush()
+    emit_itinerary(session, itinerary, "itinerary.updated", notify_partner=False)
     return hint
 
 
@@ -124,6 +127,7 @@ async def delete_hint(session: AsyncSession, itinerary: Itinerary, hint_id: uuid
     require_surprise_editable(itinerary)
     await session.delete(await _get_hint(session, itinerary, hint_id))
     await session.flush()
+    emit_itinerary(session, itinerary, "itinerary.updated", notify_partner=False)
 
 
 # --- Reveal time
@@ -142,6 +146,7 @@ async def set_reveal_at(session: AsyncSession, itinerary: Itinerary, body: Revea
     itinerary.reveal_at = reveal_at
     itinerary.updated_at = now()
     await session.flush()
+    emit_itinerary(session, itinerary, "itinerary.updated")
 
 
 async def reveal_now(session: AsyncSession, itinerary: Itinerary, settings: Settings) -> None:
@@ -210,6 +215,7 @@ async def process_due(
     for hint in due:
         hint.released_at = now
         if surprisee is not None:
+            emit(session, itinerary.couple_id, "hint.released", {}, only_user=surprisee)
             await notify(
                 session,
                 surprisee,
@@ -225,6 +231,13 @@ async def process_due(
         itinerary.revealed_at = now
         itinerary.updated_at = now
         if surprisee is not None:
+            emit(
+                session,
+                itinerary.couple_id,
+                "surprise.revealed",
+                {"id": str(itinerary.id)},
+                only_user=surprisee,
+            )
             await notify(
                 session,
                 surprisee,

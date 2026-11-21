@@ -1,14 +1,19 @@
 import uuid
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.client import AIClient, get_ai
+from app.api.v1.itineraries import get_itinerary_providers
 from app.config import Settings
 from app.db import get_session
 from app.deps import CurrentUser, current_user, get_app_settings
 from app.models import Idea
+from app.providers.registry import Providers
 from app.schemas.ideas import (
     DeckOut,
+    GenerateIdeasIn,
+    GenerateIdeasOut,
     IdeaIn,
     IdeaListsOut,
     IdeaOut,
@@ -18,6 +23,7 @@ from app.schemas.ideas import (
     VoteIn,
 )
 from app.services import ideas as idea_service
+from app.services import ideas_ai as ai_service
 from app.services.couple import require_couple_id
 
 router = APIRouter(tags=["ideas"])
@@ -53,6 +59,35 @@ async def create_idea(
     )
     await session.commit()
     return await _out(session, current, idea)
+
+
+@router.post("/ideas/generate", response_model=GenerateIdeasOut)
+async def generate_ideas(
+    body: GenerateIdeasIn,
+    request: Request,
+    ai: AIClient = Depends(get_ai),
+    settings: Settings = Depends(get_app_settings),
+    providers: Providers = Depends(get_itinerary_providers),
+    session: AsyncSession = Depends(get_session),
+    current: CurrentUser = Depends(current_user),
+) -> GenerateIdeasOut:
+    """New AI ideas: shared ones for the deck (`match`) or private ones (`plan`). `degraded`
+    lists providers that were down."""
+    couple_id = require_couple_id(current.couple_id)
+    ideas, degraded = await ai_service.generate_ideas(
+        session,
+        ai=ai,
+        providers=providers,
+        settings=settings,
+        sessionmaker=request.app.state.sessionmaker,
+        user_id=current.user.id,
+        couple_id=couple_id,
+        body=body,
+    )
+    await session.commit()
+    couple = await idea_service.get_couple(session, couple_id)
+    out = await idea_service.ideas_out(session, ideas, current.user.id, couple)
+    return GenerateIdeasOut(ideas=out, degraded=degraded)
 
 
 @router.get("/ideas/lists", response_model=IdeaListsOut)

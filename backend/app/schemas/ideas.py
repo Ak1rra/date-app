@@ -2,9 +2,11 @@
 
 import datetime as dt
 import uuid
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+
+from app.ai.schemas import StopKind
 
 IdeaVisibility = Literal["private", "shared"]
 IdeaStatus = Literal["active", "archived", "expired"]
@@ -107,3 +109,30 @@ class IdeaListsOut(BaseModel):
     maybes: list[IdeaOut]
     pending_partner: list[IdeaOut]
     passed: list[IdeaOut]
+
+
+class GenerateIdeasIn(BaseModel):
+    """What to dream up. `match` saves shared ideas for the deck, `plan` private ones."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    mode: Literal["match", "plan"]
+    count: Annotated[int, Field(ge=5, le=10)] = 8
+    window_start: dt.date | None = None
+    window_end: dt.date | None = None
+    budget_max: Annotated[float, Field(gt=0, le=10_000)] | None = None
+    vibe: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)] | None = None
+    indoor_outdoor: IndoorOutdoor | None = None
+    category: StopKind | None = None
+    surprise_me: bool = False
+
+    @model_validator(mode="after")
+    def _window_order(self) -> Self:
+        if self.window_start and self.window_end and self.window_end < self.window_start:
+            raise ValueError("window_end must not be before window_start")
+        return self
+
+
+class GenerateIdeasOut(BaseModel):
+    ideas: list[IdeaOut]
+    degraded: list[str]
