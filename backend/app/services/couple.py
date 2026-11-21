@@ -4,8 +4,9 @@ Every query is scoped to the caller's couple; an id from another couple is a 404
 403, so existence doesn't leak. Functions flush but leave the commit to the caller.
 """
 
+import logging
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from sqlalchemy import select
@@ -20,7 +21,8 @@ from app.models import (
     PartnerProfile,
     User,
 )
-from app.providers.geocoding.base import Geocoder
+from app.providers.geocoding.base import GeocodeNotFound, Geocoder
+from app.providers.types import ProviderUnavailable
 from app.schemas.couple import (
     ConstraintsIn,
     CoupleOut,
@@ -30,6 +32,8 @@ from app.schemas.couple import (
     ImportantDatePatch,
     MemberOut,
 )
+
+logger = logging.getLogger(__name__)
 
 CENT = Decimal("0.01")
 
@@ -109,10 +113,19 @@ async def patch_couple(session: AsyncSession, couple_id: uuid.UUID, body: Couple
 async def set_home_area(
     session: AsyncSession, geocoder: Geocoder, couple_id: uuid.UUID, query: str
 ) -> HomeArea:
-    """Geocode `query` and keep only the label, coarse coordinates and place id (NFR-PRIV-1)."""
+    """Geocode `query` and keep the place id and coarse coordinates, with the user's own words as
+    the label (NFR-PRIV-1). Google content is never persisted: nothing of the geocoder's label
+    is stored, and the coordinates are re-fetched by `refresh_home_if_stale` within 30 days."""
     couple = await _get_couple(session, couple_id)
-    found = await geocoder.geocode(query)
-    couple.home_area_label = found.label[:200]
+    try:
+        found = await geocoder.geocode(query)
+    except GeocodeNotFound:
+        raise ApiError(404, "not_found", "We couldn't find that place.") from None
+    except ProviderUnavailable:
+        raise ApiError(
+            503, "provider_unavailable", "Location lookup isn't available right now."
+        ) from None
+    couple.home_area_label = query.strip()[:200]
     couple.home_lat = Decimal(str(round(found.lat, 2)))
     couple.home_lng = Decimal(str(round(found.lng, 2)))
     couple.home_place_id = found.place_id
@@ -121,6 +134,32 @@ async def set_home_area(
     return HomeArea(
         label=couple.home_area_label, lat=float(couple.home_lat), lng=float(couple.home_lng)
     )
+
+
+async def refresh_home_if_stale(
+    session: AsyncSession,
+    geocoder: Geocoder,
+    couple_id: uuid.UUID,
+    *,
+    max_age: timedelta = timedelta(days=30),
+) -> None:
+    """Re-geocode the home area when its coordinates are older than `max_age`, so Google-derived
+    coordinates are never kept past 30 days. The label (the user's own words) stays as it is.
+    When the geocoder cannot answer, the row is left unchanged. The caller commits."""
+    couple = await _get_couple(session, couple_id)
+    geocoded_at = couple.home_geocoded_at
+    if geocoded_at is None or not couple.home_area_label or now() - geocoded_at <= max_age:
+        return
+    try:
+        found = await geocoder.geocode(couple.home_area_label)
+    except (GeocodeNotFound, ProviderUnavailable) as exc:
+        logger.warning("home area refresh failed: %s", type(exc).__name__)
+        return
+    couple.home_lat = Decimal(str(round(found.lat, 2)))
+    couple.home_lng = Decimal(str(round(found.lng, 2)))
+    couple.home_place_id = found.place_id
+    couple.home_geocoded_at = now()
+    await session.flush()
 
 
 async def _get_constraints(session: AsyncSession, couple_id: uuid.UUID) -> CoupleConstraints:

@@ -58,6 +58,29 @@ def test_retry_after_rounds_up_and_is_at_least_one() -> None:
     assert limiter.hit("k") == 1
 
 
+def test_undo_takes_back_the_latest_hit() -> None:
+    clock = Clock()
+    limiter = SlidingWindowLimiter(2, 60, clock=clock)
+    assert limiter.hit("k") is None
+    assert limiter.hit("k") is None
+    assert limiter.hit("k") is not None
+    limiter.undo("k")
+    assert limiter.hit("k") is None  # room for one more
+    assert limiter.hit("k") is not None
+
+
+def test_undo_on_a_missing_or_empty_key_does_nothing() -> None:
+    limiter = SlidingWindowLimiter(1, 60, clock=Clock())
+    limiter.undo("never-seen")
+    assert limiter.hit("other") is None
+    limiter.hit("k")
+    limiter.undo("k")
+    limiter.undo("k")  # now empty
+    assert limiter.hit("k") is None
+    assert limiter.hit("k") is not None
+    assert limiter.hit("other") is not None  # untouched by the undo calls
+
+
 def test_tokens() -> None:
     a, b = new_token(), new_token()
     assert a != b

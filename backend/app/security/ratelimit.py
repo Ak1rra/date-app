@@ -32,6 +32,13 @@ class SlidingWindowLimiter:
             self._prune(cutoff)
         return None
 
+    def undo(self, key: str) -> None:
+        """Forget the most recent hit for `key`, if there is one (to take back a hit whose
+        action did not go ahead)."""
+        hits = self._hits.get(key)
+        if hits:
+            hits.pop()
+
     def _prune(self, cutoff: float) -> None:
         for key in [k for k, h in self._hits.items() if not h or h[-1] <= cutoff]:
             del self._hits[key]

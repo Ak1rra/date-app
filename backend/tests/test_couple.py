@@ -1,6 +1,7 @@
 """The couple space: couple, home area, constraints and important dates."""
 
 import uuid
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -11,6 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.main import create_app
 from app.models import Couple, CoupleConstraints, CoupleMember, ImportantDate
+from app.providers.geocoding.base import GeocodeNotFound, GeocodeResult
+from app.providers.geocoding.fake import FakeGeocoder
+from app.providers.registry import get_geocoder
+from app.providers.types import ProviderUnavailable
+from app.services.couple import refresh_home_if_stale
 from tests.authutil import browser, call, joined_couple, profile_ids, sign_in
 from tests.conftest import make_settings
 
@@ -116,7 +122,7 @@ async def test_put_home_area_stores_label_and_coarse_coordinates(
     db_app: FastAPI, db_client: AsyncClient, db_session: AsyncSession
 ) -> None:
     await signed_in(db_app, db_client)
-    response = await call(db_client, "PUT", HOME, {"query": "  Zilker Park, Austin  "})
+    response = await call(db_client, "PUT", HOME, {"query": "  Zilker Park  "})
     assert response.status_code == 200
     area = response.json()
     assert set(area) == {"label", "lat", "lng"}
@@ -125,14 +131,16 @@ async def test_put_home_area_stores_label_and_coarse_coordinates(
     assert (await db_client.get(COUPLE)).json()["home_area"] == area
 
     (couple,) = (await db_session.execute(select(Couple))).scalars().all()
-    assert couple.home_area_label == area["label"]
+    assert couple.home_area_label == area["label"] == "Zilker Park"  # the user's words, stripped
+    assert area["label"] != (await FakeGeocoder().geocode("Zilker Park")).label
     assert (float(couple.home_lat), float(couple.home_lng)) == (area["lat"], area["lng"])
     assert couple.home_place_id is not None
     assert couple.home_geocoded_at is not None
 
     # Searching again replaces the stored place.
-    second = (await call(db_client, "PUT", HOME, {"query": "Mueller, Austin"})).json()
-    assert second["label"] != area["label"]
+    second = (await call(db_client, "PUT", HOME, {"query": "Mueller"})).json()
+    assert second["label"] == "Mueller"
+    assert second != area
     assert (await db_client.get(COUPLE)).json()["home_area"] == second
 
 
@@ -144,6 +152,95 @@ async def test_put_home_area_validates_the_query(
     response = await call(db_client, "PUT", HOME, {"query": query})
     assert response.status_code == 422
     assert (await db_client.get(COUPLE)).json()["home_area"] is None
+
+
+class FailingGeocoder:
+    def __init__(self, error: Exception) -> None:
+        self.error = error
+
+    async def geocode(self, query: str) -> GeocodeResult:
+        raise self.error
+
+
+@pytest.mark.parametrize(
+    ("error", "status", "code"),
+    [
+        (GeocodeNotFound(), 404, "not_found"),
+        (ProviderUnavailable("google_geocode", "over_quota"), 503, "provider_unavailable"),
+        (ProviderUnavailable("google_geocode", "bad_response"), 503, "provider_unavailable"),
+    ],
+)
+async def test_put_home_area_turns_geocoder_failures_into_api_errors(
+    db_app: FastAPI, db_client: AsyncClient, error: Exception, status: int, code: str
+) -> None:
+    await signed_in(db_app, db_client)
+    db_app.dependency_overrides[get_geocoder] = lambda: FailingGeocoder(error)
+    response = await call(db_client, "PUT", HOME, {"query": "Austin"})
+    assert response.status_code == status
+    assert response.json()["error"]["code"] == code
+    assert (await db_client.get(COUPLE)).json()["home_area"] is None
+
+
+async def stale_home(
+    db_app: FastAPI, db_client: AsyncClient, db_session: AsyncSession, age: timedelta
+) -> Couple:
+    """A couple whose home area was geocoded `age` ago, from a place the fake geocoder gave."""
+    await signed_in(db_app, db_client)
+    await call(db_client, "PUT", HOME, {"query": "Zilker Park"})
+    stamp = datetime.now(UTC) - age
+    await db_session.execute(
+        update(Couple).values(home_geocoded_at=stamp, home_lat=1, home_lng=1, home_place_id="old")
+    )
+    await db_session.commit()
+    (couple,) = (await db_session.execute(select(Couple))).scalars().all()
+    await db_session.refresh(couple)
+    return couple
+
+
+async def test_a_stale_home_area_is_re_geocoded_and_keeps_its_label(
+    db_app: FastAPI, db_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    couple = await stale_home(db_app, db_client, db_session, timedelta(days=31))
+    await refresh_home_if_stale(db_session, FakeGeocoder(), couple.id)
+    found = await FakeGeocoder().geocode("Zilker Park")
+    assert couple.home_area_label == "Zilker Park"
+    assert (float(couple.home_lat), float(couple.home_lng)) == (
+        round(found.lat, 2),
+        round(found.lng, 2),
+    )
+    assert couple.home_place_id == found.place_id
+    assert couple.home_geocoded_at is not None
+    assert datetime.now(UTC) - couple.home_geocoded_at < timedelta(minutes=1)
+
+
+async def test_a_fresh_home_area_is_left_alone(
+    db_app: FastAPI, db_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    couple = await stale_home(db_app, db_client, db_session, timedelta(days=29))
+    before = couple.home_geocoded_at
+    await refresh_home_if_stale(db_session, FailingGeocoder(AssertionError()), couple.id)
+    assert (float(couple.home_lat), couple.home_place_id, couple.home_geocoded_at) == (
+        1.0,
+        "old",
+        before,
+    )
+
+
+@pytest.mark.parametrize(
+    "error", [GeocodeNotFound(), ProviderUnavailable("google_geocode", "down")]
+)
+async def test_a_failed_refresh_leaves_the_home_area_unchanged(
+    db_app: FastAPI, db_client: AsyncClient, db_session: AsyncSession, error: Exception
+) -> None:
+    couple = await stale_home(db_app, db_client, db_session, timedelta(days=45))
+    before = couple.home_geocoded_at
+    await refresh_home_if_stale(db_session, FailingGeocoder(error), couple.id)
+    assert (float(couple.home_lat), couple.home_place_id, couple.home_geocoded_at) == (
+        1.0,
+        "old",
+        before,
+    )
+    assert couple.home_area_label == "Zilker Park"
 
 
 async def test_put_home_area_is_503_when_no_geocoder_is_available(db_schema: str) -> None:

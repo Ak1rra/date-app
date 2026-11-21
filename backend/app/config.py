@@ -5,7 +5,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -95,6 +95,17 @@ class Settings(BaseSettings):
     google_oauth_client_id: str | None = None
     google_oauth_client_secret: str | None = None
 
+    # Provider caching & rate limits (M2)
+    # TTLs in seconds. Only Ticketmaster and Open-Meteo responses are cached in the database:
+    # Google Maps Platform terms forbid storing Places, Routes and Geocoding content.
+    cache_ttl_events: int = 21600
+    cache_ttl_weather: int = 3600
+    # Venue snapshots on itinerary stops older than this are refreshed by place id on read.
+    venue_snapshot_max_age_days: int = 30
+    # At least 1: a limit of 0 or less would reject every call.
+    provider_calls_per_couple_per_minute: int = Field(default=60, ge=1)
+    provider_calls_global_per_minute: int = Field(default=300, ge=1)
+
     @model_validator(mode="after")
     def _check_ai_prices(self) -> "Settings":
         """Fail at startup on a price map that would make the spend caps undercount: a missing
@@ -129,8 +140,9 @@ class Settings(BaseSettings):
 
     @property
     def use_fake_geocoder(self) -> bool:
-        """DEMO_MODE forces the fake geocoder; no real geocoder exists yet."""
-        return self.demo_mode
+        """The fake geocoder is used in DEMO_MODE unless GOOGLE_MAPS_API_KEY is set (a real key
+        always wins, so real keys work with or without DEMO_MODE)."""
+        return self.demo_mode and not self.google_maps_api_key
 
 
 @lru_cache

@@ -50,9 +50,10 @@ async def _run_unless_stopped(work: Coroutine[Any, Any, Any], stop: asyncio.Even
 
 
 async def _startup(sessionmaker: async_sessionmaker[AsyncSession]) -> None:
-    """Make sure the current hour's auth.cleanup exists, so the hourly chain (re)starts."""
+    """Make sure this hour's auth.cleanup and cache.cleanup exist, so the hourly chains restart."""
     async with sessionmaker() as session, session.begin():
         await handlers.schedule_auth_cleanup(session, next_hour=False)
+        await handlers.schedule_cache_cleanup(session, next_hour=False)
 
 
 async def run_worker(

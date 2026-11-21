@@ -9,11 +9,13 @@ from typing import Any
 from sqlalchemy import delete, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.ai import ProviderCache
 from app.models.jobs import Job
 from app.models.user import MagicLinkToken, UserSession
 from app.worker.jobs import enqueue, register
 
 AUTH_CLEANUP = "auth.cleanup"
+CACHE_CLEANUP = "cache.cleanup"
 
 MAGIC_LINK_RETENTION = timedelta(days=1)  # after expires_at
 SESSION_RETENTION = timedelta(days=7)  # after expires_at or revoked_at
@@ -64,3 +66,28 @@ async def auth_cleanup(session: AsyncSession, payload: dict[str, Any]) -> None:
         delete(Job).where(Job.status.in_(("done", "failed")), Job.finished_at < now - JOB_RETENTION)
     )
     await schedule_auth_cleanup(session, next_hour=True)
+
+
+def _cache_cleanup_key(hour: datetime) -> str:
+    return f"{CACHE_CLEANUP}:{hour.strftime('%Y-%m-%dT%H')}"
+
+
+async def schedule_cache_cleanup(session: AsyncSession, *, next_hour: bool) -> bool:
+    """Enqueue the cache.cleanup job for the current hour (due now) or the next one (due at its
+    start). One job per hour: the dedupe key is the hour, so repeats are no-ops.
+    The caller commits."""
+    hour = _hour_start(_utcnow())
+    if next_hour:
+        hour += timedelta(hours=1)
+        return await enqueue(
+            session, CACHE_CLEANUP, {}, run_at=hour, dedupe_key=_cache_cleanup_key(hour)
+        )
+    return await enqueue(session, CACHE_CLEANUP, {}, dedupe_key=_cache_cleanup_key(hour))
+
+
+@register(CACHE_CLEANUP)
+async def cache_cleanup(session: AsyncSession, payload: dict[str, Any]) -> None:
+    """Delete provider_cache rows past their expires_at, then schedule the next run.
+    Self-scheduling, so a missed hour just runs late."""
+    await session.execute(delete(ProviderCache).where(ProviderCache.expires_at < func.now()))
+    await schedule_cache_cleanup(session, next_hour=True)

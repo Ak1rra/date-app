@@ -1,4 +1,7 @@
 import json
+import re
+from types import SimpleNamespace
+from typing import Any
 
 import httpx
 import pytest
@@ -13,16 +16,43 @@ from app.providers.geocoding.fake import DEMO_LAT, DEMO_LNG, MAX_OFFSET, FakeGeo
 from app.providers.registry import get_email_sender, get_geocoder
 from tests.conftest import make_settings
 
+CURRENT: Any = SimpleNamespace(couple_id=None)
+
 
 async def test_fake_geocoder_is_deterministic() -> None:
     geocoder = FakeGeocoder()
     a = await geocoder.geocode("  east   austin ")
     b = await geocoder.geocode("East Austin")
-    assert a == b
-    assert a.label == "East Austin (demo)"
+    assert (a.lat, a.lng, a.place_id) == (b.lat, b.lng, b.place_id)
     assert a.place_id is not None
     assert abs(a.lat - DEMO_LAT) <= MAX_OFFSET + 1e-6
     assert abs(a.lng - DEMO_LNG) <= MAX_OFFSET + 1e-6
+
+
+QUERIES = ["123 Main St, Austin", "Main St", "Oak Road", "east austin", "Austin, TX 78701"]
+
+
+@pytest.mark.parametrize("query", QUERIES)
+async def test_fake_geocoder_label_is_a_numbered_demo_area(query: str) -> None:
+    label = (await FakeGeocoder().geocode(query)).label
+    assert re.fullmatch(r"Demo area \d{1,2}", label)
+    assert 1 <= int(label.removeprefix("Demo area ")) <= 99
+
+
+@pytest.mark.parametrize("query", QUERIES)
+async def test_fake_geocoder_label_is_deterministic(query: str) -> None:
+    first = await FakeGeocoder().geocode(query)
+    again = await FakeGeocoder().geocode("  " + query.replace(" ", "   ") + " ")
+    assert again.label == first.label
+    assert (again.lat, again.lng, again.place_id) == (first.lat, first.lng, first.place_id)
+
+
+@pytest.mark.parametrize("query", ["123 Main St, Austin", "Main St", "Oak Road"])
+async def test_fake_geocoder_label_contains_no_word_from_the_query(query: str) -> None:
+    label = (await FakeGeocoder().geocode(query)).label.lower()
+    for word in query.lower().replace(",", " ").split():
+        assert word not in label
+    assert "Main" not in label and "Oak" not in label
 
 
 async def test_fake_geocoder_differs_by_query() -> None:
@@ -43,12 +73,12 @@ async def test_console_sender_records_link() -> None:
 def test_demo_mode_forces_console_and_fake() -> None:
     settings = make_settings(demo_mode=True, email_provider="resend", email_api_key="k")
     assert isinstance(get_email_sender(settings), ConsoleEmailSender)
-    assert isinstance(get_geocoder(settings), FakeGeocoder)
+    assert isinstance(get_geocoder(settings, CURRENT), FakeGeocoder)
 
 
 def test_non_demo_geocoder_unavailable() -> None:
     with pytest.raises(ApiError) as info:
-        get_geocoder(make_settings(demo_mode=False))
+        get_geocoder(make_settings(demo_mode=False), CURRENT)
     assert info.value.status == 503
     assert info.value.code == "provider_unavailable"
     assert info.value.message == "Location lookup isn't available right now."
