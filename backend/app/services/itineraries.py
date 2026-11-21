@@ -57,6 +57,7 @@ MAX_VENUE_MAX_AGE_DAYS = 30
 # Our own leg estimate: straight-line distance over the mode's typical speed, plus 3 minutes.
 SPEED_KMH = {"walk": 4.5, "bicycle": 14.0, "transit": 20.0, "drive": 30.0, "rideshare": 30.0}
 ESTIMATE_OVERHEAD_MIN = 3
+SURPRISE_STOP_TITLE = "Surprise stop ✨"
 EVENTS_ATTRIBUTION = "Events from Ticketmaster"
 GOOGLE_TRAVEL_MODES = {
     "drive": "driving",
@@ -228,6 +229,53 @@ async def _leg_out(
     )
 
 
+def _stop_hidden(stop: Stop, redact_before: datetime | None) -> bool:
+    """Whether `stop` is still a surprise to a non-planner viewer; `redact_before` is "now", or
+    None for the planner, who always sees everything."""
+    return (
+        redact_before is not None
+        and stop.reveal_policy == "at_stop_time"
+        and stop.starts_at is not None
+        and stop.starts_at > redact_before
+    )
+
+
+def _visible_warnings(warnings: list[Any] | None, hidden: list[bool]) -> list[Any]:
+    """The itinerary's warnings. Once any stop is redacted only those pointing at a stop that
+    isn't are kept: the rest could carry a hidden stop's title or cost."""
+    if not any(hidden):
+        return list(warnings or [])
+    return [
+        warning
+        for warning in warnings or []
+        if isinstance(warning, dict)
+        and isinstance(warning.get("stop_index"), int)
+        and 0 <= warning["stop_index"] < len(hidden)
+        and not hidden[warning["stop_index"]]
+    ]
+
+
+def _redacted_stop(stop: Stop) -> StopOut:
+    return StopOut(
+        id=stop.id,
+        position=stop.position,
+        title=SURPRISE_STOP_TITLE,
+        starts_at=stop.starts_at,
+        ends_at=stop.ends_at,
+        description=None,
+        est_cost=None,
+        notes=None,
+        place_id=None,
+        event=None,
+        reveal_policy=stop.reveal_policy,
+        warnings=[],
+        booking_url=None,
+        venue=None,
+        travel_to_next=None,
+        maps=MapsOut(),
+    )
+
+
 async def itinerary_out(
     session: AsyncSession,
     itinerary: Itinerary,
@@ -240,7 +288,11 @@ async def itinerary_out(
     place lookup fails still comes back, with only its stored coordinates. A stale stored
     snapshot is refreshed (flushed, not committed) whenever a lookup succeeds. Each leg's
     duration and distance are fetched live (source "live"), falling back to the stored
-    estimate (source "estimate"); a live result is never written."""
+    estimate (source "estimate"); a live result is never written.
+
+    For a viewer who isn't the planner, an upcoming `at_stop_time` stop is redacted (m4 design,
+    "Per-stop reveal"): no place lookup is made for it, and nothing about it, the leg into it
+    or the directions out of it reaches the response."""
     max_age = timedelta(
         days=min(
             settings.venue_snapshot_max_age_days if settings else DEFAULT_VENUE_MAX_AGE_DAYS,
@@ -248,6 +300,8 @@ async def itinerary_out(
         )
     )
     stops = await load_stops(session, itinerary.id)
+    redact_before = None if itinerary.planner_user_id == viewer_user_id else now()
+    hidden = [_stop_hidden(stop, redact_before) for stop in stops]
     legs = {leg.from_stop_id: leg for leg in await load_legs(session, itinerary.id)}
     checklist = await load_checklist(session, itinerary.id)
 
@@ -262,7 +316,13 @@ async def itinerary_out(
     previous: tuple[LatLng, str | None] | None = None
     previous_leg: TravelLeg | None = None
     refreshed = False
-    for stop in stops:
+    for stop, is_hidden in zip(stops, hidden, strict=True):
+        if is_hidden:
+            stop_outs.append(_redacted_stop(stop))
+            previous = None
+            previous_leg = None
+            stop_coords.append(None)
+            continue
         place = await _live_place(providers, stop.place_id) if stop.place_id else None
         coords = _stored_coords(stop)
         if place is not None:
@@ -327,7 +387,7 @@ async def itinerary_out(
 
     for index, stop in enumerate(stops[:-1]):
         leg = legs.get(stop.id)
-        if leg is not None:
+        if leg is not None and not hidden[index] and not hidden[index + 1]:
             depart_at = stop.ends_at or stop.starts_at or itinerary.starts_at or now()
             stop_outs[index].travel_to_next = await _leg_out(
                 providers, leg, stop_coords[index], stop_coords[index + 1], depart_at
@@ -335,7 +395,7 @@ async def itinerary_out(
 
     if itinerary.weather:
         attribute(str(itinerary.weather.get("attribution") or WEATHER_ATTRIBUTION))
-    if any(stop.event for stop in stops):
+    if any(stop.event for stop, is_hidden in zip(stops, hidden, strict=True) if not is_hidden):
         attribute(EVENTS_ATTRIBUTION)
 
     return ItineraryOut(
@@ -353,12 +413,12 @@ async def itinerary_out(
         reveal_at=itinerary.reveal_at,
         revealed_at=itinerary.revealed_at,
         budget=_float(itinerary.budget),
-        est_total=_float(itinerary.est_total),
+        est_total=None if any(hidden) else _float(itinerary.est_total),
         currency=itinerary.currency,
         weather=itinerary.weather,
         backup_plan=itinerary.backup_plan,
         bring_wear=itinerary.bring_wear,
-        warnings=list(itinerary.warnings or []),
+        warnings=_visible_warnings(itinerary.warnings, hidden),
         partner_reaction=(
             PartnerReaction.model_validate(itinerary.partner_reaction)
             if itinerary.partner_reaction

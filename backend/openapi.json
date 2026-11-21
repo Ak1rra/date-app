@@ -3605,6 +3605,36 @@
         "title": "RegenerateStopIn",
         "type": "object"
       },
+      "ReleasedHintOut": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "released_at": {
+            "format": "date-time",
+            "title": "Released At",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "text",
+          "released_at"
+        ],
+        "title": "ReleasedHintOut",
+        "type": "object"
+      },
       "RevealAtIn": {
         "properties": {
           "reveal_at": {
@@ -4042,6 +4072,60 @@
           "slots"
         ],
         "title": "SuggestTimesOut",
+        "type": "object"
+      },
+      "SurpriseOut": {
+        "properties": {
+          "ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends At"
+          },
+          "hints": {
+            "items": {
+              "$ref": "#/components/schemas/ReleasedHintOut"
+            },
+            "title": "Hints",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "reveal_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reveal At"
+          },
+          "starts_at": {
+            "format": "date-time",
+            "title": "Starts At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "starts_at",
+          "ends_at",
+          "reveal_at",
+          "hints"
+        ],
+        "title": "SurpriseOut",
         "type": "object"
       },
       "TemplateIn": {
@@ -7765,6 +7849,75 @@
         "summary": "Put Availability",
         "tags": [
           "profiles"
+        ]
+      }
+    },
+    "/api/v1/surprises": {
+      "get": {
+        "description": "The surprises planned for the caller that haven't been revealed: times and released\nhints only, soonest first.",
+        "operationId": "list_surprises_api_v1_surprises_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SurpriseOut"
+                  },
+                  "title": "Response List Surprises Api V1 Surprises Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Surprises",
+        "tags": [
+          "surprise"
+        ]
+      }
+    },
+    "/api/v1/surprises/{itinerary_id}": {
+      "get": {
+        "operationId": "get_surprise_api_v1_surprises__itinerary_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "itinerary_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Itinerary Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SurpriseOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Surprise",
+        "tags": [
+          "surprise"
         ]
       }
     },

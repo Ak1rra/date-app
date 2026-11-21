@@ -167,9 +167,11 @@ async def test_calendar_lists_only_visible_dates_sorted(db_app: FastAPI) -> None
         assert mine[1]["announced"] is False
 
         theirs = (await w.partner.get(CALENDAR, params=params)).json()
-        assert [e["title"] for e in theirs] == ["Early", "Late"]
-        hidden = {str(draft), str(unannounced), str(surprise)}
-        assert hidden.isdisjoint({e["id"] for e in theirs})
+        # An unrevealed surprise is on their calendar, redacted (its title never leaves).
+        assert [e["title"] for e in theirs] == ["Early", "Surprise date ✨", "Late"]
+        assert "Surprise" not in {e["title"] for e in theirs}
+        assert {str(draft), str(unannounced)}.isdisjoint({e["id"] for e in theirs})
+        assert str(surprise) in {e["id"] for e in theirs}
         assert str(late) in {e["id"] for e in theirs}
 
 
@@ -441,7 +443,8 @@ async def test_suggest_times_skips_blocks_and_visible_dates(db_app: FastAPI) -> 
             starts_at=at,
             ends_at=at + dt.timedelta(hours=2),
         )
-        # Draft and surprise dates of the planner must not block anything for the partner.
+        # The planner's unrevealed surprise blocks its time for the surprisee too (times only;
+        # the calendar already shows them a "Surprise date" entry there).
         await seed(
             w,
             title="Surprise",
@@ -466,8 +469,9 @@ async def test_suggest_times_skips_blocks_and_visible_dates(db_app: FastAPI) -> 
         starts_theirs = [dt.datetime.fromisoformat(s["starts_at"]) for s in theirs]
         assert (
             dt.datetime.combine(tomorrow + dt.timedelta(days=2), dt.time(9), tzinfo=dt.UTC)
-            in starts_theirs
+            not in starts_theirs
         )
+        assert all("Surprise" not in str(s) for s in theirs)
 
 
 async def test_suggest_times_a_date_without_an_end_blocks_three_hours(db_app: FastAPI) -> None:

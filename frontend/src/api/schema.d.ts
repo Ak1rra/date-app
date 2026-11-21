@@ -1067,6 +1067,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/surprises": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Surprises
+         * @description The surprises planned for the caller that haven't been revealed: times and released
+         *     hints only, soonest first.
+         */
+        get: operations["list_surprises_api_v1_surprises_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/surprises/{itinerary_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Surprise */
+        get: operations["get_surprise_api_v1_surprises__itinerary_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/templates": {
         parameters: {
             query?: never;
@@ -2255,6 +2293,23 @@ export interface components {
             /** Note */
             note?: string | null;
         };
+        /** ReleasedHintOut */
+        ReleasedHintOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Kind */
+            kind: string;
+            /**
+             * Released At
+             * Format: date-time
+             */
+            released_at: string;
+            /** Text */
+            text: string;
+        };
         /** RevealAtIn */
         RevealAtIn: {
             /** Reveal At */
@@ -2379,6 +2434,25 @@ export interface components {
         SuggestTimesOut: {
             /** Slots */
             slots: components["schemas"]["TimeSlot"][];
+        };
+        /** SurpriseOut */
+        SurpriseOut: {
+            /** Ends At */
+            ends_at: string | null;
+            /** Hints */
+            hints: components["schemas"]["ReleasedHintOut"][];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Reveal At */
+            reveal_at: string | null;
+            /**
+             * Starts At
+             * Format: date-time
+             */
+            starts_at: string;
         };
         /** TemplateIn */
         TemplateIn: {
@@ -4814,6 +4888,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AvailabilityIO"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_surprises_api_v1_surprises_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurpriseOut"][];
+                };
+            };
+        };
+    };
+    get_surprise_api_v1_surprises__itinerary_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                itinerary_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurpriseOut"];
                 };
             };
             /** @description Validation Error */

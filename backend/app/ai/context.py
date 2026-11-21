@@ -12,7 +12,7 @@ from decimal import Decimal
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from sqlalchemy import exists, select
+from sqlalchemy import exists, false, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -127,9 +127,9 @@ async def build_context(
 ) -> str:
     """The context for a run planned by `requester_user_id` for `recipient_profile_id`.
 
-    `exclude_surprises_for` is a hook for M4 (surprise dates): the user whose surprises must not
-    appear in the idea lists. It is accepted and ignored for now, because nothing M2 puts in the
-    lists is a surprise that user could be the target of.
+    The requester's idea list never includes another member's `is_surprise` idea, whatever the
+    caller passes. `exclude_surprises_for` is still accepted for callers that pass it, but the rule
+    no longer needs it.
     """
     couple = await session.get(Couple, couple_id)
     profiles = list(
@@ -185,6 +185,7 @@ async def build_context(
             .where(
                 Idea.couple_id == couple_id,
                 (Idea.visibility == "shared") | (Idea.created_by_user_id == requester_user_id),
+                (Idea.is_surprise == false()) | (Idea.created_by_user_id == requester_user_id),
             )
             .order_by(Idea.created_at.desc())
         )

@@ -49,6 +49,7 @@ async def list_titles(client: AsyncClient) -> dict[str, list[str]]:
 
 
 async def schedule_itinerary(db: AsyncSession, idea_id: str, status: str = "scheduled") -> None:
+    """A date made from the idea; a scheduled one is announced, so both members can see it."""
     db.add(
         Itinerary(
             couple_id=await couple_id(db),
@@ -56,6 +57,7 @@ async def schedule_itinerary(db: AsyncSession, idea_id: str, status: str = "sche
             planner_user_id=await user_id(db, OWNER),
             title="The date",
             status=status,
+            announced_at=dt.datetime.now(dt.UTC) if status == "scheduled" else None,
         )
     )
     await db.commit()

@@ -29,8 +29,9 @@ from app.schemas.calendar import CalendarEntry, SuggestTimesIn, SuggestTimesOut,
 from app.services.couple import not_found
 from app.services.ideas_access import get_visible_idea
 from app.services.itineraries import zone_for
-from app.services.itinerary_access import visible_itineraries
+from app.services.itinerary_access import upcoming_surprises, visible_itineraries
 
+SURPRISE_ENTRY_TITLE = "Surprise date ✨"
 MAX_RANGE = dt.timedelta(days=120)
 MAX_SLOTS = 3
 DEFAULT_DATE_LENGTH = dt.timedelta(hours=3)
@@ -119,6 +120,28 @@ async def list_entries(
                 status=itinerary.status,
                 is_surprise=itinerary.is_surprise,
                 announced=itinerary.announced_at is not None,
+            )
+        )
+    # A surprise nobody has revealed yet: the surprisee gets a time and no name.
+    surprises = (
+        upcoming_surprises(session, viewer_user_id, couple_id)
+        .where(Itinerary.starts_at >= start)
+        .where(Itinerary.starts_at < end)
+    )
+    for itinerary in (await session.execute(surprises)).scalars():
+        assert itinerary.starts_at is not None
+        entries.append(
+            CalendarEntry(
+                kind="date",
+                id=itinerary.id,
+                title=SURPRISE_ENTRY_TITLE,
+                starts_at=itinerary.starts_at,
+                ends_at=itinerary.ends_at,
+                all_day=False,
+                itinerary_id=itinerary.id,
+                status="scheduled",
+                is_surprise=True,
+                announced=False,
             )
         )
 
@@ -388,8 +411,15 @@ async def suggest_times(
             Itinerary.starts_at < horizon[1],
         )
     )
+    # A surprise the viewer hasn't seen yet still blocks the time; only its times are used.
+    surprises = await session.execute(
+        upcoming_surprises(session, viewer_user_id, couple_id).where(
+            Itinerary.starts_at >= horizon[0],
+            Itinerary.starts_at < horizon[1],
+        )
+    )
     busy: list[Interval] = []
-    for itinerary in rows.scalars():
+    for itinerary in [*rows.scalars(), *surprises.scalars()]:
         assert itinerary.starts_at is not None
         ends_at = itinerary.ends_at or itinerary.starts_at + DEFAULT_DATE_LENGTH
         busy.append((itinerary.starts_at, ends_at))

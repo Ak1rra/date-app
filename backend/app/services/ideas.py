@@ -11,7 +11,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any, cast
 
-from sqlalchemy import exists, select
+from sqlalchemy import false, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings
@@ -32,8 +32,10 @@ from app.services.ideas_access import (
     get_editable_idea,
     get_visible_idea,
     shared_deck_ideas,
+    shared_ideas,
     shared_listed_ideas,
 )
+from app.services.itinerary_access import visible_itineraries
 from app.services.notify import notify
 
 DECK_SIZE = 20
@@ -248,6 +250,9 @@ async def list_ideas(
     )
     if visibility == "private":
         query = query.where(Idea.created_by_user_id == me)
+    else:
+        # A surprise idea stays with its creator (FR-SURP-2), as in ideas_access.
+        query = query.where(or_(Idea.is_surprise == false(), Idea.created_by_user_id == me))
     rows = await session.execute(query.order_by(Idea.created_at.desc(), Idea.id))
     return list(rows.scalars().all())
 
@@ -349,17 +354,15 @@ async def deck(session: AsyncSession, couple_id: uuid.UUID, me: uuid.UUID) -> De
     return DeckOut(cards=cards, partner_joined=True)
 
 
-async def _is_locked(session: AsyncSession, idea_id: uuid.UUID) -> bool:
-    """A date made from this idea is scheduled, so votes are frozen (FR-VOTE-5)."""
-    return bool(
-        (
-            await session.execute(
-                select(
-                    exists().where(Itinerary.idea_id == idea_id, Itinerary.status == "scheduled")
-                )
-            )
-        ).scalar_one()
+async def _is_locked(
+    session: AsyncSession, couple_id: uuid.UUID, viewer_user_id: uuid.UUID, idea_id: uuid.UUID
+) -> bool:
+    """A date made from this idea is scheduled and the viewer can see it, so their votes are
+    frozen (FR-VOTE-5). A hidden surprise date never locks the surprisee out."""
+    dates = visible_itineraries(session, viewer_user_id, couple_id).where(
+        Itinerary.idea_id == idea_id, Itinerary.status == "scheduled"
     )
+    return bool((await session.execute(select(dates.exists()))).scalar_one())
 
 
 async def cast_vote(
@@ -377,7 +380,7 @@ async def cast_vote(
         raise not_found()
     if idea.status != "active":
         raise ApiError(409, "idea_not_active", "This idea isn't on the deck anymore.")
-    if await _is_locked(session, idea.id):
+    if await _is_locked(session, couple_id, me, idea.id):
         raise ApiError(409, "vote_locked", "A date has been scheduled from this idea.")
     partner = await partner_user_id(session, couple_id, me)
     votes = (await _votes_by_idea(session, [idea.id])).get(idea.id, {})
@@ -402,15 +405,17 @@ async def undo_vote(session: AsyncSession, couple_id: uuid.UUID, me: uuid.UUID) 
     vote = (
         await session.execute(
             select(Vote)
-            .join(Idea, Idea.id == Vote.idea_id)
-            .where(Vote.user_id == me, Idea.couple_id == couple_id, Idea.visibility == "shared")
+            .where(
+                Vote.user_id == me,
+                Vote.idea_id.in_(shared_ideas(couple_id, me).with_only_columns(Idea.id)),
+            )
             .order_by(Vote.updated_at.desc())
             .limit(1)
         )
     ).scalar_one_or_none()
     if vote is None or now() - vote.updated_at > UNDO_WINDOW:
         return None
-    if await _is_locked(session, vote.idea_id):
+    if await _is_locked(session, couple_id, me, vote.idea_id):
         return None
     idea = (await session.execute(select(Idea).where(Idea.id == vote.idea_id))).scalar_one()
     await session.delete(vote)

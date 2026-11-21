@@ -17,6 +17,7 @@ from app.api.v1 import (
     plan,
     profiles,
     surprise,
+    surprises,
     templates,
 )
 
@@ -33,6 +34,7 @@ router.include_router(itineraries.router)
 router.include_router(surprise.router)
 router.include_router(itinerary_ai.router)
 router.include_router(calendar.router)
+router.include_router(surprises.router)
 router.include_router(places.router)
 router.include_router(notes.router)
 router.include_router(ideas.router)
