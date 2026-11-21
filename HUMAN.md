@@ -35,3 +35,5 @@ earned its status.
 - Are the husband-blue and wife-warm colours pleasant in light and dark mode?
 - Is the “Only you can see this” notes badge clear?
 - Does switching profiles on a shared phone ever show the other person's data?
+- Surprise mode, end to end on two phones: as the planner, schedule a date as a surprise, add hints (including "Suggest hints"), and set a reveal time; as the surprisee, does the Home card, the calendar's "Surprise date ✨" entry and the surprise page give away nothing beyond the time and the released hints, and does the reveal land you on the full date?
+- Does a released hint's push/in-app notification feel exciting rather than spoilery?
