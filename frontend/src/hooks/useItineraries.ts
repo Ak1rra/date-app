@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { client, unwrap, type Schemas } from '../api/client';
 import { ApiError } from '../api/http';
 import { useViewerId } from './useSession';
@@ -131,12 +131,14 @@ export function useCancelItinerary(id: string) {
   });
 }
 
-function replaceItinerary(
+async function replaceItinerary(
   queryClient: ReturnType<typeof useQueryClient>,
   userId: string | undefined,
   id: string,
   data: ItineraryOut,
 ) {
+  // An in-flight refetch started before this write would otherwise land after it with old data.
+  await queryClient.cancelQueries({ queryKey: itineraryKey(userId, id) });
   queryClient.setQueryData(itineraryKey(userId, id), data);
   void queryClient.invalidateQueries({ queryKey: itinerariesKey(userId) });
 }
@@ -153,6 +155,43 @@ export function useReplaceStops(id: string) {
         }),
       ),
     onSuccess: (data) => replaceItinerary(queryClient, userId, id, data),
+  });
+}
+
+export const regenerateStopKey = (userId: string | undefined, id: string) =>
+  ['regenerate-stop', userId, id] as const;
+
+/** True while any stop of this itinerary is being regenerated; each response replaces the whole itinerary. */
+export function useIsRegenerating(id: string): boolean {
+  const userId = useViewerId();
+  return useIsMutating({ mutationKey: regenerateStopKey(userId, id) }) > 0;
+}
+
+export function useRegenerateStop(id: string) {
+  const userId = useViewerId();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: regenerateStopKey(userId, id),
+    mutationFn: async ({ stopId, note }: { stopId: string; note?: string }) =>
+      unwrap(
+        await client.POST('/api/v1/itineraries/{itinerary_id}/stops/{stop_id}/regenerate', {
+          params: { path: { itinerary_id: id, stop_id: stopId } },
+          ...(note ? { body: { note } } : {}),
+        }),
+      ),
+    onSuccess: (data) => replaceItinerary(queryClient, userId, id, data),
+  });
+}
+
+export function usePolishInvitation(id: string) {
+  return useMutation({
+    mutationFn: async (draft: string) =>
+      unwrap(
+        await client.POST('/api/v1/itineraries/{itinerary_id}/polish-invitation', {
+          params: { path: { itinerary_id: id } },
+          body: { draft },
+        }),
+      ),
   });
 }
 

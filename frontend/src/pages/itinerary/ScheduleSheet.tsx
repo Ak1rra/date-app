@@ -1,7 +1,12 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { plannerError } from '../../api/plannerError';
 import { Button } from '../../components/Button';
 import { FormError, TextAreaField, TextField } from '../../components/forms';
-import { useScheduleItinerary, type ScheduleIn } from '../../hooks/useItineraries';
+import {
+  usePolishInvitation,
+  useScheduleItinerary,
+  type ScheduleIn,
+} from '../../hooks/useItineraries';
 
 function toIso(value: string) {
   return new Date(value).toISOString();
@@ -32,6 +37,15 @@ export function ScheduleSheet({
   const [ends, setEnds] = useState(localInput(endsAt));
   const [mode, setMode] = useState<ScheduleIn['mode']>(initialMode);
   const [message, setMessage] = useState('');
+  const polish = usePolishInvitation(itineraryId);
+  // The text before the last polish; cleared by the next edit so Undo never clobbers new typing.
+  const [beforePolish, setBeforePolish] = useState<string | null>(null);
+  // The latest text, so a polish result for an older draft is never applied over newer text.
+  const messageRef = useRef('');
+  const changeMessage = (value: string) => {
+    messageRef.current = value;
+    setMessage(value);
+  };
 
   return (
     <div
@@ -61,7 +75,7 @@ export function ScheduleSheet({
           className="mt-5 flex flex-col gap-4"
           onSubmit={(event) => {
             event.preventDefault();
-            if (!starts) return;
+            if (!starts || polish.isPending) return;
             schedule.mutate(
               {
                 starts_at: toIso(starts),
@@ -109,11 +123,46 @@ export function ScheduleSheet({
           <TextAreaField
             label="Invitation message (optional)"
             value={message}
-            onChange={(event) => setMessage(event.target.value)}
+            disabled={polish.isPending}
+            onChange={(event) => {
+              changeMessage(event.target.value);
+              setBeforePolish(null);
+            }}
             placeholder="I have a little something planned for us…"
           />
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              disabled={!message.trim() || polish.isPending}
+              onClick={() => {
+                const draft = message;
+                polish.mutate(draft, {
+                  onSuccess: ({ text }) => {
+                    if (messageRef.current !== draft) return;
+                    setBeforePolish(draft);
+                    changeMessage(text);
+                  },
+                });
+              }}
+            >
+              {polish.isPending ? 'Polishing…' : 'Polish it'}
+            </Button>
+            {beforePolish !== null ? (
+              <Button
+                variant="secondary"
+                disabled={polish.isPending}
+                onClick={() => {
+                  changeMessage(beforePolish);
+                  setBeforePolish(null);
+                }}
+              >
+                Undo
+              </Button>
+            ) : null}
+          </div>
+          <FormError error={plannerError(polish.error)} />
           <FormError error={schedule.error} />
-          <Button type="submit" disabled={!starts || schedule.isPending}>
+          <Button type="submit" disabled={!starts || schedule.isPending || polish.isPending}>
             {schedule.isPending ? 'Scheduling…' : 'Schedule date'}
           </Button>
         </form>

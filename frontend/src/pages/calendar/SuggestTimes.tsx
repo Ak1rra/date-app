@@ -5,7 +5,7 @@ import { Card } from '../../components/EmptyState';
 import { FormError, SelectField } from '../../components/forms';
 import { useSuggestTimes, type SuggestTimesIn, type TimeSlot } from '../../hooks/useCalendar';
 import { useMakeItADate } from '../../hooks/useIdeas';
-import { plannerError } from '../ideas/MakeItADateSheet';
+import { plannerError } from '../../api/plannerError';
 import { dayKey, formatTime, timeValue } from './helpers';
 
 const DURATIONS = [

@@ -1,4 +1,12 @@
-import type { ItineraryOut } from '../../hooks/useItineraries';
+import { useState } from 'react';
+import { plannerError } from '../../api/plannerError';
+import { Button } from '../../components/Button';
+import { FormError, TextField } from '../../components/forms';
+import {
+  useIsRegenerating,
+  useRegenerateStop,
+  type ItineraryOut,
+} from '../../hooks/useItineraries';
 import { Money } from './Money';
 
 type Stop = ItineraryOut['stops'][number];
@@ -35,7 +43,84 @@ function miles(meters: number | null) {
     : `${(meters / 1609.344).toFixed(meters / 1609.344 < 10 ? 1 : 0)} miles`;
 }
 
-export function StopCard({ stop, currency }: { stop: Stop; currency?: string }) {
+/** Planner-only: asks the planner for a replacement for one stop, with an optional steer. */
+function TryAnother({ itineraryId, stop }: { itineraryId: string; stop: Stop }) {
+  const regenerate = useRegenerateStop(itineraryId);
+  // One regeneration at a time per itinerary: each response replaces the whole cached itinerary.
+  const busy = useIsRegenerating(itineraryId);
+  const [open, setOpen] = useState(false);
+  const [note, setNote] = useState('');
+
+  if (!open) {
+    return (
+      <div>
+        <Button
+          variant="secondary"
+          aria-label={`Try another for ${stop.title}`}
+          disabled={busy}
+          onClick={() => setOpen(true)}
+        >
+          Try another
+        </Button>
+      </div>
+    );
+  }
+  return (
+    <form
+      className="flex flex-col gap-3 rounded-2xl bg-surface-2 p-3"
+      aria-label={`Try another for ${stop.title}`}
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (busy) return;
+        regenerate.mutate(
+          { stopId: stop.id, note: note.trim() || undefined },
+          {
+            onSuccess: () => {
+              setOpen(false);
+              setNote('');
+            },
+          },
+        );
+      }}
+    >
+      <TextField
+        label="What should change? (optional)"
+        maxLength={300}
+        disabled={busy}
+        value={note}
+        onChange={(event) => setNote(event.target.value)}
+        placeholder="Something quieter, closer to home…"
+      />
+      <FormError error={plannerError(regenerate.error)} />
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit" disabled={busy}>
+          {regenerate.isPending ? 'Finding something new…' : 'Find something new'}
+        </Button>
+        <Button
+          variant="secondary"
+          disabled={regenerate.isPending}
+          onClick={() => {
+            regenerate.reset();
+            setOpen(false);
+          }}
+        >
+          Never mind
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+export function StopCard({
+  stop,
+  currency,
+  itineraryId,
+}: {
+  stop: Stop;
+  currency?: string;
+  /** Set only for the planner of a draft or scheduled date; shows "Try another". */
+  itineraryId?: string;
+}) {
   const venue = stop.venue;
   const links = [
     stop.maps.google ? { href: stop.maps.google, label: 'Google Maps' } : null,
@@ -100,6 +185,8 @@ export function StopCard({ stop, currency }: { stop: Stop; currency?: string }) 
           ))}
         </div>
       ) : null}
+
+      {itineraryId ? <TryAnother itineraryId={itineraryId} stop={stop} /> : null}
 
       {stop.warnings.length > 0 ? (
         <ul

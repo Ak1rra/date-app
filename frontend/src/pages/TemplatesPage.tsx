@@ -9,7 +9,7 @@ import {
   useTemplates,
   type TemplateOut,
 } from '../hooks/useTemplates';
-import { plannerError } from './ideas/MakeItADateSheet';
+import { plannerError } from '../api/plannerError';
 import { localToIso } from './itinerary/dateWindow';
 
 function ReplanSheet({ template, onClose }: { template: TemplateOut; onClose: () => void }) {

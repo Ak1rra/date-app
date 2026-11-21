@@ -6,7 +6,12 @@ import { Card, EmptyState } from '../components/EmptyState';
 import { FormError, LoadError, Skeleton } from '../components/forms';
 import { usePersonTheme } from '../hooks/usePersonTheme';
 import { useSession } from '../hooks/useSession';
-import { useCancelItinerary, useItinerary, type ItineraryOut } from '../hooks/useItineraries';
+import {
+  useCancelItinerary,
+  useIsRegenerating,
+  useItinerary,
+  type ItineraryOut,
+} from '../hooks/useItineraries';
 import { ChecklistSection } from './itinerary/ChecklistSection';
 import { DetailsEditor } from './itinerary/DetailsEditor';
 import { Money } from './itinerary/Money';
@@ -55,6 +60,8 @@ export function ItineraryPage() {
   usePersonTheme(session.data?.user?.role);
   const itinerary = useItinerary(id);
   const cancel = useCancelItinerary(id ?? '');
+  // A stop replacement rewrites the whole itinerary: hold every other change until it lands.
+  const regenerating = useIsRegenerating(id ?? '');
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [editingStops, setEditingStops] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -97,14 +104,26 @@ export function ItineraryPage() {
 
       {data.is_planner ? (
         <div className="flex flex-wrap gap-2">
-          {canChange ? <Button onClick={() => setScheduleOpen(true)}>Schedule</Button> : null}
+          {canChange ? (
+            <Button disabled={regenerating} onClick={() => setScheduleOpen(true)}>
+              Schedule
+            </Button>
+          ) : null}
           {canChange && !editingStops ? (
-            <Button variant="secondary" onClick={() => setEditingStops(true)}>
+            <Button
+              variant="secondary"
+              disabled={regenerating}
+              onClick={() => setEditingStops(true)}
+            >
               Edit stops
             </Button>
           ) : null}
           {canChange ? (
-            <Button variant="secondary" onClick={() => setDetailsOpen(true)}>
+            <Button
+              variant="secondary"
+              disabled={regenerating}
+              onClick={() => setDetailsOpen(true)}
+            >
               Edit details
             </Button>
           ) : null}
@@ -114,7 +133,7 @@ export function ItineraryPage() {
           {canChange ? (
             <Button
               variant="secondary"
-              disabled={cancel.isPending}
+              disabled={cancel.isPending || regenerating}
               onClick={() => {
                 if (window.confirm('Cancel this date? You can always plan another one.'))
                   cancel.mutate();
@@ -135,7 +154,12 @@ export function ItineraryPage() {
         <section className="flex flex-col gap-4" aria-label="Stops">
           <h2 className="text-xl font-semibold">The plan</h2>
           {data.stops.map((stop) => (
-            <StopCard key={stop.id} stop={stop} currency={data.currency} />
+            <StopCard
+              key={stop.id}
+              stop={stop}
+              currency={data.currency}
+              itineraryId={data.is_planner && canChange ? data.id : undefined}
+            />
           ))}
         </section>
       )}

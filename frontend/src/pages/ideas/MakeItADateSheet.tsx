@@ -1,17 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ApiError } from '../../api/http';
+import { plannerError } from '../../api/plannerError';
 import { Button, ButtonLink } from '../../components/Button';
 import { FormError, SelectField, TextField } from '../../components/forms';
 import { useMakeItADate, type IdeaItineraryIn, type IdeaOut } from '../../hooks/useIdeas';
 import { localToIso } from '../itinerary/dateWindow';
-
-/** FormError shows a generic line for a 503; the planner's own message ("resting") reads better. */
-export function plannerError(error: unknown) {
-  return error instanceof ApiError && error.status === 503
-    ? new ApiError(422, error.code, error.message)
-    : error;
-}
 
 /** "Make it a date" for an active idea: opens the sheet below. */
 export function MakeItADateButton({ idea }: { idea: IdeaOut }) {

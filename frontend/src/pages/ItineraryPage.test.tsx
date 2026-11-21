@@ -554,4 +554,154 @@ describe('ItineraryPage editing', () => {
     expect(screen.queryByRole('button', { name: 'Edit stops' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Edit details' })).not.toBeInTheDocument();
   });
+
+  it('asks for another stop with a note and shows the replacement', async () => {
+    const replaced: ItineraryOut = {
+      ...itinerary,
+      stops: [{ ...dinner, id: 's9', title: 'Rooftop tapas' }],
+    };
+    const api = setup(itinerary, {
+      'POST /api/v1/itineraries/i1/stops/s1/regenerate': replaced,
+    });
+    renderApp('/itineraries/i1');
+    await userEvent.click(await screen.findByRole('button', { name: 'Try another for Dinner' }));
+    await userEvent.type(screen.getByLabelText('What should change? (optional)'), 'Outdoors');
+    await userEvent.click(screen.getByRole('button', { name: 'Find something new' }));
+    expect(await screen.findByRole('heading', { name: 'Rooftop tapas' })).toBeInTheDocument();
+    expect(api.body('POST', '/api/v1/itineraries/i1/stops/s1/regenerate')).toEqual({
+      note: 'Outdoors',
+    });
+    expect(screen.queryByRole('heading', { name: 'Dinner' })).not.toBeInTheDocument();
+  });
+
+  it('sends no body when the note is empty and disables the form while pending', async () => {
+    let release: (value: ItineraryOut) => void = () => undefined;
+    const held = new Promise<ItineraryOut>((resolve) => (release = resolve));
+    const api = setup(itinerary, {
+      'POST /api/v1/itineraries/i1/stops/s1/regenerate': () => held,
+    });
+    renderApp('/itineraries/i1');
+    await userEvent.click(await screen.findByRole('button', { name: 'Try another for Dinner' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Find something new' }));
+    expect(await screen.findByRole('button', { name: 'Finding something new…' })).toBeDisabled();
+    expect(api.body('POST', '/api/v1/itineraries/i1/stops/s1/regenerate')).toBeUndefined();
+    release(itinerary);
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Finding something new…' })).toBeNull(),
+    );
+  });
+
+  it("disables another stop's Try another while one regeneration is pending", async () => {
+    let release: (value: ItineraryOut) => void = () => undefined;
+    const held = new Promise<ItineraryOut>((resolve) => (release = resolve));
+    setup(twoStops, {
+      'POST /api/v1/itineraries/i1/stops/s1/regenerate': () => held,
+    });
+    renderApp('/itineraries/i1');
+    await userEvent.click(await screen.findByRole('button', { name: 'Try another for Dinner' }));
+    const other = screen.getByRole('button', { name: `Try another for ${dessert.title}` });
+    expect(other).toBeEnabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Find something new' }));
+    await waitFor(() => expect(other).toBeDisabled());
+    // Every other change to the itinerary waits for the replacement too.
+    for (const name of ['Schedule', 'Edit stops', 'Edit details', 'Cancel']) {
+      expect(screen.getByRole('button', { name })).toBeDisabled();
+    }
+    release(twoStops);
+    await waitFor(() => expect(other).toBeEnabled());
+    expect(screen.getByRole('button', { name: 'Schedule' })).toBeEnabled();
+  });
+
+  it('shows the planner message when regenerating fails with ai_failed', async () => {
+    setup(itinerary, {
+      'POST /api/v1/itineraries/i1/stops/s1/regenerate': jsonResponse(
+        {
+          error: {
+            code: 'ai_failed',
+            message: "The planner couldn't put that together. Try again.",
+          },
+        },
+        502,
+      ),
+    });
+    renderApp('/itineraries/i1');
+    await userEvent.click(await screen.findByRole('button', { name: 'Try another for Dinner' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Find something new' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "The planner couldn't put that together. Try again.",
+    );
+  });
+
+  it('offers Try another only to the planner of a draft or scheduled date', async () => {
+    setup({ ...itinerary, is_planner: false });
+    renderApp('/itineraries/i1');
+    await screen.findByRole('button', { name: /I'm in/ });
+    expect(screen.queryByRole('button', { name: /Try another/ })).not.toBeInTheDocument();
+  });
+
+  it('hides Try another on a completed itinerary', async () => {
+    setup({ ...itinerary, status: 'completed' });
+    renderApp('/itineraries/i1');
+    await screen.findByRole('heading', { name: 'Dinner' });
+    expect(screen.queryByRole('button', { name: /Try another/ })).not.toBeInTheDocument();
+  });
+
+  it('polishes the invitation message and can undo it', async () => {
+    const api = setup(itinerary, {
+      'POST /api/v1/itineraries/i1/polish-invitation': { text: 'Dinner is on me, my love.' },
+    });
+    renderApp('/itineraries/i1');
+    await userEvent.click(await screen.findByRole('button', { name: 'Schedule' }));
+    const polish = screen.getByRole('button', { name: 'Polish it' });
+    expect(polish).toBeDisabled();
+    const field = screen.getByLabelText('Invitation message (optional)');
+    await userEvent.type(field, 'dinner on me');
+    await userEvent.click(polish);
+    await waitFor(() => expect(field).toHaveValue('Dinner is on me, my love.'));
+    expect(api.body('POST', '/api/v1/itineraries/i1/polish-invitation')).toEqual({
+      draft: 'dinner on me',
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(field).toHaveValue('dinner on me');
+    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
+  });
+
+  it('locks the message, Undo and Schedule date while polishing', async () => {
+    let release: (value: { text: string }) => void = () => undefined;
+    const held = new Promise<{ text: string }>((resolve) => (release = resolve));
+    let calls = 0;
+    setup(itinerary, {
+      'POST /api/v1/itineraries/i1/polish-invitation': () =>
+        ++calls === 1 ? { text: 'Dinner is on me.' } : held,
+    });
+    renderApp('/itineraries/i1');
+    await userEvent.click(await screen.findByRole('button', { name: 'Schedule' }));
+    const field = screen.getByLabelText('Invitation message (optional)');
+    await userEvent.type(field, 'dinner on me');
+    await userEvent.click(screen.getByRole('button', { name: 'Polish it' }));
+    await waitFor(() => expect(field).toHaveValue('Dinner is on me.'));
+    await userEvent.click(screen.getByRole('button', { name: 'Polish it' }));
+    expect(await screen.findByRole('button', { name: 'Polishing…' })).toBeDisabled();
+    expect(field).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Schedule date' })).toBeDisabled();
+    release({ text: 'Dinner is on me, my love.' });
+    await waitFor(() => expect(field).toHaveValue('Dinner is on me, my love.'));
+    expect(field).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeEnabled();
+  });
+
+  it('shows the planner message when polishing is unavailable', async () => {
+    setup(itinerary, {
+      'POST /api/v1/itineraries/i1/polish-invitation': jsonResponse(
+        { error: { code: 'planner_unavailable', message: 'The planner is resting.' } },
+        503,
+      ),
+    });
+    renderApp('/itineraries/i1');
+    await userEvent.click(await screen.findByRole('button', { name: 'Schedule' }));
+    await userEvent.type(screen.getByLabelText('Invitation message (optional)'), 'hi');
+    await userEvent.click(screen.getByRole('button', { name: 'Polish it' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('The planner is resting.');
+  });
 });
