@@ -27,7 +27,7 @@ earned its status.
   ```
 
   The CLI's `daemon update` pulls with `git pull --ff-only`, backs up the database, syncs dependencies, builds the frontend, runs `alembic upgrade head`, restarts `date-app`, and waits up to 30 seconds for `/api/v1/health`. It refuses an uninstalled service, tracked uncommitted changes, or a non-fast-forward pull (`backend/app/cli.py:837-915`).
-- **Owner `.env` keys on rogue:** set `ANTHROPIC_API_KEY`, `GOOGLE_MAPS_API_KEY`, `TICKETMASTER_API_KEY`, and `AI_GLOBAL_MONTHLY_USD=25` in `~/projects/date-app/.env`. The first three names are present in `.env.example` (`.env.example:37-43`); the monthly ceiling is the REQUIREMENTS §14 decision 3 setting and is not currently listed in `.env.example`.
+- **Owner `.env` keys on rogue:** set `ANTHROPIC_API_KEY`, `GOOGLE_MAPS_API_KEY`, `TICKETMASTER_API_KEY`, and `AI_GLOBAL_MONTHLY_USD=25` in `~/projects/date-app/.env`. All four names are present in `.env.example` (`.env.example:37-45`), and the monthly ceiling is the REQUIREMENTS §14 decision 3 setting.
 
 ## Awaiting a human
 
