@@ -2337,6 +2337,418 @@
         "title": "PlaceOut",
         "type": "object"
       },
+      "PlanBuildIn": {
+        "properties": {
+          "combine_note": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Combine Note"
+          },
+          "option_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 3,
+            "minItems": 1,
+            "title": "Option Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "option_ids"
+        ],
+        "title": "PlanBuildIn",
+        "type": "object"
+      },
+      "PlanOptionOut": {
+        "additionalProperties": false,
+        "properties": {
+          "est_cost": {
+            "anyOf": [
+              {
+                "maximum": 100000.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Est Cost"
+          },
+          "grounded": {
+            "title": "Grounded",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "occasion": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occasion"
+          },
+          "pitch": {
+            "maxLength": 400,
+            "title": "Pitch",
+            "type": "string"
+          },
+          "stops": {
+            "items": {
+              "$ref": "#/components/schemas/PlanOptionStop"
+            },
+            "maxItems": 5,
+            "minItems": 1,
+            "title": "Stops",
+            "type": "array"
+          },
+          "title": {
+            "maxLength": 120,
+            "title": "Title",
+            "type": "string"
+          },
+          "why_for_them": {
+            "maxLength": 300,
+            "title": "Why For Them",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "pitch",
+          "why_for_them",
+          "stops",
+          "grounded",
+          "id"
+        ],
+        "title": "PlanOptionOut",
+        "type": "object"
+      },
+      "PlanOptionStop": {
+        "additionalProperties": false,
+        "properties": {
+          "est_cost": {
+            "anyOf": [
+              {
+                "maximum": 100000.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Est Cost"
+          },
+          "event_id": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Id"
+          },
+          "evergreen": {
+            "title": "Evergreen",
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "food",
+              "drink",
+              "activity",
+              "event",
+              "outdoors",
+              "other"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "place_id": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place Id"
+          },
+          "title": {
+            "maxLength": 120,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "kind",
+          "evergreen"
+        ],
+        "title": "PlanOptionStop",
+        "type": "object"
+      },
+      "PlanOptionsIn": {
+        "properties": {
+          "more": {
+            "default": false,
+            "title": "More",
+            "type": "boolean"
+          }
+        },
+        "title": "PlanOptionsIn",
+        "type": "object"
+      },
+      "PlanOptionsOut": {
+        "properties": {
+          "chosen": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chosen"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "degraded": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Degraded",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "inputs": {
+            "additionalProperties": true,
+            "title": "Inputs",
+            "type": "object"
+          },
+          "itinerary_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Itinerary Id"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/PlanOptionOut"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "open",
+              "done",
+              "archived"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "inputs",
+          "options",
+          "chosen",
+          "itinerary_id",
+          "status",
+          "created_at",
+          "degraded"
+        ],
+        "title": "PlanOptionsOut",
+        "type": "object"
+      },
+      "PlanSessionIn": {
+        "properties": {
+          "budget_max": {
+            "anyOf": [
+              {
+                "maximum": 99999999.99,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Max"
+          },
+          "must_include": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Must Include"
+          },
+          "recipient_profile_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipient Profile Id"
+          },
+          "steer": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Steer"
+          },
+          "surprise": {
+            "default": false,
+            "title": "Surprise",
+            "type": "boolean"
+          },
+          "window_end": {
+            "format": "date-time",
+            "title": "Window End",
+            "type": "string"
+          },
+          "window_start": {
+            "format": "date-time",
+            "title": "Window Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "window_start",
+          "window_end"
+        ],
+        "title": "PlanSessionIn",
+        "type": "object"
+      },
+      "PlanSessionOut": {
+        "properties": {
+          "chosen": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chosen"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "inputs": {
+            "additionalProperties": true,
+            "title": "Inputs",
+            "type": "object"
+          },
+          "itinerary_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Itinerary Id"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/PlanOptionOut"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "open",
+              "done",
+              "archived"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "inputs",
+          "options",
+          "chosen",
+          "itinerary_id",
+          "status",
+          "created_at"
+        ],
+        "title": "PlanSessionOut",
+        "type": "object"
+      },
       "ProfileIn": {
         "description": "A full replace: anything left out is reset to empty.",
         "properties": {
@@ -5693,6 +6105,270 @@
         "summary": "Search Places",
         "tags": [
           "places"
+        ]
+      }
+    },
+    "/api/v1/plan/sessions": {
+      "get": {
+        "operationId": "list_sessions_api_v1_plan_sessions_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PlanSessionOut"
+                  },
+                  "title": "Response List Sessions Api V1 Plan Sessions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Sessions",
+        "tags": [
+          "plan"
+        ]
+      },
+      "post": {
+        "operationId": "create_session_api_v1_plan_sessions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanSessionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanSessionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Session",
+        "tags": [
+          "plan"
+        ]
+      }
+    },
+    "/api/v1/plan/sessions/{plan_id}": {
+      "get": {
+        "operationId": "get_session_by_id_api_v1_plan_sessions__plan_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Plan Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanSessionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Session By Id",
+        "tags": [
+          "plan"
+        ]
+      }
+    },
+    "/api/v1/plan/sessions/{plan_id}/build": {
+      "post": {
+        "operationId": "build_api_v1_plan_sessions__plan_id__build_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Plan Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanBuildIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItineraryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Build",
+        "tags": [
+          "plan"
+        ]
+      }
+    },
+    "/api/v1/plan/sessions/{plan_id}/options": {
+      "post": {
+        "description": "Three more options (also saved as ideas). `degraded` lists providers that were down.",
+        "operationId": "make_options_api_v1_plan_sessions__plan_id__options_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Plan Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/PlanOptionsIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanOptionsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Make Options",
+        "tags": [
+          "plan"
+        ]
+      }
+    },
+    "/api/v1/plan/sessions/{plan_id}/plan-all": {
+      "post": {
+        "operationId": "plan_all_api_v1_plan_sessions__plan_id__plan_all_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Plan Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItineraryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Plan All",
+        "tags": [
+          "plan"
         ]
       }
     },

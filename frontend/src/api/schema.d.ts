@@ -736,6 +736,95 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/plan/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Sessions */
+        get: operations["list_sessions_api_v1_plan_sessions_get"];
+        put?: never;
+        /** Create Session */
+        post: operations["create_session_api_v1_plan_sessions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plan/sessions/{plan_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Session By Id */
+        get: operations["get_session_by_id_api_v1_plan_sessions__plan_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plan/sessions/{plan_id}/build": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Build */
+        post: operations["build_api_v1_plan_sessions__plan_id__build_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plan/sessions/{plan_id}/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Make Options
+         * @description Three more options (also saved as ideas). `degraded` lists providers that were down.
+         */
+        post: operations["make_options_api_v1_plan_sessions__plan_id__options_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plan/sessions/{plan_id}/plan-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Plan All */
+        post: operations["plan_all_api_v1_plan_sessions__plan_id__plan_all_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profiles": {
         parameters: {
             query?: never;
@@ -1550,6 +1639,149 @@ export interface components {
             price_level: number | null;
             /** Rating */
             rating: number | null;
+        };
+        /** PlanBuildIn */
+        PlanBuildIn: {
+            /** Combine Note */
+            combine_note?: string | null;
+            /** Option Ids */
+            option_ids: string[];
+        };
+        /** PlanOptionOut */
+        PlanOptionOut: {
+            /** Est Cost */
+            est_cost?: number | null;
+            /** Grounded */
+            grounded: boolean;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Occasion */
+            occasion?: string | null;
+            /** Pitch */
+            pitch: string;
+            /** Stops */
+            stops: components["schemas"]["PlanOptionStop"][];
+            /** Title */
+            title: string;
+            /** Why For Them */
+            why_for_them: string;
+        };
+        /** PlanOptionStop */
+        PlanOptionStop: {
+            /** Est Cost */
+            est_cost?: number | null;
+            /** Event Id */
+            event_id?: string | null;
+            /** Evergreen */
+            evergreen: boolean;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "food" | "drink" | "activity" | "event" | "outdoors" | "other";
+            /** Place Id */
+            place_id?: string | null;
+            /** Title */
+            title: string;
+        };
+        /** PlanOptionsIn */
+        PlanOptionsIn: {
+            /**
+             * More
+             * @default false
+             */
+            more: boolean;
+        };
+        /** PlanOptionsOut */
+        PlanOptionsOut: {
+            /** Chosen */
+            chosen: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Degraded */
+            degraded: string[];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Inputs */
+            inputs: {
+                [key: string]: unknown;
+            };
+            /** Itinerary Id */
+            itinerary_id: string | null;
+            /** Options */
+            options: components["schemas"]["PlanOptionOut"][];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "done" | "archived";
+        };
+        /** PlanSessionIn */
+        PlanSessionIn: {
+            /** Budget Max */
+            budget_max?: number | null;
+            /** Must Include */
+            must_include?: string | null;
+            /** Recipient Profile Id */
+            recipient_profile_id?: string | null;
+            /** Steer */
+            steer?: string | null;
+            /**
+             * Surprise
+             * @default false
+             */
+            surprise: boolean;
+            /**
+             * Window End
+             * Format: date-time
+             */
+            window_end: string;
+            /**
+             * Window Start
+             * Format: date-time
+             */
+            window_start: string;
+        };
+        /** PlanSessionOut */
+        PlanSessionOut: {
+            /** Chosen */
+            chosen: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Inputs */
+            inputs: {
+                [key: string]: unknown;
+            };
+            /** Itinerary Id */
+            itinerary_id: string | null;
+            /** Options */
+            options: components["schemas"]["PlanOptionOut"][];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "done" | "archived";
         };
         /**
          * ProfileIn
@@ -3428,6 +3660,191 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlaceOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_sessions_api_v1_plan_sessions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanSessionOut"][];
+                };
+            };
+        };
+    };
+    create_session_api_v1_plan_sessions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanSessionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanSessionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_session_by_id_api_v1_plan_sessions__plan_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanSessionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    build_api_v1_plan_sessions__plan_id__build_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanBuildIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItineraryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    make_options_api_v1_plan_sessions__plan_id__options_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PlanOptionsIn"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanOptionsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    plan_all_api_v1_plan_sessions__plan_id__plan_all_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItineraryOut"];
                 };
             };
             /** @description Validation Error */

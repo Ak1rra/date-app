@@ -12,6 +12,7 @@ from app.api.v1 import (
     notes,
     notifications,
     places,
+    plan,
     profiles,
 )
 
@@ -28,3 +29,4 @@ router.include_router(itineraries.router)
 router.include_router(places.router)
 router.include_router(notes.router)
 router.include_router(ideas.router)
+router.include_router(plan.router)
