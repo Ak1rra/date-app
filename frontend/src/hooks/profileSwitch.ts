@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { beginProfileChange, setActiveProfile } from '../api/http';
+import { clearOfflineApiCache } from '../lib/offlineApi';
 import { META_KEY } from './useMeta';
 import { SESSION_KEY, type Session } from './useSession';
 
@@ -34,13 +36,21 @@ function broadcast(message: { type: 'profile-changed'; userId: string | null }) 
 
 /** Called after choose-profile succeeds: discard in-flight fetches, adopt the new session, tidy up. */
 export async function resetForProfile(queryClient: QueryClient, session: Session) {
+  // First, so a session response still in flight for the old profile can't set its header again.
+  beginProfileChange();
   // Viewer queries and the session only; meta doesn't depend on who is using the app.
   await queryClient.cancelQueries({
     predicate: (q) => isViewerQuery(q) || q.queryKey[0] === SESSION_KEY[0],
   });
+  // Awaited before the header changes, so nothing from the old profile survives the switch.
+  await clearOfflineApiCache();
   queryClient.setQueryData(SESSION_KEY, session);
   const userId = session.user?.id ?? null;
+  setActiveProfile(userId);
   if (userId) removeOthersData(queryClient, userId);
+  // The new header is set, so the service worker caches this session under the new profile and an
+  // offline reload can bootstrap from it. Awaited so the caller navigates only once it is cached.
+  if (userId) await queryClient.refetchQueries({ queryKey: SESSION_KEY });
   broadcast({ type: 'profile-changed', userId });
 }
 
@@ -64,6 +74,10 @@ export function useProfileSwitchSync(userId: string | undefined) {
       if (data?.type !== 'profile-changed') return;
       const current = queryClient.getQueryData<Session>(SESSION_KEY)?.user?.id ?? null;
       if (data.userId === current) return;
+      // Adopt the new profile's header right away (the same value the initiating tab stored); the
+      // session refetch confirms it.
+      beginProfileChange();
+      setActiveProfile(typeof data.userId === 'string' ? data.userId : null);
       void queryClient.invalidateQueries({ queryKey: SESSION_KEY });
       // Meta is never cancelled here, but make sure it can't be left without an answer.
       const meta = queryClient.getQueryState(META_KEY);

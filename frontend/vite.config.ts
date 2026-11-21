@@ -16,6 +16,10 @@ export default defineConfig({
       // taking the new service worker on next load is simpler and safer than
       // an update prompt people may ignore for weeks.
       registerType: 'autoUpdate',
+      // Custom worker (src/sw.ts): offline API cache, push display, notification clicks.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       includeAssets: ['icon.svg', 'favicon-32.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'Date Planner',
@@ -36,12 +40,6 @@ export default defineConfig({
             purpose: 'maskable',
           },
         ],
-      },
-      workbox: {
-        navigateFallback: 'index.html',
-        navigateFallbackDenylist: [/^\/api\//],
-        // No runtime caching of /api in M1.
-        runtimeCaching: [],
       },
     }),
   ],

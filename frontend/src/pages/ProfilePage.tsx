@@ -1,3 +1,4 @@
+import { ButtonLink } from '../components/Button';
 import { Card } from '../components/EmptyState';
 import { PROFILES, ProfileError } from '../components/ProfileChoice';
 import { useChooseProfile } from '../hooks/useChooseProfile';
@@ -49,6 +50,18 @@ export function ProfilePage() {
               <p className="text-sm text-muted">Anyone using this app can switch profiles.</p>
             </>
           ) : null}
+        </div>
+      </Card>
+      <Card title="Home Screen">
+        <div className="flex flex-col gap-3 p-2">
+          <p className="text-muted">
+            Keep us one tap away, and get nudges when a date needs you. 😉
+          </p>
+          <div>
+            <ButtonLink to="/install" variant="secondary">
+              Install &amp; trust guide
+            </ButtonLink>
+          </div>
         </div>
       </Card>
     </div>

@@ -1,5 +1,6 @@
 import { useRef, type ComponentType, type MouseEvent, type SVGProps } from 'react';
 import { NavLink, Outlet } from 'react-router';
+import { InstallBanner } from './InstallBanner';
 import { CalendarIcon, ChatIcon, HomeIcon, IdeasIcon, ProfileIcon, UsIcon } from './Icons';
 
 interface NavItem {
@@ -97,6 +98,7 @@ export function AppShell() {
         Skip to content
       </a>
       <TopNav />
+      <InstallBanner />
       <main
         id="main"
         ref={mainRef}

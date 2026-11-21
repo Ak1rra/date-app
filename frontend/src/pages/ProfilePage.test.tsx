@@ -15,11 +15,16 @@ const meta = (noLogin: boolean) => ({ demo_mode: false, version: 'test', no_logi
 
 /** Routes /meta and choose-profile to their bodies; everything else is the session. */
 function mockApi(session: unknown, opts: { noLogin?: boolean; choose?: Response } = {}) {
+  // A successful choose-profile changes who the session endpoint reports (the app refetches it).
+  let current = session;
   const fetchMock = vi.fn<typeof fetch>(async (input) => {
     const url = String(input);
     if (url.endsWith('/api/v1/meta')) return jsonResponse(meta(opts.noLogin ?? true));
-    if (url.endsWith('/auth/choose-profile') && opts.choose) return opts.choose.clone();
-    return jsonResponse(session);
+    if (url.endsWith('/auth/choose-profile') && opts.choose) {
+      if (opts.choose.ok) current = await opts.choose.clone().json();
+      return opts.choose.clone();
+    }
+    return jsonResponse(current);
   });
   vi.stubGlobal('fetch', fetchMock);
   return fetchMock;

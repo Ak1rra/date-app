@@ -6,6 +6,7 @@ import { CalendarPage } from './pages/CalendarPage';
 import { ChatPage } from './pages/ChatPage';
 import { HomePage } from './pages/HomePage';
 import { IdeasPage } from './pages/IdeasPage';
+import { InstallPage } from './pages/InstallPage';
 import { PlanPage } from './pages/PlanPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { SetupPage } from './pages/SetupPage';
@@ -41,6 +42,7 @@ export const routes: RouteObject[] = [
           { path: '/us', element: <UsPage /> },
           { path: '/profile', element: <ProfilePage /> },
           { path: '/plan', element: <PlanPage /> },
+          { path: '/install', element: <InstallPage /> },
         ],
       },
     ],

@@ -1,4 +1,5 @@
 import type { Middleware } from 'openapi-fetch';
+import { PROFILE_HEADER } from '../lib/offlineApi';
 
 export class ApiError extends Error {
   readonly status: number;
@@ -15,6 +16,54 @@ export class ApiError extends Error {
 const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 export const CSRF_COOKIE = 'csrf_token';
 export const CSRF_HEADER = 'X-CSRF-Token';
+
+const PROFILE_STORAGE_KEY = 'dateapp-active-profile';
+
+function readStoredProfile(): string | null {
+  try {
+    return localStorage.getItem(PROFILE_STORAGE_KEY) || null;
+  } catch {
+    return null;
+  }
+}
+
+// Remembered across reloads (an id isn't secret; this is a per-device convenience) so the first
+// session request after a reload already carries the header and an offline reload can be served
+// from that profile's cache. The server's session response still wins (see fetchSession).
+let activeProfile: string | null = readStoredProfile();
+
+export function getActiveProfile(): string | null {
+  return activeProfile;
+}
+
+/** The signed-in profile's user id; sent as X-Date-Profile so the service worker keys its cache per profile. */
+export function setActiveProfile(userId: string | null): void {
+  activeProfile = userId;
+  try {
+    if (userId) localStorage.setItem(PROFILE_STORAGE_KEY, userId);
+    else localStorage.removeItem(PROFILE_STORAGE_KEY);
+  } catch {
+    // Storage blocked or full: the in-memory value still works for this page load.
+  }
+}
+
+let profileGeneration = 0;
+
+/**
+ * Marks that the active profile is about to change. A session response that was requested before
+ * this (see currentProfileGeneration) is stale and must not overwrite the active profile.
+ */
+export function beginProfileChange(): void {
+  profileGeneration += 1;
+}
+
+export function currentProfileGeneration(): number {
+  return profileGeneration;
+}
+
+function addProfile(headers: Headers): void {
+  if (activeProfile) headers.set(PROFILE_HEADER, activeProfile);
+}
 
 export function readCsrfToken(): string | null {
   for (const part of document.cookie.split(';')) {
@@ -35,6 +84,7 @@ function addCsrf(headers: Headers, method: string): void {
 export const csrfMiddleware: Middleware = {
   onRequest({ request }) {
     addCsrf(request.headers, request.method);
+    addProfile(request.headers);
     return request;
   },
 };
@@ -58,6 +108,7 @@ export async function toApiError(res: Response): Promise<ApiError> {
 export async function apiFetch<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   addCsrf(headers, init.method ?? 'GET');
+  addProfile(headers);
   if (init.body !== undefined && init.body !== null && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }

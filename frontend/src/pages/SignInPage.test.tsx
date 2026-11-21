@@ -18,16 +18,22 @@ function mockApi(
   couple: () => Response | Promise<Response> = () =>
     jsonResponse({ ...coupleFixture, home_area: { label: 'Austin', lat: 30.27, lng: -97.74 } }),
 ) {
+  // A successful choose-profile changes who the session endpoint reports (the app refetches it).
+  let current: unknown = signedOut;
   const fetchMock = vi.fn<typeof fetch>(async (input) => {
     const url = input instanceof Request ? input.url : String(input);
     if (url.endsWith('/api/v1/meta')) {
       if (meta) return meta();
       return jsonResponse({ demo_mode: false, version: 'test', no_login: noLogin });
     }
-    if (url.endsWith('/api/v1/auth/choose-profile')) return choose!();
+    if (url.endsWith('/api/v1/auth/choose-profile')) {
+      const res = await choose!();
+      if (res.ok) current = await res.clone().json();
+      return res;
+    }
     if (url.endsWith('/api/v1/couple')) return couple();
     if (url.endsWith('/api/v1/profiles')) return jsonResponse([]);
-    return jsonResponse(signedOut);
+    return jsonResponse(current);
   });
   vi.stubGlobal('fetch', fetchMock);
   return fetchMock;
