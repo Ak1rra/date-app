@@ -1,12 +1,14 @@
 import { ButtonLink } from '../components/Button';
 import { Card } from '../components/EmptyState';
+import { PushSettings } from '../components/PushSettings';
 import { PROFILES, ProfileError } from '../components/ProfileChoice';
 import { useChooseProfile } from '../hooks/useChooseProfile';
 import { useMeta } from '../hooks/useMeta';
-import { useSession } from '../hooks/useSession';
+import { useSession, useViewerId } from '../hooks/useSession';
 
 export function ProfilePage() {
   const session = useSession();
+  const viewerId = useViewerId();
   const meta = useMeta();
   const choose = useChooseProfile();
   const user = session.data?.user;
@@ -64,6 +66,7 @@ export function ProfilePage() {
           </div>
         </div>
       </Card>
+      <PushSettings key={viewerId ?? 'none'} />
     </div>
   );
 }

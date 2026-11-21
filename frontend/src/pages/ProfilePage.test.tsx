@@ -118,6 +118,37 @@ describe('ProfilePage', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('resets push settings draft state when the viewer changes', async () => {
+    let viewer = husband;
+    routeApi({
+      'GET /api/v1/auth/session': () => viewer,
+      'GET /api/v1/meta': meta(true),
+      'POST /api/v1/auth/choose-profile': () => {
+        viewer = wife;
+        return wife;
+      },
+      'GET /api/v1/me/notification-settings': {
+        kinds: { itinerary_ready: true },
+        quiet_start: '22:00',
+        quiet_end: '08:00',
+      },
+      'PUT /api/v1/me/notification-settings': {
+        kinds: { itinerary_ready: true },
+        quiet_start: '22:00',
+        quiet_end: '08:00',
+      },
+    });
+    renderApp('/profile');
+
+    const start = await screen.findByLabelText('Quiet hours start');
+    await userEvent.clear(start);
+    await userEvent.type(start, '20:30');
+    expect(start).toHaveValue('20:30');
+    await userEvent.click(screen.getByRole('button', { name: 'Wife' }));
+
+    await waitFor(() => expect(screen.getByLabelText('Quiet hours start')).toHaveValue('22:00'));
+  });
+
   it('drops every cached viewer-specific query on a switch, so private notes never carry over', async () => {
     let viewer: 'husband' | 'wife' = 'husband';
     const note = (text: string) => ({
@@ -164,7 +195,13 @@ describe('ProfilePage', () => {
       .getQueryCache()
       .getAll()
       .map((q) => String(q.queryKey[0]));
-    expect(roots.sort()).toEqual(['meta', 'session']);
+    expect(roots.sort()).toEqual([
+      'meta',
+      'notification-settings',
+      'notifications-unread-count',
+      'push-config',
+      'session',
+    ]);
 
     await router.navigate('/us');
     expect(screen.queryByText('Husband secret')).not.toBeInTheDocument();

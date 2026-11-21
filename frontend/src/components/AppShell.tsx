@@ -1,6 +1,7 @@
 import { useRef, type ComponentType, type MouseEvent, type SVGProps } from 'react';
 import { NavLink, Outlet } from 'react-router';
 import { InstallBanner } from './InstallBanner';
+import { NotificationBell } from './NotificationBell';
 import { CalendarIcon, ChatIcon, HomeIcon, IdeasIcon, ProfileIcon, UsIcon } from './Icons';
 
 interface NavItem {
@@ -26,6 +27,7 @@ function TopNav() {
     <header className="hidden border-b border-line bg-surface md:block">
       <div className="mx-auto flex max-w-5xl items-center gap-6 px-6 py-3">
         <span className="text-lg font-bold text-accent">Date Planner</span>
+        <NotificationBell />
         <nav aria-label="Main menu" className="ml-auto">
           <ul className="flex gap-1">
             {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
@@ -46,6 +48,17 @@ function TopNav() {
             ))}
           </ul>
         </nav>
+      </div>
+    </header>
+  );
+}
+
+function MobileHeader() {
+  return (
+    <header className="border-b border-line bg-surface px-4 py-3 md:hidden">
+      <div className="flex items-center justify-between">
+        <span className="text-lg font-bold text-accent">Date Planner</span>
+        <NotificationBell />
       </div>
     </header>
   );
@@ -98,6 +111,7 @@ export function AppShell() {
         Skip to content
       </a>
       <TopNav />
+      <MobileHeader />
       <InstallBanner />
       <main
         id="main"

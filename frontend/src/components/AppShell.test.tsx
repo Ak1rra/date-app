@@ -57,4 +57,15 @@ describe('AppShell navigation', () => {
     await userEvent.click(skip);
     expect(main).toHaveFocus();
   });
+
+  it('renders notification bells in both desktop and mobile headers', async () => {
+    mockApi({
+      'GET /api/v1/auth/session': signedIn,
+      'GET /api/v1/notifications/unread-count': { count: 2 },
+      'GET /api/v1/notifications': [],
+    });
+    renderApp('/');
+
+    expect(await screen.findAllByRole('link', { name: 'Notifications, 2 unread' })).toHaveLength(2);
+  });
 });
