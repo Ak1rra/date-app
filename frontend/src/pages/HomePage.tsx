@@ -1,6 +1,8 @@
 import { ButtonLink } from '../components/Button';
-import { Card, EmptyState } from '../components/EmptyState';
-import { CalendarIcon, SparkleIcon } from '../components/Icons';
+import { SparkleIcon } from '../components/Icons';
+import { FinishingTouchesCard } from './home/FinishingTouchesCard';
+import { NextDateCard } from './home/NextDateCard';
+import { OccasionsCard } from './home/OccasionsCard';
 
 export function HomePage() {
   return (
@@ -12,22 +14,9 @@ export function HomePage() {
       </ButtonLink>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Card title="Next date" className="md:col-span-2">
-          <EmptyState title="Nothing planned yet">
-            Your next date will show up here, with the countdown and everything you still need to
-            do. Tap &ldquo;Plan a date&rdquo; to start one.
-          </EmptyState>
-        </Card>
-        <Card title="Finishing touches due">
-          <EmptyState title="All caught up">
-            When a planned date needs a reservation, a gift or a booking, the reminders land here.
-          </EmptyState>
-        </Card>
-        <Card title="Upcoming occasions">
-          <EmptyState title="No occasions yet" icon={<CalendarIcon />}>
-            Add birthdays and anniversaries in Us and we&apos;ll help you plan ahead.
-          </EmptyState>
-        </Card>
+        <NextDateCard />
+        <FinishingTouchesCard />
+        <OccasionsCard />
       </div>
     </div>
   );

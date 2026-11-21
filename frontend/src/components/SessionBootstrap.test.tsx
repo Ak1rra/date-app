@@ -19,9 +19,10 @@ describe('SessionBootstrap', () => {
     const fetchMock = mockSession(signedIn);
     renderApp('/');
     await screen.findByRole('link', { name: 'Plan a date' });
-    const urls = fetchMock.mock.calls
-      .map(([url]) => (url instanceof Request ? new URL(url.url).pathname : String(url)))
-      .sort();
-    expect(urls).toEqual(['/api/v1/auth/session', '/api/v1/notifications/unread-count'].sort());
+    // Home's cards and the bell fetch their own data; what matters is one shared session call.
+    const urls = fetchMock.mock.calls.map(([url]) =>
+      url instanceof Request ? new URL(url.url).pathname : String(url),
+    );
+    expect(urls.filter((url) => url === '/api/v1/auth/session')).toHaveLength(1);
   });
 });

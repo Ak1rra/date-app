@@ -18,6 +18,21 @@ export const itinerariesKey = (userId: string | undefined) => ['itineraries', us
 export const itineraryKey = (userId: string | undefined, id: string | undefined) =>
   ['itinerary', userId, id] as const;
 
+export function itineraryQueryOptions(userId: string | undefined, id: string | undefined) {
+  return {
+    queryKey: itineraryKey(userId, id),
+    enabled: !!userId && !!id,
+    queryFn: async () =>
+      unwrap(
+        await client.GET('/api/v1/itineraries/{itinerary_id}', {
+          params: { path: { itinerary_id: id! } },
+        }),
+      ),
+    retry: (count: number, error: unknown) =>
+      !(error instanceof ApiError && error.status === 404) && count < 2,
+  };
+}
+
 export function useItineraries() {
   const userId = useViewerId();
   return useQuery({
@@ -29,17 +44,7 @@ export function useItineraries() {
 
 export function useItinerary(id: string | undefined) {
   const userId = useViewerId();
-  return useQuery({
-    queryKey: itineraryKey(userId, id),
-    enabled: !!userId && !!id,
-    queryFn: async () =>
-      unwrap(
-        await client.GET('/api/v1/itineraries/{itinerary_id}', {
-          params: { path: { itinerary_id: id! } },
-        }),
-      ),
-    retry: (count, error) => !(error instanceof ApiError && error.status === 404) && count < 2,
-  });
+  return useQuery(itineraryQueryOptions(userId, id));
 }
 
 function invalidateItinerary(
