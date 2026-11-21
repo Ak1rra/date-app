@@ -17,6 +17,7 @@ from app.ai.schemas import (
     PlanOption,
     PlanOptions,
     PlanOptionStop,
+    PolishedInvitation,
     StopKind,
 )
 
@@ -149,6 +150,21 @@ async def fake_plan_options(
 # --- Itinerary ---------------------------------------------------------------------------------
 
 
+def _user_texts(messages: list[dict[str, Any]]) -> list[str]:
+    texts = []
+    for message in messages:
+        content = message.get("content")
+        if message.get("role") != "user":
+            continue
+        if isinstance(content, str):
+            texts.append(content)
+        elif isinstance(content, list):
+            texts.append(
+                "".join(str(block.get("text", "")) for block in content if isinstance(block, dict))
+            )
+    return texts
+
+
 def _last_user_text(messages: list[dict[str, Any]]) -> str:
     for message in reversed(messages):
         if message.get("role") != "user":
@@ -193,9 +209,67 @@ _PLAN = (
 _GAP_MINUTES = 30  # between stops: travel plus a buffer
 
 
+async def _fake_regenerate(
+    tools: ToolRunner | None, messages: list[dict[str, Any]]
+) -> ItineraryDraft | None:
+    """The itinerary from a stop-regeneration message with only the chosen stop swapped for
+    another place (or an evergreen stop), keeping every time. None for any other message."""
+    # The request is the first user message; a repair pass appends the issue list after it.
+    for text in _user_texts(messages):
+        lo, hi = text.find("{"), text.rfind("}")
+        try:
+            data = json.loads(text[lo : hi + 1])
+            index = int(data["replace_stop_index"])
+            current = data["itinerary"]["stops"]
+            old = current[index]
+            break
+        except (ValueError, KeyError, IndexError, TypeError):
+            continue
+    else:
+        return None
+    stops = [
+        DraftStop(
+            title=str(s["title"])[:120],
+            place_id=s.get("place_id"),
+            evergreen=not s.get("place_id"),
+            starts_at=s["starts_at"],
+            ends_at=s["ends_at"],
+            description=str(s.get("description") or "Enjoy it together.")[:600],
+            est_cost=s.get("est_cost"),
+        )
+        for s in current
+    ]
+    starts = dt.datetime.fromisoformat(old["starts_at"])
+    found = [
+        f for f in await _search(tools, "cafe", open_at=starts) if f.place_id != old.get("place_id")
+    ]
+    place = found[0] if found else None
+    stops[index] = DraftStop(
+        title=(place.name if place else "A change of scene")[:120],
+        place_id=place.place_id if place else None,
+        evergreen=place is None,
+        starts_at=old["starts_at"],
+        ends_at=old["ends_at"],
+        description=(
+            f"Swap in {place.name} for something a little different."
+            if place
+            else "Something a little different. Keep it relaxed and make it yours."
+        ),
+        est_cost=place.cost if place else None,
+    )
+    return ItineraryDraft(
+        title=str(data["itinerary"].get("title") or "A date made for two")[:200],
+        stops=stops,
+        transport_mode="drive",
+    )
+
+
 async def fake_itinerary(
     tools: ToolRunner | None, context: str, messages: list[dict[str, Any]]
 ) -> ItineraryDraft:
+    regenerated = await _fake_regenerate(tools, messages)
+    if regenerated is not None:
+        return regenerated
     window_start, window_end = _parse_window(messages)
     stops: list[DraftStop] = []
     checklist: list[DraftChecklistItem] = []
@@ -252,4 +326,15 @@ async def fake_itinerary(
 
 
 FAKE_RESPONDERS[PlanOptions] = fake_plan_options
+
+
+async def fake_polished_invitation(
+    tools: ToolRunner | None, context: str, messages: list[dict[str, Any]]
+) -> PolishedInvitation:
+    text = _last_user_text(messages)
+    draft = str(json.loads(text[text.find("{") :])["draft"]).strip()
+    return PolishedInvitation(text=draft[:996] + " 💕")
+
+
 FAKE_RESPONDERS[ItineraryDraft] = fake_itinerary
+FAKE_RESPONDERS[PolishedInvitation] = fake_polished_invitation

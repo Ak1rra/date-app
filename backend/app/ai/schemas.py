@@ -68,7 +68,7 @@ class DraftChecklistItem(_Strict):
 
 class ItineraryDraft(_Strict):
     title: Annotated[str, Field(max_length=200)]
-    stops: Annotated[list[DraftStop], Field(min_length=1, max_length=5)]
+    stops: Annotated[list[DraftStop], Field(min_length=1, max_length=8)]  # = StopsPut's cap
     transport_mode: TransportMode
     backup_plan: Annotated[str, Field(max_length=600)] | None = None
     bring_wear: Annotated[str, Field(max_length=300)] | None = None
@@ -76,6 +76,10 @@ class ItineraryDraft(_Strict):
         default_factory=list
     )
     invitation_message: Annotated[str, Field(max_length=600)] | None = None
+
+
+class PolishedInvitation(_Strict):
+    text: Annotated[str, Field(min_length=1, max_length=1000)]
 
 
 @dataclass(frozen=True)

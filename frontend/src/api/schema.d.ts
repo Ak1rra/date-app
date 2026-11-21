@@ -565,6 +565,23 @@ export interface paths {
         patch: operations["patch_hint_api_v1_itineraries__itinerary_id__hints__hint_id__patch"];
         trace?: never;
     };
+    "/api/v1/itineraries/{itinerary_id}/polish-invitation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Polish Invitation */
+        post: operations["polish_invitation_api_v1_itineraries__itinerary_id__polish_invitation_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/itineraries/{itinerary_id}/react": {
         parameters: {
             query?: never;
@@ -644,6 +661,23 @@ export interface paths {
         /** Put Stops */
         put: operations["put_stops_api_v1_itineraries__itinerary_id__stops_put"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/itineraries/{itinerary_id}/stops/{stop_id}/regenerate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Regenerate Stop */
+        post: operations["regenerate_stop_api_v1_itineraries__itinerary_id__stops__stop_id__regenerate_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2072,6 +2106,16 @@ export interface components {
              */
             status: "open" | "done" | "archived";
         };
+        /** PolishIn */
+        PolishIn: {
+            /** Draft */
+            draft: string;
+        };
+        /** PolishOut */
+        PolishOut: {
+            /** Text */
+            text: string;
+        };
         /**
          * ProfileIn
          * @description A full replace: anything left out is reset to empty.
@@ -2205,6 +2249,11 @@ export interface components {
             note?: string | null;
             /** Suggested Start */
             suggested_start?: string | null;
+        };
+        /** RegenerateStopIn */
+        RegenerateStopIn: {
+            /** Note */
+            note?: string | null;
         };
         /** RevealAtIn */
         RevealAtIn: {
@@ -3691,6 +3740,41 @@ export interface operations {
             };
         };
     };
+    polish_invitation_api_v1_itineraries__itinerary_id__polish_invitation_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                itinerary_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PolishIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PolishOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     react_to_itinerary_api_v1_itineraries__itinerary_id__react_post: {
         parameters: {
             query?: never;
@@ -3839,6 +3923,42 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["StopsPut"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItineraryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    regenerate_stop_api_v1_itineraries__itinerary_id__stops__stop_id__regenerate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                stop_id: string;
+                itinerary_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RegenerateStopIn"] | null;
             };
         };
         responses: {

@@ -8,6 +8,7 @@ from app.api.v1 import (
     health,
     ideas,
     itineraries,
+    itinerary_ai,
     me,
     meta,
     notes,
@@ -30,6 +31,7 @@ router.include_router(couple.router)
 router.include_router(profiles.router)
 router.include_router(itineraries.router)
 router.include_router(surprise.router)
+router.include_router(itinerary_ai.router)
 router.include_router(calendar.router)
 router.include_router(places.router)
 router.include_router(notes.router)

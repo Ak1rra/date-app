@@ -467,6 +467,7 @@ async def _draft_itinerary(
     plan: PlanSession,
     feature: Feature,
     messages: list[dict[str, Any]],
+    system: str = BUILD_ITINERARY_SYSTEM,
 ) -> tuple[ItineraryDraft, list[Issue], _Run]:
     """One build run, one validation, and at most one repair run with the issue list. What is
     still wrong after that comes back as issues for the warnings."""
@@ -481,9 +482,7 @@ async def _draft_itinerary(
         plan=plan,
         feature=feature,
     ) as run:
-        draft = _strip_unseen(
-            await run.ask(BUILD_ITINERARY_SYSTEM, messages, ItineraryDraft), run.executor
-        )
+        draft = _strip_unseen(await run.ask(system, messages, ItineraryDraft), run.executor)
         issues = await validate_itinerary(
             draft, _validation_context(draft, plan, run, providers, settings, timezone)
         )
@@ -493,9 +492,7 @@ async def _draft_itinerary(
                 {"role": "assistant", "content": draft.model_dump_json()},
                 {"role": "user", "content": format_repair_issues(issues)},
             ]
-            draft = _strip_unseen(
-                await run.ask(BUILD_ITINERARY_SYSTEM, repair, ItineraryDraft), run.executor
-            )
+            draft = _strip_unseen(await run.ask(system, repair, ItineraryDraft), run.executor)
             issues = await validate_itinerary(
                 draft, _validation_context(draft, plan, run, providers, settings, timezone)
             )

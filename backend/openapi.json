@@ -3053,6 +3053,34 @@
         "title": "PlanSessionOut",
         "type": "object"
       },
+      "PolishIn": {
+        "properties": {
+          "draft": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Draft",
+            "type": "string"
+          }
+        },
+        "required": [
+          "draft"
+        ],
+        "title": "PolishIn",
+        "type": "object"
+      },
+      "PolishOut": {
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "PolishOut",
+        "type": "object"
+      },
       "ProfileIn": {
         "description": "A full replace: anything left out is reset to empty.",
         "properties": {
@@ -3557,6 +3585,24 @@
           "kind"
         ],
         "title": "ReactIn",
+        "type": "object"
+      },
+      "RegenerateStopIn": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "title": "RegenerateStopIn",
         "type": "object"
       },
       "RevealAtIn": {
@@ -6161,6 +6207,59 @@
         ]
       }
     },
+    "/api/v1/itineraries/{itinerary_id}/polish-invitation": {
+      "post": {
+        "operationId": "polish_invitation_api_v1_itineraries__itinerary_id__polish_invitation_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "itinerary_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Itinerary Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PolishIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolishOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Polish Invitation",
+        "tags": [
+          "itineraries"
+        ]
+      }
+    },
     "/api/v1/itineraries/{itinerary_id}/react": {
       "post": {
         "operationId": "react_to_itinerary_api_v1_itineraries__itinerary_id__react_post",
@@ -6411,6 +6510,76 @@
           }
         },
         "summary": "Put Stops",
+        "tags": [
+          "itineraries"
+        ]
+      }
+    },
+    "/api/v1/itineraries/{itinerary_id}/stops/{stop_id}/regenerate": {
+      "post": {
+        "operationId": "regenerate_stop_api_v1_itineraries__itinerary_id__stops__stop_id__regenerate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "stop_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Stop Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "itinerary_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Itinerary Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/RegenerateStopIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItineraryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Regenerate Stop",
         "tags": [
           "itineraries"
         ]
