@@ -32,3 +32,8 @@ export function formatDateWindow(
     : formatter.format(endDate);
   return `${start} – ${end}`;
 }
+
+/** A <input type="datetime-local"> value (browser-local wall time) as an aware ISO string. */
+export function localToIso(value: string) {
+  return new Date(value).toISOString();
+}

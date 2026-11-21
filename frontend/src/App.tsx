@@ -14,6 +14,7 @@ import { PlanPage } from './pages/PlanPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { SetupPage } from './pages/SetupPage';
 import { SignInPage } from './pages/SignInPage';
+import { TemplatesPage } from './pages/TemplatesPage';
 import { UsPage } from './pages/UsPage';
 import { VerifyPage } from './pages/VerifyPage';
 
@@ -49,6 +50,7 @@ export const routes: RouteObject[] = [
           { path: '/install', element: <InstallPage /> },
           { path: '/itineraries', element: <ItinerariesPage /> },
           { path: '/itineraries/:id', element: <ItineraryPage /> },
+          { path: '/templates', element: <TemplatesPage /> },
         ],
       },
     ],

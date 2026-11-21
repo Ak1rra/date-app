@@ -11,6 +11,7 @@ import { ChecklistSection } from './itinerary/ChecklistSection';
 import { DetailsEditor } from './itinerary/DetailsEditor';
 import { Money } from './itinerary/Money';
 import { ReactionBar } from './itinerary/ReactionBar';
+import { SaveTemplateSheet } from './itinerary/SaveTemplateSheet';
 import { ScheduleSheet } from './itinerary/ScheduleSheet';
 import { StopCard } from './itinerary/StopCard';
 import { StopEditor } from './itinerary/StopEditor';
@@ -57,6 +58,7 @@ export function ItineraryPage() {
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [editingStops, setEditingStops] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [templateOpen, setTemplateOpen] = useState(false);
 
   if (itinerary.isPending) return <Skeleton label="Loading your itinerary" />;
   if (itinerary.isError) {
@@ -106,6 +108,9 @@ export function ItineraryPage() {
               Edit details
             </Button>
           ) : null}
+          <Button variant="secondary" onClick={() => setTemplateOpen(true)}>
+            Save as template
+          </Button>
           {canChange ? (
             <Button
               variant="secondary"
@@ -193,6 +198,14 @@ export function ItineraryPage() {
 
       {detailsOpen && data.is_planner && canChange ? (
         <DetailsEditor itinerary={data} onClose={() => setDetailsOpen(false)} />
+      ) : null}
+
+      {templateOpen && data.is_planner ? (
+        <SaveTemplateSheet
+          itineraryId={data.id}
+          title={data.title}
+          onClose={() => setTemplateOpen(false)}
+        />
       ) : null}
 
       {scheduleOpen ? (

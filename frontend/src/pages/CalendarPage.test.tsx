@@ -254,13 +254,45 @@ describe('Suggest a time', () => {
     await userEvent.selectOptions(screen.getByLabelText('Look ahead (weeks)'), '5');
     await userEvent.click(screen.getByRole('button', { name: 'Find free time' }));
 
-    await screen.findAllByRole('link', { name: 'Plan this' });
+    await screen.findAllByRole('button', { name: /^Make it a date/ });
+    expect(screen.queryByRole('link', { name: 'Plan this' })).not.toBeInTheDocument();
     expect(api.body('POST', '/api/v1/calendar/suggest-times')).toEqual({
       duration_minutes: 120,
       weeks: 5,
       best_time: 'evening',
       idea_id: 'idea-7',
     });
+  });
+
+  it('makes the idea a date in the chosen slot and opens the itinerary', async () => {
+    const api = setup({
+      'POST /api/v1/ideas/idea-7/itinerary': jsonResponse({ id: 'new-it' }, 201),
+      'GET /api/v1/itineraries/new-it': { id: 'new-it', title: 'Fresh plan' },
+    });
+    const router = renderApp('/calendar?idea=idea-7');
+    await userEvent.click(await screen.findByRole('button', { name: 'Find free time' }));
+    const buttons = await screen.findAllByRole('button', { name: /^Make it a date/ });
+    await userEvent.click(buttons[1]!);
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/itineraries/new-it'));
+    expect(api.body('POST', '/api/v1/ideas/idea-7/itinerary')).toEqual({
+      starts_at: slots[1]!.starts_at,
+      ends_at: slots[1]!.ends_at,
+    });
+  });
+
+  it("shows the server's message when the planner is unavailable", async () => {
+    setup({
+      'POST /api/v1/ideas/idea-7/itinerary': jsonResponse(
+        { error: { code: 'ai_unavailable', message: 'The planner is resting.' } },
+        503,
+      ),
+    });
+    renderApp('/calendar?idea=idea-7');
+    await userEvent.click(await screen.findByRole('button', { name: 'Find free time' }));
+    const [first] = await screen.findAllByRole('button', { name: /^Make it a date/ });
+    await userEvent.click(first!);
+    expect(await screen.findByRole('alert')).toHaveTextContent('The planner is resting.');
   });
 
   it('says so when there is no free time, and shows errors', async () => {

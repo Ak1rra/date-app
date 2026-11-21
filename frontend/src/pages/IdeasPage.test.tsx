@@ -456,6 +456,84 @@ describe('IdeasPage lists', () => {
     });
   });
 
+  it('makes a match a date at the first free time, and navigates to it', async () => {
+    const api = ideasApi({
+      'GET /api/v1/ideas/lists': lists,
+      'POST /api/v1/ideas/m1/itinerary': new Response(JSON.stringify({ id: 'it9' }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+      'GET /api/v1/itineraries/it9': { id: 'it9', title: 'Wine night' },
+    });
+    const router = renderApp('/ideas');
+    await userEvent.click(await screen.findByRole('tab', { name: 'Matches (1)' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Make Wine tasting a date' }));
+    expect(screen.getByRole('link', { name: 'Find a time' })).toHaveAttribute(
+      'href',
+      '/calendar?idea=m1',
+    );
+    await userEvent.selectOptions(screen.getByLabelText('Stops'), '2');
+    await userEvent.type(screen.getByLabelText('Budget (optional)'), '80');
+    await userEvent.click(screen.getByRole('button', { name: 'Make it a date' }));
+
+    await vi.waitFor(() => expect(router.state.location.pathname).toBe('/itineraries/it9'));
+    expect(api.body('POST', '/api/v1/ideas/m1/itinerary')).toEqual({
+      stop_count: 2,
+      budget_max: 80,
+    });
+  });
+
+  it('sends the picked time as ISO strings', async () => {
+    const api = ideasApi({
+      'GET /api/v1/ideas/lists': lists,
+      'POST /api/v1/ideas/m1/itinerary': new Response(JSON.stringify({ id: 'it9' }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+      'GET /api/v1/itineraries/it9': { id: 'it9', title: 'Wine night' },
+    });
+    renderApp('/ideas');
+    await userEvent.click(await screen.findByRole('tab', { name: 'Matches (1)' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Make Wine tasting a date' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Pick a time' }));
+    const submit = screen.getByRole('button', { name: 'Make it a date' });
+    expect(submit).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Starts'), { target: { value: '2026-12-12T19:00' } });
+    fireEvent.change(screen.getByLabelText('Ends (optional)'), {
+      target: { value: '2026-12-12T22:00' },
+    });
+    await userEvent.click(submit);
+
+    await vi.waitFor(() => expect(api.find('POST', '/api/v1/ideas/m1/itinerary')).toHaveLength(1));
+    expect(api.body('POST', '/api/v1/ideas/m1/itinerary')).toEqual({
+      starts_at: new Date('2026-12-12T19:00').toISOString(),
+      ends_at: new Date('2026-12-12T22:00').toISOString(),
+    });
+  });
+
+  it("shows the planner's message on a 503 and offers no button on expired ideas", async () => {
+    ideasApi({
+      'GET /api/v1/ideas/lists': {
+        ...lists,
+        passed: [idea({ id: 'x1', title: 'Bowling', status: 'expired' })],
+      },
+      'POST /api/v1/ideas/m1/itinerary': new Response(
+        JSON.stringify({ error: { code: 'ai_unavailable', message: 'The planner is resting.' } }),
+        { status: 503, headers: { 'Content-Type': 'application/json' } },
+      ),
+    });
+    renderApp('/ideas');
+    await userEvent.click(await screen.findByRole('tab', { name: 'Matches (1)' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Make Wine tasting a date' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Make it a date' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('The planner is resting.');
+    await userEvent.click(screen.getByRole('button', { name: 'Close make it a date' }));
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Passed (1)' }));
+    await userEvent.click(await screen.findByText(/Show 1 passed idea/));
+    expect(screen.queryByRole('button', { name: 'Make Bowling a date' })).not.toBeInTheDocument();
+  });
+
   it('shows friendly empty states', async () => {
     ideasApi();
     renderApp('/ideas');
@@ -524,6 +602,23 @@ describe('IdeasPage my ideas', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Share Moonlit walk' }));
     await userEvent.click(screen.getByRole('button', { name: 'Yes, share it' }));
     await vi.waitFor(() => expect(api.find('POST', '/api/v1/ideas/k1/share')).toHaveLength(1));
+  });
+
+  it('makes one of my private ideas a date', async () => {
+    const api = ideasApi({
+      'GET /api/v1/ideas': [mine],
+      'POST /api/v1/ideas/k1/itinerary': new Response(JSON.stringify({ id: 'it2' }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+      'GET /api/v1/itineraries/it2': { id: 'it2', title: 'Walk' },
+    });
+    const router = renderApp('/ideas');
+    await userEvent.click(await screen.findByRole('tab', { name: 'My ideas' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Make Moonlit walk a date' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Make it a date' }));
+    await vi.waitFor(() => expect(router.state.location.pathname).toBe('/itineraries/it2'));
+    expect(api.body('POST', '/api/v1/ideas/k1/itinerary')).toEqual({});
   });
 
   it('archives an idea', async () => {

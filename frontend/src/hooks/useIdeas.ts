@@ -1,12 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { client, unwrap, type Schemas } from '../api/client';
 import { ApiError } from '../api/http';
+import { itinerariesKey } from './useItineraries';
 import { useViewerId } from './useSession';
 
 export type IdeaOut = Schemas['IdeaOut'];
 export type IdeaIn = Schemas['IdeaIn'];
 export type IdeaPatch = Schemas['IdeaPatch'];
 export type IdeaListsOut = Schemas['IdeaListsOut'];
+export type IdeaItineraryIn = Schemas['IdeaItineraryIn'];
 export type VoteValue = Schemas['VoteIn']['value'];
 
 const ideasKey = (userId: string | undefined) => ['ideas', userId] as const;
@@ -141,5 +143,28 @@ export function useArchiveIdea() {
         await client.DELETE('/api/v1/ideas/{idea_id}', { params: { path: { idea_id: id } } }),
       ),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ideasKey(userId) }),
+  });
+}
+
+/**
+ * POST /ideas/{id}/itinerary ("Make it a date"): the planner builds an itinerary from the idea. With
+ * no `starts_at` the server picks the first time you're both free. A 503 means the AI planner is
+ * unavailable; a 409 `no_free_time` means nothing was free.
+ */
+export function useMakeItADate(ideaId: string) {
+  const userId = useViewerId();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: IdeaItineraryIn) =>
+      unwrap(
+        await client.POST('/api/v1/ideas/{idea_id}/itinerary', {
+          params: { path: { idea_id: ideaId } },
+          body,
+        }),
+      ),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: itinerariesKey(userId) });
+      void queryClient.invalidateQueries({ queryKey: ideasKey(userId) });
+    },
   });
 }

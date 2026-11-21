@@ -14,9 +14,14 @@ export function ItinerariesPage() {
           <p className="text-sm font-semibold text-muted">Your little adventures</p>
           <h1 className="text-2xl font-bold">Itineraries</h1>
         </div>
-        <ButtonLink to="/plan" variant="secondary">
-          Plan a date
-        </ButtonLink>
+        <div className="flex flex-wrap justify-end gap-2">
+          <ButtonLink to="/templates" variant="secondary">
+            Templates
+          </ButtonLink>
+          <ButtonLink to="/plan" variant="secondary">
+            Plan a date
+          </ButtonLink>
+        </div>
       </div>
 
       <Card>

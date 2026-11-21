@@ -1,8 +1,11 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router';
 import { Button, ButtonLink } from '../../components/Button';
 import { Card } from '../../components/EmptyState';
 import { FormError, SelectField } from '../../components/forms';
 import { useSuggestTimes, type SuggestTimesIn, type TimeSlot } from '../../hooks/useCalendar';
+import { useMakeItADate } from '../../hooks/useIdeas';
+import { plannerError } from '../ideas/MakeItADateSheet';
 import { dayKey, formatTime, timeValue } from './helpers';
 
 const DURATIONS = [
@@ -37,6 +40,8 @@ export function SuggestTimes({ ideaId }: { ideaId?: string | null }) {
   const [when, setWhen] = useState<NonNullable<SuggestTimesIn['best_time']>>('any');
   const [weeks, setWeeks] = useState('3');
   const suggest = useSuggestTimes();
+  const navigate = useNavigate();
+  const makeDate = useMakeItADate(ideaId ?? '');
 
   return (
     <Card title="Suggest a time">
@@ -105,13 +110,30 @@ export function SuggestTimes({ ideaId }: { ideaId?: string | null }) {
                 {formatTime(slot.starts_at)} – {formatTime(slot.ends_at)}
               </span>
               <span className="text-sm text-muted">{slot.reason}</span>
-              <ButtonLink to={planHref(slot)} variant="secondary">
-                Plan this
-              </ButtonLink>
+              {ideaId ? (
+                <Button
+                  variant="secondary"
+                  disabled={makeDate.isPending}
+                  aria-label={`Make it a date on ${slotDay.format(new Date(slot.starts_at))}, ${formatTime(slot.starts_at)}`}
+                  onClick={() =>
+                    makeDate.mutate(
+                      { starts_at: slot.starts_at, ends_at: slot.ends_at },
+                      { onSuccess: (itinerary) => navigate(`/itineraries/${itinerary.id}`) },
+                    )
+                  }
+                >
+                  {makeDate.isPending ? 'Planning…' : 'Make it a date'}
+                </Button>
+              ) : (
+                <ButtonLink to={planHref(slot)} variant="secondary">
+                  Plan this
+                </ButtonLink>
+              )}
             </li>
           ))}
         </ul>
       ) : null}
+      {ideaId ? <FormError error={plannerError(makeDate.error)} /> : null}
     </Card>
   );
 }

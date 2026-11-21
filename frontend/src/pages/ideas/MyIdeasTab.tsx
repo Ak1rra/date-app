@@ -13,6 +13,7 @@ import {
 } from '../../hooks/useIdeas';
 import { IdeaDetails } from './IdeaDetails';
 import { IdeaForm } from './IdeaForm';
+import { MakeItADateButton } from './MakeItADateSheet';
 
 function MyIdeaRow({ idea, partnerName }: { idea: IdeaOut; partnerName: string }) {
   const [editing, setEditing] = useState(false);
@@ -81,6 +82,7 @@ function MyIdeaRow({ idea, partnerName }: { idea: IdeaOut; partnerName: string }
           >
             Share
           </Button>
+          <MakeItADateButton idea={idea} />
           <Button
             variant="secondary"
             aria-label={`Archive ${idea.title}`}

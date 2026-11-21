@@ -15,6 +15,7 @@ import {
 } from '../../hooks/useIdeas';
 import { IdeaDetails, VoteChips } from './IdeaDetails';
 import { IdeaForm } from './IdeaForm';
+import { MakeItADateButton } from './MakeItADateSheet';
 import type { People } from './usePeople';
 
 export type ListName = keyof IdeaListsOut;
@@ -71,6 +72,7 @@ function IdeaRow({
         >
           Edit
         </Button>
+        <MakeItADateButton idea={idea} />
         {idea.status !== 'active' ? (
           <span className="self-center rounded-full border border-line bg-surface-2 px-3 py-1 text-sm text-muted">
             Expired

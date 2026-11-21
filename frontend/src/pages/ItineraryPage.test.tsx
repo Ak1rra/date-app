@@ -166,6 +166,42 @@ describe('ItineraryPage', () => {
     );
   });
 
+  it('saves the itinerary as a template with a chosen name, then offers a link', async () => {
+    const api = setup(itinerary, {
+      'POST /api/v1/itineraries/i1/template': jsonResponse({ id: 't1' }, 201),
+    });
+    renderApp('/itineraries/i1');
+    await userEvent.click(await screen.findByRole('button', { name: 'Save as template' }));
+    const name = screen.getByLabelText('Template name');
+    expect(name).toHaveValue('A very good night');
+    await userEvent.clear(name);
+    await userEvent.type(name, 'Our classic night');
+    await userEvent.click(screen.getByRole('button', { name: 'Save template' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Saved');
+    expect(api.body('POST', '/api/v1/itineraries/i1/template')).toEqual({
+      name: 'Our classic night',
+    });
+    expect(screen.getByRole('link', { name: 'See templates' })).toHaveAttribute(
+      'href',
+      '/templates',
+    );
+  });
+
+  it('truncates a long default template name to 80 characters', async () => {
+    setup({ ...itinerary, title: 'x'.repeat(100) });
+    renderApp('/itineraries/i1');
+    await userEvent.click(await screen.findByRole('button', { name: 'Save as template' }));
+    expect(screen.getByLabelText('Template name')).toHaveValue('x'.repeat(80));
+  });
+
+  it('offers no save-as-template to the partner', async () => {
+    setup({ ...itinerary, is_planner: false });
+    renderApp('/itineraries/i1');
+    await screen.findByRole('button', { name: /I'm in/ });
+    expect(screen.queryByRole('button', { name: 'Save as template' })).not.toBeInTheDocument();
+  });
+
   it('shows a friendly missing-date state', async () => {
     setup(jsonResponse({ error: { code: 'not_found', message: 'Not found' } }, 404));
     renderApp('/itineraries/i1');
