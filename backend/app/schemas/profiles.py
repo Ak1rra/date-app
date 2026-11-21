@@ -2,7 +2,7 @@
 
 import datetime as dt
 import uuid
-from typing import Annotated, Literal, Self
+from typing import Annotated, Any, Literal, Self
 
 from pydantic import (
     AfterValidator,
@@ -79,6 +79,63 @@ class ProfileIn(BaseModel):
     dietary: DietaryList = []
     allergies: FreeList = []
     accessibility: Text | None = None
+
+
+class ProfileChanges(BaseModel):
+    """A partial ProfileIn: only the fields a suggestion proposes to change.
+
+    The field types are ProfileIn's, so the constraints cannot differ; `null` is accepted only
+    where ProfileIn itself accepts it (a test keeps the two field lists in step).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    display_name: (
+        Annotated[str, StringConstraints(strip_whitespace=True, max_length=120)] | None
+    ) = None
+    liked_categories: CategoryList | None = None
+    disliked_categories: CategoryList | None = None
+    cuisines_liked: FreeList | None = None
+    cuisines_disliked: FreeList | None = None
+    energy: Scale | None = None
+    indoor_outdoor: Literal["indoor", "outdoor", "either"] | None = None
+    social_setting: Scale | None = None
+    loves: Text | None = None
+    hard_nos: Text | None = None
+    dietary: DietaryList | None = None
+    allergies: FreeList | None = None
+    accessibility: Text | None = None
+
+    @model_validator(mode="after")
+    def _non_empty(self) -> Self:
+        if not self.model_fields_set:
+            raise ValueError("A suggestion must change at least one field.")
+        for name in self.model_fields_set:
+            if getattr(self, name) is None and ProfileIn.model_fields[name].default is not None:
+                raise ValueError(f"{name} cannot be null.")
+        return self
+
+
+class ProfileSuggestionIn(BaseModel):
+    changes: ProfileChanges
+    note: Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)] | None = None
+
+    @field_validator("note")
+    @classmethod
+    def _blank_is_none(cls, value: str | None) -> str | None:
+        return value or None
+
+
+class ProfileSuggestionOut(BaseModel):
+    id: uuid.UUID
+    profile_id: uuid.UUID
+    author_user_id: uuid.UUID
+    mine: bool
+    changes: dict[str, Any]
+    note: str | None
+    status: Literal["pending", "accepted", "declined"]
+    created_at: dt.datetime
+    decided_at: dt.datetime | None
 
 
 class ProfileOut(BaseModel):

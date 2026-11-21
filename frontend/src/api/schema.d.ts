@@ -1067,6 +1067,90 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/profiles/{profile_id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Profile
+         * @description The subject confirms a profile someone else filled in. 403 for anyone else; idempotent.
+         */
+        post: operations["confirm_profile_api_v1_profiles__profile_id__confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/{profile_id}/suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Suggestions
+         * @description Newest first. The subject sees all of them; anyone else only the ones they wrote.
+         */
+        get: operations["list_suggestions_api_v1_profiles__profile_id__suggestions_get"];
+        put?: never;
+        /**
+         * Create Suggestion
+         * @description Suggest changes to a joined partner's profile. 409 `edit_directly` if the caller may edit.
+         */
+        post: operations["create_suggestion_api_v1_profiles__profile_id__suggestions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/{profile_id}/suggestions/{suggestion_id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept Suggestion
+         * @description Subject only: apply the suggestion as a PUT of the merged profile.
+         */
+        post: operations["accept_suggestion_api_v1_profiles__profile_id__suggestions__suggestion_id__accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/{profile_id}/suggestions/{suggestion_id}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decline Suggestion
+         * @description Subject only: leave the profile as it is.
+         */
+        post: operations["decline_suggestion_api_v1_profiles__profile_id__suggestions__suggestion_id__decline_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/surprises": {
         parameters: {
             query?: never;
@@ -2155,6 +2239,41 @@ export interface components {
             text: string;
         };
         /**
+         * ProfileChanges
+         * @description A partial ProfileIn: only the fields a suggestion proposes to change.
+         *
+         *     The field types are ProfileIn's, so the constraints cannot differ; `null` is accepted only
+         *     where ProfileIn itself accepts it (a test keeps the two field lists in step).
+         */
+        ProfileChanges: {
+            /** Accessibility */
+            accessibility?: string | null;
+            /** Allergies */
+            allergies?: string[] | null;
+            /** Cuisines Disliked */
+            cuisines_disliked?: string[] | null;
+            /** Cuisines Liked */
+            cuisines_liked?: string[] | null;
+            /** Dietary */
+            dietary?: ("vegetarian" | "vegan" | "pescatarian" | "gluten_free" | "dairy_free" | "halal" | "kosher" | "nut_free" | "low_carb")[] | null;
+            /** Disliked Categories */
+            disliked_categories?: ("food" | "outdoors" | "arts" | "music" | "sports" | "games" | "learning" | "nightlife" | "wellness" | "travel" | "shopping" | "nature" | "culture" | "adventure" | "relaxing")[] | null;
+            /** Display Name */
+            display_name?: string | null;
+            /** Energy */
+            energy?: number | null;
+            /** Hard Nos */
+            hard_nos?: string | null;
+            /** Indoor Outdoor */
+            indoor_outdoor?: ("indoor" | "outdoor" | "either") | null;
+            /** Liked Categories */
+            liked_categories?: ("food" | "outdoors" | "arts" | "music" | "sports" | "games" | "learning" | "nightlife" | "wellness" | "travel" | "shopping" | "nature" | "culture" | "adventure" | "relaxing")[] | null;
+            /** Loves */
+            loves?: string | null;
+            /** Social Setting */
+            social_setting?: number | null;
+        };
+        /**
          * ProfileIn
          * @description A full replace: anything left out is reset to empty.
          */
@@ -2257,6 +2376,50 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** ProfileSuggestionIn */
+        ProfileSuggestionIn: {
+            changes: components["schemas"]["ProfileChanges"];
+            /** Note */
+            note?: string | null;
+        };
+        /** ProfileSuggestionOut */
+        ProfileSuggestionOut: {
+            /**
+             * Author User Id
+             * Format: uuid
+             */
+            author_user_id: string;
+            /** Changes */
+            changes: {
+                [key: string]: unknown;
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Decided At */
+            decided_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Mine */
+            mine: boolean;
+            /** Note */
+            note: string | null;
+            /**
+             * Profile Id
+             * Format: uuid
+             */
+            profile_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "accepted" | "declined";
         };
         /** PushConfigOut */
         PushConfigOut: {
@@ -4888,6 +5051,169 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AvailabilityIO"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_profile_api_v1_profiles__profile_id__confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_suggestions_api_v1_profiles__profile_id__suggestions_get: {
+        parameters: {
+            query?: {
+                status?: ("pending" | "accepted" | "declined") | null;
+            };
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileSuggestionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_suggestion_api_v1_profiles__profile_id__suggestions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileSuggestionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileSuggestionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    accept_suggestion_api_v1_profiles__profile_id__suggestions__suggestion_id__accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+                suggestion_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decline_suggestion_api_v1_profiles__profile_id__suggestions__suggestion_id__decline_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+                suggestion_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileSuggestionOut"];
                 };
             };
             /** @description Validation Error */

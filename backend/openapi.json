@@ -3081,6 +3081,245 @@
         "title": "PolishOut",
         "type": "object"
       },
+      "ProfileChanges": {
+        "additionalProperties": false,
+        "description": "A partial ProfileIn: only the fields a suggestion proposes to change.\n\nThe field types are ProfileIn's, so the constraints cannot differ; `null` is accepted only\nwhere ProfileIn itself accepts it (a test keeps the two field lists in step).",
+        "properties": {
+          "accessibility": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accessibility"
+          },
+          "allergies": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 40,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "maxItems": 30,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allergies"
+          },
+          "cuisines_disliked": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 40,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "maxItems": 30,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cuisines Disliked"
+          },
+          "cuisines_liked": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 40,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "maxItems": 30,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cuisines Liked"
+          },
+          "dietary": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "vegetarian",
+                    "vegan",
+                    "pescatarian",
+                    "gluten_free",
+                    "dairy_free",
+                    "halal",
+                    "kosher",
+                    "nut_free",
+                    "low_carb"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 30,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dietary"
+          },
+          "disliked_categories": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "food",
+                    "outdoors",
+                    "arts",
+                    "music",
+                    "sports",
+                    "games",
+                    "learning",
+                    "nightlife",
+                    "wellness",
+                    "travel",
+                    "shopping",
+                    "nature",
+                    "culture",
+                    "adventure",
+                    "relaxing"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 30,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disliked Categories"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "energy": {
+            "anyOf": [
+              {
+                "maximum": 5.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Energy"
+          },
+          "hard_nos": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hard Nos"
+          },
+          "indoor_outdoor": {
+            "anyOf": [
+              {
+                "enum": [
+                  "indoor",
+                  "outdoor",
+                  "either"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Indoor Outdoor"
+          },
+          "liked_categories": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "food",
+                    "outdoors",
+                    "arts",
+                    "music",
+                    "sports",
+                    "games",
+                    "learning",
+                    "nightlife",
+                    "wellness",
+                    "travel",
+                    "shopping",
+                    "nature",
+                    "culture",
+                    "adventure",
+                    "relaxing"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 30,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Liked Categories"
+          },
+          "loves": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loves"
+          },
+          "social_setting": {
+            "anyOf": [
+              {
+                "maximum": 5.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Social Setting"
+          }
+        },
+        "title": "ProfileChanges",
+        "type": "object"
+      },
       "ProfileIn": {
         "description": "A full replace: anything left out is reset to empty.",
         "properties": {
@@ -3483,6 +3722,108 @@
           "updated_at"
         ],
         "title": "ProfileOut",
+        "type": "object"
+      },
+      "ProfileSuggestionIn": {
+        "properties": {
+          "changes": {
+            "$ref": "#/components/schemas/ProfileChanges"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "required": [
+          "changes"
+        ],
+        "title": "ProfileSuggestionIn",
+        "type": "object"
+      },
+      "ProfileSuggestionOut": {
+        "properties": {
+          "author_user_id": {
+            "format": "uuid",
+            "title": "Author User Id",
+            "type": "string"
+          },
+          "changes": {
+            "additionalProperties": true,
+            "title": "Changes",
+            "type": "object"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "mine": {
+            "title": "Mine",
+            "type": "boolean"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "profile_id": {
+            "format": "uuid",
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "accepted",
+              "declined"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "profile_id",
+          "author_user_id",
+          "mine",
+          "changes",
+          "note",
+          "status",
+          "created_at",
+          "decided_at"
+        ],
+        "title": "ProfileSuggestionOut",
         "type": "object"
       },
       "PushConfigOut": {
@@ -7847,6 +8188,279 @@
           }
         },
         "summary": "Put Availability",
+        "tags": [
+          "profiles"
+        ]
+      }
+    },
+    "/api/v1/profiles/{profile_id}/confirm": {
+      "post": {
+        "description": "The subject confirms a profile someone else filled in. 403 for anyone else; idempotent.",
+        "operationId": "confirm_profile_api_v1_profiles__profile_id__confirm_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Profile Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirm Profile",
+        "tags": [
+          "profiles"
+        ]
+      }
+    },
+    "/api/v1/profiles/{profile_id}/suggestions": {
+      "get": {
+        "description": "Newest first. The subject sees all of them; anyone else only the ones they wrote.",
+        "operationId": "list_suggestions_api_v1_profiles__profile_id__suggestions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Profile Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "pending",
+                    "accepted",
+                    "declined"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProfileSuggestionOut"
+                  },
+                  "title": "Response List Suggestions Api V1 Profiles  Profile Id  Suggestions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Suggestions",
+        "tags": [
+          "profiles"
+        ]
+      },
+      "post": {
+        "description": "Suggest changes to a joined partner's profile. 409 `edit_directly` if the caller may edit.",
+        "operationId": "create_suggestion_api_v1_profiles__profile_id__suggestions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Profile Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileSuggestionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileSuggestionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Suggestion",
+        "tags": [
+          "profiles"
+        ]
+      }
+    },
+    "/api/v1/profiles/{profile_id}/suggestions/{suggestion_id}/accept": {
+      "post": {
+        "description": "Subject only: apply the suggestion as a PUT of the merged profile.",
+        "operationId": "accept_suggestion_api_v1_profiles__profile_id__suggestions__suggestion_id__accept_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Profile Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "suggestion_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Suggestion Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Accept Suggestion",
+        "tags": [
+          "profiles"
+        ]
+      }
+    },
+    "/api/v1/profiles/{profile_id}/suggestions/{suggestion_id}/decline": {
+      "post": {
+        "description": "Subject only: leave the profile as it is.",
+        "operationId": "decline_suggestion_api_v1_profiles__profile_id__suggestions__suggestion_id__decline_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Profile Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "suggestion_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Suggestion Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileSuggestionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Decline Suggestion",
         "tags": [
           "profiles"
         ]

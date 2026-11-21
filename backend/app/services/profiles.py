@@ -8,12 +8,21 @@ Functions flush but leave the commit to the caller.
 
 import uuid
 
-from sqlalchemy import delete, select
+from pydantic import ValidationError
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.errors import ApiError
-from app.models import AvailabilityBlock, AvailabilityWindow, PartnerProfile
-from app.schemas.profiles import AvailabilityIO, BlockIO, ProfileIn, ProfileOut, WindowIO
+from app.models import AvailabilityBlock, AvailabilityWindow, PartnerProfile, ProfileSuggestion
+from app.schemas.profiles import (
+    AvailabilityIO,
+    BlockIO,
+    ProfileIn,
+    ProfileOut,
+    ProfileSuggestionIn,
+    ProfileSuggestionOut,
+    WindowIO,
+)
 from app.services.couple import not_found, now
 
 
@@ -103,6 +112,161 @@ async def put_profile(
     profile.updated_at = now()
     await session.flush()
     return profile_out(profile, me)
+
+
+MAX_PENDING_SUGGESTIONS = 20
+
+
+def _suggestion_out(suggestion: ProfileSuggestion, me: uuid.UUID) -> ProfileSuggestionOut:
+    return ProfileSuggestionOut.model_validate(
+        {
+            "id": suggestion.id,
+            "profile_id": suggestion.profile_id,
+            "author_user_id": suggestion.author_user_id,
+            "mine": suggestion.author_user_id == me,
+            "changes": suggestion.changes,
+            "note": suggestion.note,
+            "status": suggestion.status,
+            "created_at": suggestion.created_at,
+            "decided_at": suggestion.decided_at,
+        }
+    )
+
+
+def _require_subject(profile: PartnerProfile, me: uuid.UUID) -> None:
+    if profile.subject_user_id != me:
+        raise ApiError(403, "forbidden", "Only the person this profile is about can do that.")
+
+
+async def confirm_profile(
+    session: AsyncSession, couple_id: uuid.UUID, profile_id: uuid.UUID, me: uuid.UUID
+) -> ProfileOut:
+    """The subject vouches for a profile someone else filled in. Repeating it changes nothing."""
+    profile = await get_profile(session, couple_id, profile_id, for_update=True)
+    _require_subject(profile, me)
+    if profile.confirmed_by_subject_at is None:
+        profile.confirmed_by_subject_at = now()
+        await session.flush()
+    return profile_out(profile, me)
+
+
+async def create_suggestion(
+    session: AsyncSession,
+    couple_id: uuid.UUID,
+    profile_id: uuid.UUID,
+    me: uuid.UUID,
+    body: ProfileSuggestionIn,
+) -> ProfileSuggestionOut:
+    # Locked, so a join cannot make the profile directly editable (or a count race pass the cap).
+    profile = await get_profile(session, couple_id, profile_id, for_update=True)
+    if can_edit(profile, me):
+        raise ApiError(409, "edit_directly", "You can edit this profile directly.")
+    pending = await session.scalar(
+        select(func.count())
+        .select_from(ProfileSuggestion)
+        .where(ProfileSuggestion.profile_id == profile.id, ProfileSuggestion.status == "pending")
+    )
+    if (pending or 0) >= MAX_PENDING_SUGGESTIONS:
+        raise ApiError(
+            409, "too_many_suggestions", "This profile has too many suggestions waiting."
+        )
+    suggestion = ProfileSuggestion(
+        profile_id=profile.id,
+        author_user_id=me,
+        changes=body.changes.model_dump(mode="json", exclude_unset=True),
+        note=body.note,
+    )
+    session.add(suggestion)
+    await session.flush()
+    await session.refresh(suggestion)  # picks up the server-side created_at
+    return _suggestion_out(suggestion, me)
+
+
+async def list_suggestions(
+    session: AsyncSession,
+    couple_id: uuid.UUID,
+    profile_id: uuid.UUID,
+    me: uuid.UUID,
+    status: str | None = None,
+) -> list[ProfileSuggestionOut]:
+    """The subject sees every suggestion about their profile; anyone else only their own."""
+    profile = await get_profile(session, couple_id, profile_id)
+    query = select(ProfileSuggestion).where(ProfileSuggestion.profile_id == profile.id)
+    if profile.subject_user_id != me:
+        query = query.where(ProfileSuggestion.author_user_id == me)
+    if status is not None:
+        query = query.where(ProfileSuggestion.status == status)
+    rows = await session.execute(
+        query.order_by(ProfileSuggestion.created_at.desc(), ProfileSuggestion.id)
+    )
+    return [_suggestion_out(s, me) for s in rows.scalars().all()]
+
+
+async def _get_pending_suggestion(
+    session: AsyncSession, profile: PartnerProfile, suggestion_id: uuid.UUID
+) -> ProfileSuggestion:
+    suggestion = (
+        await session.execute(
+            select(ProfileSuggestion)
+            .where(
+                ProfileSuggestion.id == suggestion_id, ProfileSuggestion.profile_id == profile.id
+            )
+            .with_for_update()
+        )
+    ).scalar_one_or_none()
+    if suggestion is None:
+        raise not_found()
+    if suggestion.status != "pending":
+        raise ApiError(409, "already_decided", "This suggestion has already been decided.")
+    return suggestion
+
+
+async def accept_suggestion(
+    session: AsyncSession,
+    couple_id: uuid.UUID,
+    profile_id: uuid.UUID,
+    suggestion_id: uuid.UUID,
+    me: uuid.UUID,
+) -> ProfileOut:
+    """Apply the suggestion as if the subject had PUT the merged profile themselves."""
+    profile = await get_profile(session, couple_id, profile_id, for_update=True)
+    _require_subject(profile, me)
+    suggestion = await _get_pending_suggestion(session, profile, suggestion_id)
+    merged = {name: getattr(profile, name) for name in ProfileIn.model_fields}
+    merged.update(suggestion.changes)
+    try:
+        body = ProfileIn.model_validate(merged)
+    except ValidationError as exc:
+        fields = [
+            {"loc": list(e["loc"]), "message": e["msg"], "type": e["type"]} for e in exc.errors()
+        ]
+        raise ApiError(
+            422, "validation_error", "Some of the details aren't valid.", fields=fields
+        ) from exc
+    for field, value in body.model_dump().items():
+        setattr(profile, field, value)
+    profile.edited_by_user_id = me
+    profile.updated_at = now()
+    suggestion.status = "accepted"
+    suggestion.decided_at = now()
+    await session.flush()
+    return profile_out(profile, me)
+
+
+async def decline_suggestion(
+    session: AsyncSession,
+    couple_id: uuid.UUID,
+    profile_id: uuid.UUID,
+    suggestion_id: uuid.UUID,
+    me: uuid.UUID,
+) -> ProfileSuggestionOut:
+    profile = await get_profile(session, couple_id, profile_id, for_update=True)
+    _require_subject(profile, me)
+    suggestion = await _get_pending_suggestion(session, profile, suggestion_id)
+    suggestion.status = "declined"
+    suggestion.decided_at = now()
+    await session.flush()
+    return _suggestion_out(suggestion, me)
 
 
 async def _availability(session: AsyncSession, profile_id: uuid.UUID) -> AvailabilityIO:
