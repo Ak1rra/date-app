@@ -44,6 +44,7 @@ from app.schemas.itineraries import (
     TravelOut,
     VenueOut,
 )
+from app.services import surprise
 from app.services.couple import _money, not_found, now
 from app.services.itinerary_access import visible_itineraries
 from app.services.notify import notify
@@ -802,6 +803,10 @@ async def schedule(
     await session.flush()
     await revalidate(session, itinerary, providers, settings)
     await on_scheduled(session, itinerary, settings)
+    if itinerary.is_surprise:
+        moment = now()
+        await surprise.process_due(session, itinerary, settings, moment)
+        await surprise.schedule_due_jobs(session, itinerary, moment)
 
 
 async def cancel(session: AsyncSession, itinerary: Itinerary) -> None:

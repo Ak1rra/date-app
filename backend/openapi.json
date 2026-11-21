@@ -756,6 +756,156 @@
         "title": "HealthOut",
         "type": "object"
       },
+      "HintIn": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "dress_code",
+              "bring",
+              "ready_by",
+              "eat",
+              "energy",
+              "indoor_outdoor",
+              "weather",
+              "travel",
+              "custom"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "release_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release At"
+          },
+          "text": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "text"
+        ],
+        "title": "HintIn",
+        "type": "object"
+      },
+      "HintOut": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "dress_code",
+              "bring",
+              "ready_by",
+              "eat",
+              "energy",
+              "indoor_outdoor",
+              "weather",
+              "travel",
+              "custom"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "release_at": {
+            "format": "date-time",
+            "title": "Release At",
+            "type": "string"
+          },
+          "released_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Released At"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "text",
+          "release_at",
+          "released_at"
+        ],
+        "title": "HintOut",
+        "type": "object"
+      },
+      "HintPatch": {
+        "properties": {
+          "kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "dress_code",
+                  "bring",
+                  "ready_by",
+                  "eat",
+                  "energy",
+                  "indoor_outdoor",
+                  "weather",
+                  "travel",
+                  "custom"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "release_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release At"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          }
+        },
+        "title": "HintPatch",
+        "type": "object"
+      },
       "HomeArea": {
         "properties": {
           "label": {
@@ -3409,6 +3559,24 @@
         "title": "ReactIn",
         "type": "object"
       },
+      "RevealAtIn": {
+        "properties": {
+          "reveal_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reveal At"
+          }
+        },
+        "title": "RevealAtIn",
+        "type": "object"
+      },
       "ScheduleIn": {
         "properties": {
           "ends_at": {
@@ -5788,6 +5956,211 @@
         ]
       }
     },
+    "/api/v1/itineraries/{itinerary_id}/hints": {
+      "get": {
+        "operationId": "list_hints_api_v1_itineraries__itinerary_id__hints_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "itinerary_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Itinerary Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/HintOut"
+                  },
+                  "title": "Response List Hints Api V1 Itineraries  Itinerary Id  Hints Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Hints",
+        "tags": [
+          "surprise"
+        ]
+      },
+      "post": {
+        "operationId": "create_hint_api_v1_itineraries__itinerary_id__hints_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "itinerary_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Itinerary Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HintIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HintOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Hint",
+        "tags": [
+          "surprise"
+        ]
+      }
+    },
+    "/api/v1/itineraries/{itinerary_id}/hints/{hint_id}": {
+      "delete": {
+        "operationId": "delete_hint_api_v1_itineraries__itinerary_id__hints__hint_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "hint_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Hint Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "itinerary_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Itinerary Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Hint",
+        "tags": [
+          "surprise"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_hint_api_v1_itineraries__itinerary_id__hints__hint_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "hint_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Hint Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "itinerary_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Itinerary Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HintPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HintOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Hint",
+        "tags": [
+          "surprise"
+        ]
+      }
+    },
     "/api/v1/itineraries/{itinerary_id}/react": {
       "post": {
         "operationId": "react_to_itinerary_api_v1_itineraries__itinerary_id__react_post",
@@ -5838,6 +6211,102 @@
         "summary": "React To Itinerary",
         "tags": [
           "itineraries"
+        ]
+      }
+    },
+    "/api/v1/itineraries/{itinerary_id}/reveal": {
+      "post": {
+        "operationId": "reveal_itinerary_api_v1_itineraries__itinerary_id__reveal_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "itinerary_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Itinerary Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItineraryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reveal Itinerary",
+        "tags": [
+          "surprise"
+        ]
+      }
+    },
+    "/api/v1/itineraries/{itinerary_id}/reveal-at": {
+      "put": {
+        "operationId": "set_reveal_at_api_v1_itineraries__itinerary_id__reveal_at_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "itinerary_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Itinerary Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevealAtIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItineraryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Reveal At",
+        "tags": [
+          "surprise"
         ]
       }
     },

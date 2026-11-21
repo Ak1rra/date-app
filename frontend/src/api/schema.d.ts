@@ -529,6 +529,42 @@ export interface paths {
         patch: operations["patch_checklist_item_api_v1_itineraries__itinerary_id__checklist__item_id__patch"];
         trace?: never;
     };
+    "/api/v1/itineraries/{itinerary_id}/hints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Hints */
+        get: operations["list_hints_api_v1_itineraries__itinerary_id__hints_get"];
+        put?: never;
+        /** Create Hint */
+        post: operations["create_hint_api_v1_itineraries__itinerary_id__hints_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/itineraries/{itinerary_id}/hints/{hint_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Hint */
+        delete: operations["delete_hint_api_v1_itineraries__itinerary_id__hints__hint_id__delete"];
+        options?: never;
+        head?: never;
+        /** Patch Hint */
+        patch: operations["patch_hint_api_v1_itineraries__itinerary_id__hints__hint_id__patch"];
+        trace?: never;
+    };
     "/api/v1/itineraries/{itinerary_id}/react": {
         parameters: {
             query?: never;
@@ -540,6 +576,40 @@ export interface paths {
         put?: never;
         /** React To Itinerary */
         post: operations["react_to_itinerary_api_v1_itineraries__itinerary_id__react_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/itineraries/{itinerary_id}/reveal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reveal Itinerary */
+        post: operations["reveal_itinerary_api_v1_itineraries__itinerary_id__reveal_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/itineraries/{itinerary_id}/reveal-at": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set Reveal At */
+        put: operations["set_reveal_at_api_v1_itineraries__itinerary_id__reveal_at_put"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1254,6 +1324,49 @@ export interface components {
              * @enum {string}
              */
             status: "ok" | "degraded";
+        };
+        /** HintIn */
+        HintIn: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "dress_code" | "bring" | "ready_by" | "eat" | "energy" | "indoor_outdoor" | "weather" | "travel" | "custom";
+            /** Release At */
+            release_at?: string | null;
+            /** Text */
+            text: string;
+        };
+        /** HintOut */
+        HintOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "dress_code" | "bring" | "ready_by" | "eat" | "energy" | "indoor_outdoor" | "weather" | "travel" | "custom";
+            /**
+             * Release At
+             * Format: date-time
+             */
+            release_at: string;
+            /** Released At */
+            released_at: string | null;
+            /** Text */
+            text: string;
+        };
+        /** HintPatch */
+        HintPatch: {
+            /** Kind */
+            kind?: ("dress_code" | "bring" | "ready_by" | "eat" | "energy" | "indoor_outdoor" | "weather" | "travel" | "custom") | null;
+            /** Release At */
+            release_at?: string | null;
+            /** Text */
+            text?: string | null;
         };
         /** HomeArea */
         HomeArea: {
@@ -2092,6 +2205,11 @@ export interface components {
             note?: string | null;
             /** Suggested Start */
             suggested_start?: string | null;
+        };
+        /** RevealAtIn */
+        RevealAtIn: {
+            /** Reveal At */
+            reveal_at?: string | null;
         };
         /** ScheduleIn */
         ScheduleIn: {
@@ -3441,6 +3559,138 @@ export interface operations {
             };
         };
     };
+    list_hints_api_v1_itineraries__itinerary_id__hints_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                itinerary_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HintOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_hint_api_v1_itineraries__itinerary_id__hints_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                itinerary_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HintIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HintOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_hint_api_v1_itineraries__itinerary_id__hints__hint_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hint_id: string;
+                itinerary_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_hint_api_v1_itineraries__itinerary_id__hints__hint_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hint_id: string;
+                itinerary_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HintPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HintOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     react_to_itinerary_api_v1_itineraries__itinerary_id__react_post: {
         parameters: {
             query?: never;
@@ -3453,6 +3703,72 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ReactIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItineraryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reveal_itinerary_api_v1_itineraries__itinerary_id__reveal_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                itinerary_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItineraryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_reveal_at_api_v1_itineraries__itinerary_id__reveal_at_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                itinerary_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RevealAtIn"];
             };
         };
         responses: {

@@ -19,9 +19,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.models.ai import ProviderCache
 from app.models.ideas import Idea
+from app.models.itinerary import Itinerary
 from app.models.jobs import Job
 from app.models.notify import Notification, PushSubscription
 from app.models.user import MagicLinkToken, UserSession
+from app.services.surprise import SURPRISE_DUE, process_due
 from app.worker.jobs import enqueue, register
 
 logger = logging.getLogger("app.worker")
@@ -149,6 +151,20 @@ async def cache_cleanup(session: AsyncSession, payload: dict[str, Any]) -> None:
     Self-scheduling, so a missed hour just runs late."""
     await session.execute(delete(ProviderCache).where(ProviderCache.expires_at < func.now()))
     await schedule_cache_cleanup(session, next_hour=True)
+
+
+@register(SURPRISE_DUE)
+async def surprise_due(session: AsyncSession, payload: dict[str, Any]) -> None:
+    """Release the hints and reveal the surprise whose time has come. Stale jobs are harmless:
+    `process_due` re-checks the itinerary's state."""
+    try:
+        itinerary_id = uuid.UUID(str(payload.get("itinerary_id")))
+    except (AttributeError, ValueError):
+        return
+    itinerary = await session.get(Itinerary, itinerary_id)
+    if itinerary is None:
+        return
+    await process_due(session, itinerary, get_settings(), _utcnow())
 
 
 @register("push.send")
