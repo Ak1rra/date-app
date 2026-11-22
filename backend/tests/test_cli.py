@@ -35,7 +35,7 @@ def invoke(*args: str) -> Any:
 def test_help_lists_top_level_commands() -> None:
     result = invoke("--help")
     assert result.exit_code == 0
-    for name in ("build", "serve", "status", "migrate", "backup", "magic-link", "daemon"):
+    for name in ("build", "serve", "status", "migrate", "backup", "magic-link", "usage", "daemon"):
         assert name in result.output
 
 

@@ -10,6 +10,7 @@ One entry point for building, running and deploying the app. Installed with
     dateapp migrate               # alembic upgrade head
     dateapp backup --keep 14      # pg_dump to backups/, keep the newest 14
     dateapp magic-link EMAIL      # operator: print a sign-in link (no email sent)
+    dateapp usage --month 2026-11 # operator: AI usage and estimated cost per couple
     dateapp daemon install        # run as a systemd service (Linux); see `daemon --help`
     dateapp daemon update         # git pull, backup, build, migrate, restart, health check
 
@@ -30,17 +31,24 @@ import shutil
 import subprocess
 import sys
 import time
+import uuid
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Any, NoReturn
 
 import click
 import httpx
 from cryptography.hazmat.primitives.asymmetric import ec
+from sqlalchemy import func, select
 from sqlalchemy.engine import make_url
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import __version__
+from app.ai.caps import utc_month_bounds
 from app.config import REPO_ROOT, Settings, get_settings
 from app.db import make_engine, make_sessionmaker
+from app.models import AIUsage, CoupleMember, User
 from app.services.auth import is_household_email, issue_magic_link
 
 REPO_DIR = str(REPO_ROOT)
@@ -522,6 +530,179 @@ def magic_link(email: str) -> None:
             f"{type(exc).__name__}: is the database up and migrated?",
         )
     click.echo(link)
+
+
+# -- AI usage report -----------------------------------------------------------------------
+
+NO_COUPLE_LABEL = "(no couple)"
+_MONTH_RE = re.compile(r"(\d{4})-(0[1-9]|1[0-2])")
+
+
+@dataclass
+class FeatureUsage:
+    feature: str
+    runs: int
+    input_tokens: int
+    output_tokens: int
+    cost_usd: Decimal
+
+
+@dataclass
+class CoupleUsage:
+    couple_id: uuid.UUID | None  # None: rows whose couple was deleted (couple_id SET NULL)
+    label: str
+    features: list[FeatureUsage] = field(default_factory=list)
+
+    @property
+    def runs(self) -> int:
+        return sum(f.runs for f in self.features)
+
+    @property
+    def input_tokens(self) -> int:
+        return sum(f.input_tokens for f in self.features)
+
+    @property
+    def output_tokens(self) -> int:
+        return sum(f.output_tokens for f in self.features)
+
+    @property
+    def cost_usd(self) -> Decimal:
+        return sum((f.cost_usd for f in self.features), Decimal(0))
+
+
+@dataclass
+class UsageReport:
+    couples: list[CoupleUsage]
+
+    @property
+    def total_cost_usd(self) -> Decimal:
+        return sum((c.cost_usd for c in self.couples), Decimal(0))
+
+
+def _parse_month(value: str | None) -> tuple[datetime, datetime, str]:
+    """`YYYY-MM` (or None for the current month) -> the UTC month's [start, end) and its label."""
+    if value is None:
+        anchor = datetime.now(UTC)
+    else:
+        match = _MONTH_RE.fullmatch(value.strip())
+        # 9999-12 is rejected too: its exclusive end (year 10000) is not a datetime.
+        if match is None or not 1 <= int(match.group(1)) <= 9998:
+            _fail(f"{value!r} is not a month.", "Use YYYY-MM, for example 2026-11.")
+        anchor = datetime(int(match.group(1)), int(match.group(2)), 1, tzinfo=UTC)
+    start, end = utc_month_bounds(anchor)
+    return start, end, start.strftime("%Y-%m")
+
+
+async def _usage_report(
+    session: AsyncSession, month_start: datetime, month_end: datetime
+) -> UsageReport:
+    """Runs, tokens and estimated cost per couple and feature for `created_at` in
+    [month_start, month_end). Counts every row, like the global ceiling check does."""
+    rows = (
+        await session.execute(
+            select(
+                AIUsage.couple_id,
+                AIUsage.feature,
+                func.count(),
+                func.coalesce(func.sum(AIUsage.input_tokens), 0),
+                func.coalesce(func.sum(AIUsage.output_tokens), 0),
+                func.coalesce(func.sum(AIUsage.est_cost_usd), 0),
+            )
+            .where(AIUsage.created_at >= month_start, AIUsage.created_at < month_end)
+            .group_by(AIUsage.couple_id, AIUsage.feature)
+        )
+    ).all()
+
+    by_couple: dict[uuid.UUID | None, list[FeatureUsage]] = {}
+    for couple_id, feature, runs, tokens_in, tokens_out, cost in rows:
+        by_couple.setdefault(couple_id, []).append(
+            FeatureUsage(feature, int(runs), int(tokens_in), int(tokens_out), Decimal(cost))
+        )
+
+    names: dict[uuid.UUID, list[str]] = {}
+    couple_ids = [cid for cid in by_couple if cid is not None]
+    if couple_ids:
+        member_rows = await session.execute(
+            select(CoupleMember.couple_id, User.display_name, User.email)
+            .join(User, User.id == CoupleMember.user_id)
+            .where(CoupleMember.couple_id.in_(couple_ids), CoupleMember.left_at.is_(None))
+            .order_by(CoupleMember.role, CoupleMember.joined_at)  # owner first
+        )
+        for couple_id, display_name, email in member_rows:
+            names.setdefault(couple_id, []).append(display_name or email)
+
+    couples: list[CoupleUsage] = []
+    for couple_id, features in by_couple.items():
+        if couple_id is None:
+            label = NO_COUPLE_LABEL
+        else:
+            label = f"Couple {couple_id.hex[:8]}"
+            if names.get(couple_id):
+                label += " - " + " & ".join(names[couple_id])
+        features.sort(key=lambda f: (-f.cost_usd, f.feature))
+        couples.append(CoupleUsage(couple_id, label, features))
+    couples.sort(key=lambda c: (-c.cost_usd, c.label))
+    return UsageReport(couples)
+
+
+async def _load_usage(
+    settings: Settings, month_start: datetime, month_end: datetime
+) -> UsageReport:
+    engine = make_engine(settings)
+    try:
+        async with make_sessionmaker(engine)() as session:
+            return await _usage_report(session, month_start, month_end)
+    finally:
+        await engine.dispose()
+
+
+def _usage_line(label: str, runs: int, tokens_in: int, tokens_out: int, cost: Decimal) -> str:
+    money = f"${cost:.2f}"
+    return f"    {label:<10} {runs:>5} runs {tokens_in:>12,} in {tokens_out:>10,} out  {money:>9}"
+
+
+@cli.command()
+@click.option(
+    "--month",
+    "month",
+    default=None,
+    metavar="YYYY-MM",
+    help="UTC calendar month to report (default: the current month).",
+)
+def usage(month: str | None) -> None:
+    """Operator report: AI runs, tokens and estimated cost per couple, then the global total
+    against the monthly ceiling (AI_GLOBAL_MONTHLY_USD)."""
+    month_start, month_end, label = _parse_month(month)
+    settings = _settings()
+    try:
+        report = asyncio.run(_load_usage(settings, month_start, month_end))
+    except Exception as exc:
+        _fail(
+            "Could not read the usage.",
+            f"{type(exc).__name__}: is the database up and migrated?",
+        )
+    _banner("usage")
+    click.echo(f"{label} (UTC)")
+    if not report.couples:
+        click.echo(f"No AI usage in {label}.")
+    for couple in report.couples:
+        click.echo(couple.label)
+        for item in couple.features:
+            click.echo(
+                _usage_line(
+                    item.feature, item.runs, item.input_tokens, item.output_tokens, item.cost_usd
+                )
+            )
+        click.echo(
+            _usage_line(
+                "total", couple.runs, couple.input_tokens, couple.output_tokens, couple.cost_usd
+            )
+        )
+    total = report.total_cost_usd
+    ceiling = Decimal(str(settings.ai_global_monthly_usd))
+    pct = f"{total / ceiling * 100:.1f}%" if ceiling > 0 else "n/a"
+    click.echo(f"Global: ${total:.2f} of ${ceiling:.2f} ceiling ({pct})")
+    click.echo("")
 
 
 # -- Daemon (systemd) ----------------------------------------------------------------------
