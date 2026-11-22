@@ -1,6 +1,117 @@
 {
   "components": {
     "schemas": {
+      "AccountDeleteOut": {
+        "description": "`reset` in NO_LOGIN mode (the household user stays); `deleted` in email mode.",
+        "properties": {
+          "mode": {
+            "enum": [
+              "reset",
+              "deleted"
+            ],
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "title": "AccountDeleteOut",
+        "type": "object"
+      },
+      "AccountExportOut": {
+        "description": "Everything the caller owns, and nothing of their partner's private data.",
+        "properties": {
+          "chat_messages": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Chat Messages",
+            "type": "array"
+          },
+          "exported_at": {
+            "format": "date-time",
+            "title": "Exported At",
+            "type": "string"
+          },
+          "ideas": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Ideas",
+            "type": "array"
+          },
+          "notifications": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Notifications",
+            "type": "array"
+          },
+          "planner_notes": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Planner Notes",
+            "type": "array"
+          },
+          "planner_reads": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Planner Reads",
+            "type": "array"
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExportProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ratings": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Ratings",
+            "type": "array"
+          },
+          "user": {
+            "$ref": "#/components/schemas/ExportUser"
+          },
+          "votes": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Votes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "exported_at",
+          "user",
+          "profile",
+          "planner_notes",
+          "ideas",
+          "votes",
+          "ratings",
+          "planner_reads",
+          "chat_messages",
+          "notifications"
+        ],
+        "title": "AccountExportOut",
+        "type": "object"
+      },
       "AvailabilityIO": {
         "description": "Both directions: PUT replaces everything with this, GET returns it.",
         "properties": {
@@ -949,6 +1060,96 @@
           "url"
         ],
         "title": "EventOut",
+        "type": "object"
+      },
+      "ExportProfile": {
+        "description": "The caller's own profile row, with its availability and important dates.",
+        "properties": {
+          "availability_blocks": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Availability Blocks",
+            "type": "array"
+          },
+          "availability_windows": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Availability Windows",
+            "type": "array"
+          },
+          "important_dates": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Important Dates",
+            "type": "array"
+          },
+          "profile": {
+            "additionalProperties": true,
+            "title": "Profile",
+            "type": "object"
+          }
+        },
+        "required": [
+          "profile",
+          "availability_windows",
+          "availability_blocks",
+          "important_dates"
+        ],
+        "title": "ExportProfile",
+        "type": "object"
+      },
+      "ExportUser": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "notification_settings": {
+            "additionalProperties": true,
+            "title": "Notification Settings",
+            "type": "object"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "display_name",
+          "timezone",
+          "notification_settings",
+          "created_at"
+        ],
+        "title": "ExportUser",
         "type": "object"
       },
       "GenerateIdeasIn": {
@@ -8224,6 +8425,26 @@
       }
     },
     "/api/v1/me": {
+      "delete": {
+        "description": "Delete the caller's own account. In NO_LOGIN mode the household user must survive (the\nprofile picker needs them), so their data is reset instead. Only ever yourself.",
+        "operationId": "delete_me_api_v1_me_delete",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountDeleteOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Delete Me",
+        "tags": [
+          "me"
+        ]
+      },
       "get": {
         "operationId": "get_me_api_v1_me_get",
         "responses": {
@@ -8279,6 +8500,28 @@
           }
         },
         "summary": "Patch Me",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/export": {
+      "get": {
+        "description": "Download the caller's own data as JSON. Only ever yourself, never the partner's.",
+        "operationId": "export_me_api_v1_me_export_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountExportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Export Me",
         "tags": [
           "me"
         ]

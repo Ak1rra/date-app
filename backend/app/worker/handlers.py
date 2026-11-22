@@ -18,14 +18,15 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.ai.client import get_ai_client
 from app.config import get_settings
-from app.models.ai import ProviderCache
+from app.models.ai import AIUsage, ProviderCache
+from app.models.couple import Couple, CoupleMember
 from app.models.ideas import Idea
 from app.models.itinerary import Itinerary
 from app.models.jobs import Job
 from app.models.notify import Notification, PushSubscription
-from app.models.user import MagicLinkToken, UserSession
+from app.models.user import MagicLinkToken, User, UserSession
 from app.providers.registry import build_providers
-from app.services import feedback, reminders, taste
+from app.services import account, feedback, reminders, taste
 from app.services.surprise import SURPRISE_DUE, process_due
 from app.worker.jobs import enqueue, register
 
@@ -33,10 +34,16 @@ logger = logging.getLogger("app.worker")
 
 AUTH_CLEANUP = "auth.cleanup"
 CACHE_CLEANUP = "cache.cleanup"
+USER_PURGE = "user.purge"
 
 MAGIC_LINK_RETENTION = timedelta(days=1)  # after expires_at
 SESSION_RETENTION = timedelta(days=7)  # after expires_at or revoked_at
 JOB_RETENTION = timedelta(days=7)  # finished (done or failed) jobs, after finished_at
+PURGE_DELAY = timedelta(days=30)  # from an account deletion to the purge of its data
+
+
+def purge_key(user_id: uuid.UUID) -> str:
+    return f"{USER_PURGE}:{user_id}"
 
 
 def _push_url(data: dict[str, Any]) -> str:
@@ -303,3 +310,60 @@ async def reminder_hour_before(session: AsyncSession, payload: dict[str, Any]) -
 async def checklist_due(session: AsyncSession, payload: dict[str, Any]) -> None:
     """Remind the planner of a checklist item that is still open and still due then."""
     await reminders.send_checklist_due(session, payload, get_settings())
+
+
+@register(USER_PURGE)
+async def user_purge(session: AsyncSession, payload: dict[str, Any]) -> None:
+    """Delete a deleted account's personal data (NFR-PRIV-2), 30 days after the deletion. A user
+    who is gone or no longer deleted no-ops, and so does a second run."""
+    try:
+        user_id = uuid.UUID(str(payload.get("user_id")))
+    except (AttributeError, ValueError):
+        return
+    deleted_at = (
+        await session.execute(select(User.deleted_at).where(User.id == user_id).with_for_update())
+    ).scalar_one_or_none()
+    if deleted_at is None:
+        return
+    couple_ids = (
+        (
+            await session.execute(
+                select(CoupleMember.couple_id).where(CoupleMember.user_id == user_id).distinct()
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if not couple_ids:
+        await account.delete_personal_data(session, user_id, None, keep_name=False)
+    else:
+        for couple_id in couple_ids:
+            await account.delete_personal_data(session, user_id, couple_id, keep_name=False)
+            active_member = (
+                await session.execute(
+                    select(CoupleMember.id)
+                    .where(
+                        CoupleMember.couple_id == couple_id,
+                        CoupleMember.left_at.is_(None),
+                    )
+                    .limit(1)
+                )
+            ).scalar_one_or_none()
+            active_user_member = (
+                await session.execute(
+                    select(CoupleMember.id)
+                    .join(User, User.id == CoupleMember.user_id)
+                    .where(
+                        CoupleMember.couple_id == couple_id,
+                        CoupleMember.left_at.is_(None),
+                        User.deleted_at.is_(None),
+                    )
+                    .limit(1)
+                )
+            ).scalar_one_or_none()
+            if active_member is None and active_user_member is None:
+                await session.execute(delete(Couple).where(Couple.id == couple_id))
+    await session.execute(
+        update(User).where(User.id == user_id).values(notification_settings={}, timezone="UTC")
+    )
+    await session.execute(update(AIUsage).where(AIUsage.user_id == user_id).values(user_id=None))

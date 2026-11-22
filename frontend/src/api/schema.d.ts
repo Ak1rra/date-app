@@ -870,7 +870,12 @@ export interface paths {
         get: operations["get_me_api_v1_me_get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Me
+         * @description Delete the caller's own account. In NO_LOGIN mode the household user must survive (the
+         *     profile picker needs them), so their data is reset instead. Only ever yourself.
+         */
+        delete: operations["delete_me_api_v1_me_delete"];
         options?: never;
         head?: never;
         /**
@@ -878,6 +883,26 @@ export interface paths {
          * @description Update the caller's own profile; there is no id in the path, so only ever yourself.
          */
         patch: operations["patch_me_api_v1_me_patch"];
+        trace?: never;
+    };
+    "/api/v1/me/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Me
+         * @description Download the caller's own data as JSON. Only ever yourself, never the partner's.
+         */
+        get: operations["export_me_api_v1_me_export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/me/notification-settings": {
@@ -1420,6 +1445,58 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
+         * AccountDeleteOut
+         * @description `reset` in NO_LOGIN mode (the household user stays); `deleted` in email mode.
+         */
+        AccountDeleteOut: {
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "reset" | "deleted";
+        };
+        /**
+         * AccountExportOut
+         * @description Everything the caller owns, and nothing of their partner's private data.
+         */
+        AccountExportOut: {
+            /** Chat Messages */
+            chat_messages: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Exported At
+             * Format: date-time
+             */
+            exported_at: string;
+            /** Ideas */
+            ideas: {
+                [key: string]: unknown;
+            }[];
+            /** Notifications */
+            notifications: {
+                [key: string]: unknown;
+            }[];
+            /** Planner Notes */
+            planner_notes: {
+                [key: string]: unknown;
+            }[];
+            /** Planner Reads */
+            planner_reads: {
+                [key: string]: unknown;
+            }[];
+            profile: components["schemas"]["ExportProfile"] | null;
+            /** Ratings */
+            ratings: {
+                [key: string]: unknown;
+            }[];
+            user: components["schemas"]["ExportUser"];
+            /** Votes */
+            votes: {
+                [key: string]: unknown;
+            }[];
+        };
+        /**
          * AvailabilityIO
          * @description Both directions: PUT replaces everything with this, GET returns it.
          */
@@ -1733,6 +1810,51 @@ export interface components {
             name: string;
             /** Url */
             url: string | null;
+        };
+        /**
+         * ExportProfile
+         * @description The caller's own profile row, with its availability and important dates.
+         */
+        ExportProfile: {
+            /** Availability Blocks */
+            availability_blocks: {
+                [key: string]: unknown;
+            }[];
+            /** Availability Windows */
+            availability_windows: {
+                [key: string]: unknown;
+            }[];
+            /** Important Dates */
+            important_dates: {
+                [key: string]: unknown;
+            }[];
+            /** Profile */
+            profile: {
+                [key: string]: unknown;
+            };
+        };
+        /** ExportUser */
+        ExportUser: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Display Name */
+            display_name: string | null;
+            /** Email */
+            email: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Notification Settings */
+            notification_settings: {
+                [key: string]: unknown;
+            };
+            /** Timezone */
+            timezone: string;
         };
         /**
          * GenerateIdeasIn
@@ -4971,6 +5093,26 @@ export interface operations {
             };
         };
     };
+    delete_me_api_v1_me_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountDeleteOut"];
+                };
+            };
+        };
+    };
     patch_me_api_v1_me_patch: {
         parameters: {
             query?: never;
@@ -5000,6 +5142,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_me_api_v1_me_export_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountExportOut"];
                 };
             };
         };
