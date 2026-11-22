@@ -194,6 +194,8 @@ async def push_send(session: AsyncSession, payload: dict[str, Any]) -> None:
         or not settings.vapid_public_key
     ):
         return
+    if await reminders.is_stale(session, notification):
+        return  # a reminder deferred past quiet hours whose date or item has since changed
 
     subscriptions = (
         (

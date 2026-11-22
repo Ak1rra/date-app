@@ -60,14 +60,10 @@ async def schedule_completion(session: AsyncSession, itinerary: Itinerary) -> No
     if end is None:
         return
     dedupe_key = f"complete:{itinerary.id}:{end.isoformat()}"
-    await enqueue(
-        session,
-        ITINERARY_COMPLETE,
-        {"itinerary_id": str(itinerary.id), "end": end.isoformat()},
-        run_at=end,
-        dedupe_key=dedupe_key,
-    )
-    await session.execute(
+    payload = {"itinerary_id": str(itinerary.id), "end": end.isoformat()}
+    if await enqueue(session, ITINERARY_COMPLETE, payload, run_at=end, dedupe_key=dedupe_key):
+        return
+    rearmed = await session.execute(
         update(Job)
         .where(Job.dedupe_key == dedupe_key, Job.status.in_(("done", "failed")))
         .values(
@@ -81,6 +77,12 @@ async def schedule_completion(session: AsyncSession, itinerary: Itinerary) -> No
         ),
         execution_options={"synchronize_session": False},
     )
+    if rearmed.rowcount:  # type: ignore[attr-defined]
+        return
+    exists = await session.scalar(select(Job.id).where(Job.dedupe_key == dedupe_key))
+    if exists is None:
+        # Cleanup deleted the finished job after enqueue hit its conflict: the key is free now.
+        await enqueue(session, ITINERARY_COMPLETE, payload, run_at=end, dedupe_key=dedupe_key)
 
 
 async def _member_ids(session: AsyncSession, couple_id: uuid.UUID) -> list[uuid.UUID]:

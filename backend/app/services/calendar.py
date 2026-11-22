@@ -188,6 +188,17 @@ def _intersect(a: list[Interval], b: list[Interval]) -> list[Interval]:
     return sorted(out)
 
 
+def _merge(intervals: list[Interval]) -> list[Interval]:
+    """Join sorted intervals that overlap or touch, so one slot can span two windows."""
+    out: list[Interval] = []
+    for start, end in intervals:
+        if out and start <= out[-1][1]:
+            out[-1] = (out[-1][0], max(out[-1][1], end))
+        else:
+            out.append((start, end))
+    return out
+
+
 def _subtract(free: list[Interval], busy: Interval) -> list[Interval]:
     out: list[Interval] = []
     for start, end in free:
@@ -232,7 +243,8 @@ class Availability:
         if day in self.blocked:
             return []
         windows = [DEFAULT_WINDOW] if self.unset else self.windows.get(day.weekday(), [])
-        return sorted((_at(zone, day, start), _at(zone, day, end)) for start, end in windows)
+        spans = sorted((_at(zone, day, start), _at(zone, day, end)) for start, end in windows)
+        return _merge(spans)
 
 
 def _earliest(

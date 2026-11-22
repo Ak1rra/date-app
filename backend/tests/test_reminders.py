@@ -7,9 +7,9 @@ from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi import FastAPI
-from sqlalchemy import select
+from sqlalchemy import select, update
 
-from app.models import ChecklistItem, Couple, Itinerary, Job, Notification, User
+from app.models import ChecklistItem, Couple, Itinerary, Job, Notification, PushSubscription, User
 from app.services import reminders
 from app.worker import handlers
 from app.worker.jobs import registered_kinds
@@ -149,7 +149,7 @@ async def test_reminder_wording_for_both_members(db_app: FastAPI) -> None:
                 "Dinner out tomorrow at 7:00 PM. Bring: flowers, tickets, umbrella."
                 " Heads-up: Rain is likely."
             )
-            assert note.data == {"url": f"/itineraries/{itinerary_id}"}
+            assert note.data["url"] == f"/itineraries/{itinerary_id}"
 
         await run(w, "hour", itinerary_id, start)
         (note,) = await notes(w, w.partner_id, "reminder_hour_before")
@@ -252,7 +252,7 @@ async def test_hidden_surprise_reminders_are_generic_for_the_surprisee(db_app: F
             "Time to get ready.",
         )
         for note in (day, hour):
-            assert note.data == {"url": f"/surprise/{itinerary_id}"}
+            assert note.data["url"] == f"/surprise/{itinerary_id}"
             blob = f"{note.title} {note.body} {note.data}"
             assert title not in blob and "Hidden Venue" not in blob
         # The planner knows the secret, so gets the real text.
@@ -462,7 +462,7 @@ async def test_checklist_due_notifies_the_planner_only(db_app: FastAPI) -> None:
         (note,) = await notes(w, w.owner_id, "checklist_due")
         assert note.title == "Checklist reminder 📝"
         assert note.body == f"Book table — due {reminders.local_label(due)}"
-        assert note.data == {"url": f"/itineraries/{itinerary_id}"}
+        assert note.data["url"] == f"/itineraries/{itinerary_id}"
         assert await notes(w, w.partner_id) == []
 
 
@@ -488,3 +488,116 @@ async def test_checklist_due_skips_ticked_moved_and_deleted_items(db_app: FastAP
         # The moved item still fires for its new time.
         await run_due(w, moved, later)
         assert len(await notes(w, w.owner_id, "checklist_due")) == 1
+
+
+# --- Deferred pushes
+
+
+PUSH_SETTINGS = make_settings(vapid_public_key="public", vapid_private_key="private")
+
+
+async def subscribe(w: World, user_id: uuid.UUID) -> None:
+    async with w.app.state.sessionmaker() as session:
+        session.add(
+            PushSubscription(
+                user_id=user_id,
+                endpoint=f"https://push.example.test/{uuid.uuid4()}",
+                p256dh="p256dh",
+                auth="auth",
+            )
+        )
+        await session.commit()
+
+
+async def push_deferred(
+    w: World, notification: Notification, monkeypatch: pytest.MonkeyPatch
+) -> list[str]:
+    """Run the push job for a notification; returns what was sent to the one subscription."""
+    sent: list[str] = []
+    monkeypatch.setattr(handlers, "get_settings", lambda: PUSH_SETTINGS)
+    monkeypatch.setattr(handlers, "webpush", lambda **kwargs: sent.append(str(kwargs["data"])))
+    async with w.app.state.sessionmaker() as session:
+        await handlers.push_send(session, {"notification_id": str(notification.id)})
+        await session.commit()
+    return sent
+
+
+async def test_a_deferred_reminder_is_dropped_when_the_date_has_moved_or_cancelled(
+    db_app: FastAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with world(db_app) as w:
+        await set_quiet(w, w.partner_id, dt.datetime.now(dt.UTC))
+        await subscribe(w, w.partner_id)
+        start = when(10, 19)
+        fields: dict[str, Any] = {"status": "scheduled", "announced_at": when(-1)}
+        unchanged = await seed(w, title="Same", starts_at=start, **fields)
+        moved = await seed(w, title="Moved", starts_at=start, **fields)
+        cancelled = await seed(w, title="Cancelled", starts_at=start, **fields)
+        for itinerary_id in (unchanged, moved, cancelled):
+            await run(w, "day", itinerary_id, start)
+        rows = await notes(w, w.partner_id, "reminder_day_before")
+        by_itinerary = {uuid.UUID(n.data["itinerary_id"]): n for n in rows}
+        assert all(n.deliver_after > n.created_at + dt.timedelta(minutes=30) for n in rows)
+
+        async with w.app.state.sessionmaker() as session:
+            await session.execute(
+                update(Itinerary)
+                .where(Itinerary.id == moved)
+                .values(starts_at=start + dt.timedelta(days=1))
+            )
+            await session.execute(
+                update(Itinerary).where(Itinerary.id == cancelled).values(status="cancelled")
+            )
+            await session.commit()
+
+        assert await push_deferred(w, by_itinerary[moved], monkeypatch) == []
+        assert await push_deferred(w, by_itinerary[cancelled], monkeypatch) == []
+        assert len(await push_deferred(w, by_itinerary[unchanged], monkeypatch)) == 1
+
+
+async def test_a_deferred_checklist_nudge_is_dropped_when_the_item_changed(
+    db_app: FastAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with world(db_app) as w:
+        await set_timezone(w, "UTC")
+        await set_quiet(w, w.owner_id, dt.datetime.now(dt.UTC))
+        await subscribe(w, w.owner_id)
+        itinerary_id = await seed(w, status="scheduled", starts_at=when(10, 19))
+        due = when(5, 12)
+        kept = await add_item(w, itinerary_id, due_at=due.isoformat())
+        moved = await add_item(w, itinerary_id, due_at=due.isoformat())
+        await run_due(w, kept, due)
+        await run_due(w, moved, due)
+        rows = {n.data["item_id"]: n for n in await notes(w, w.owner_id, "checklist_due")}
+        assert set(rows) == {kept, moved}
+
+        async with w.app.state.sessionmaker() as session:
+            await session.execute(
+                update(ChecklistItem)
+                .where(ChecklistItem.id == uuid.UUID(moved))
+                .values(due_at=due + dt.timedelta(days=1))
+            )
+            await session.commit()
+
+        assert await push_deferred(w, rows[moved], monkeypatch) == []
+        assert len(await push_deferred(w, rows[kept], monkeypatch)) == 1
+
+
+async def test_a_reminder_without_the_recorded_ids_is_pushed_as_before(
+    db_app: FastAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with world(db_app) as w:
+        async with w.app.state.sessionmaker() as session:
+            session.add(
+                Notification(
+                    user_id=w.partner_id,
+                    kind="reminder_day_before",
+                    title="Your date is tomorrow",
+                    body="Old row.",
+                    data={"url": "/itineraries/gone"},
+                )
+            )
+            await session.commit()
+        await subscribe(w, w.partner_id)
+        (old,) = await notes(w, w.partner_id, "reminder_day_before")
+        assert len(await push_deferred(w, old, monkeypatch)) == 1

@@ -6,11 +6,13 @@ from typing import Any
 
 import pytest
 from fastapi import FastAPI
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.errors import ApiError
 from app.models import Itinerary, Job, Notification
 from app.schemas.itineraries import ItineraryPatch
+from app.services import feedback
 from app.services.itineraries import patch_itinerary
 from app.worker import handlers
 from tests.authutil import call
@@ -275,6 +277,48 @@ async def test_rescheduling_back_to_an_earlier_end_rearms_its_completion_job(
 
         await run_complete(w.app, itinerary_id, first_end)
         assert (await load(w.app, itinerary_id)).status == "completed"
+
+
+async def test_rearming_survives_cleanup_deleting_the_finished_job_mid_call(
+    db_app: FastAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with world(db_app) as w:
+        itinerary_id, end = await seed_scheduled(w)
+        key = f"complete:{itinerary_id}:{end.isoformat()}"
+        async with w.app.state.sessionmaker() as session:
+            itinerary = await session.get(Itinerary, itinerary_id)
+            assert itinerary is not None
+            await feedback.schedule_completion(session, itinerary)
+            await session.execute(
+                update(Job)
+                .where(Job.dedupe_key == key)
+                .values(status="done", finished_at=dt.datetime.now(dt.UTC), attempts=1)
+            )
+            await session.commit()
+
+        real_enqueue = feedback.enqueue
+        calls = 0
+
+        async def racing_enqueue(session: AsyncSession, *args: Any, **kwargs: Any) -> bool:
+            nonlocal calls
+            calls += 1
+            queued = await real_enqueue(session, *args, **kwargs)
+            if calls == 1:  # auth.cleanup deletes the finished job after the dedupe conflict
+                assert not queued
+                await session.execute(delete(Job).where(Job.dedupe_key == key))
+            return queued
+
+        monkeypatch.setattr(feedback, "enqueue", racing_enqueue)
+        async with w.app.state.sessionmaker() as session:
+            itinerary = await session.get(Itinerary, itinerary_id)
+            assert itinerary is not None
+            await feedback.schedule_completion(session, itinerary)
+            await session.commit()
+
+        (job,) = await jobs(w.app, "itinerary.complete")
+        assert job.dedupe_key == key
+        assert job.status == "queued" and job.run_at == end
+        assert calls == 2
 
 
 async def test_patch_rechecks_the_status_after_locking_the_row(db_app: FastAPI) -> None:

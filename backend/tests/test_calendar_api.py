@@ -306,6 +306,17 @@ def test_free_windows_are_the_intersection_of_both_people() -> None:
     assert slots([weekly(1, dt.time(10), dt.time(14)), weekly(2, dt.time(10), dt.time(14))]) == []
 
 
+def test_adjacent_and_overlapping_windows_are_one_free_stretch() -> None:
+    inside = weekly(1, dt.time(19), dt.time(22))
+    for first, second in [
+        ((dt.time(18), dt.time(20)), (dt.time(20), dt.time(23))),  # adjacent
+        ((dt.time(18), dt.time(21)), (dt.time(20), dt.time(23))),  # overlapping
+    ]:
+        split = Availability(windows={1: [first, second]}, blocked=set(), unset=False)
+        result = slots([split, inside], duration_minutes=180, weeks=1)
+        assert starts(result) == [utc(2, 19)]
+
+
 def test_a_blocked_date_for_either_person_removes_the_day() -> None:
     blocked = weekly(1, dt.time(10), dt.time(14), {dt.date(2026, 6, 2)})
     other = weekly(1, dt.time(10), dt.time(14))

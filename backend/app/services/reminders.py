@@ -22,7 +22,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings
-from app.models import ChecklistItem, Couple, CoupleMember, Itinerary, User
+from app.models import ChecklistItem, Couple, CoupleMember, Itinerary, Notification, User
 from app.providers.registry import Providers
 from app.services.notify import deliver_after_for, effective_settings, notify
 from app.worker.jobs import enqueue
@@ -256,7 +256,8 @@ async def send_reminder(
             kind,
             title,
             body,
-            {"url": url},
+            # itinerary_id and starts_at let a quiet-hours deferred push check it is still current.
+            {"url": url, "itinerary_id": str(itinerary.id), "starts_at": starts_iso},
             couple_id=itinerary.couple_id,
             dedupe_key=f"{kind}:{itinerary.id}:{user_id}:{starts_iso}",
             respect_quiet_hours=respect_quiet,
@@ -327,8 +328,51 @@ async def send_checklist_due(
         "checklist_due",
         "Checklist reminder 📝",
         f"{item.text} — due {local_label(local)}",
-        {"url": f"/itineraries/{itinerary.id}"},
+        {
+            "url": f"/itineraries/{itinerary.id}",
+            "itinerary_id": str(itinerary.id),
+            "item_id": str(item.id),
+            "due_at": _utc(item.due_at).isoformat(),
+        },
         couple_id=itinerary.couple_id,
         dedupe_key=f"checklist:{item.id}:{_utc(item.due_at).isoformat()}",
         settings=settings,
+    )
+
+
+async def is_stale(session: AsyncSession, notification: Notification) -> bool:
+    """Whether a reminder notification no longer matches its date or item, so a push deferred
+    out of quiet hours should be dropped rather than sent with old details. A reminder row
+    without the ids it was made for (older rows) is never stale."""
+    data = notification.data if isinstance(notification.data, dict) else {}
+    expected: dt.datetime | None = None
+    item_id: uuid.UUID | None = None
+    due: dt.datetime | None = None
+    try:
+        itinerary_id = uuid.UUID(str(data["itinerary_id"]))
+        if notification.kind in ("reminder_day_before", "reminder_hour_before"):
+            expected = _parse(data["starts_at"])
+        elif notification.kind == "checklist_due":
+            item_id = uuid.UUID(str(data["item_id"]))
+            due = _parse(data["due_at"])
+        else:
+            return False
+    except (KeyError, ValueError):
+        return False
+    itinerary = await session.get(Itinerary, itinerary_id)
+    if item_id is None:
+        return (
+            itinerary is None
+            or itinerary.status != "scheduled"
+            or itinerary.starts_at is None
+            or itinerary.starts_at != expected
+        )
+    item = await session.get(ChecklistItem, item_id)
+    return (
+        itinerary is None
+        or itinerary.status == "cancelled"
+        or item is None
+        or item.done_at is not None
+        or item.due_at is None
+        or item.due_at != due
     )
