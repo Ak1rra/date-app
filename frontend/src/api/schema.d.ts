@@ -160,6 +160,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/chat/actions/{action_id}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply Action
+         * @description Apply what the assistant proposed, once; applying again returns the stored result.
+         */
+        post: operations["apply_action_api_v1_chat_actions__action_id__apply_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chat/threads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Threads
+         * @description My private thread, and the shared one once my partner has joined. Created on first use.
+         */
+        get: operations["list_threads_api_v1_chat_threads_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chat/threads/{thread_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Messages
+         * @description A page of messages, oldest to newest; pass the first id back as `before` for older ones.
+         */
+        get: operations["list_messages_api_v1_chat_threads__thread_id__messages_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/couple": {
         parameters: {
             query?: never;
@@ -1342,6 +1402,97 @@ export interface components {
             status?: string | null;
             /** Title */
             title: string;
+        };
+        /**
+         * ChatActionApplyOut
+         * @description `idea` / `itinerary` are what this call created or changed; both are null when the
+         *     action had already been applied.
+         */
+        ChatActionApplyOut: {
+            action: components["schemas"]["ChatActionOut"];
+            idea: components["schemas"]["IdeaOut"] | null;
+            itinerary: components["schemas"]["ItineraryOut"] | null;
+        };
+        /** ChatActionOut */
+        ChatActionOut: {
+            /** Applied At */
+            applied_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Payload */
+            payload: {
+                [key: string]: unknown;
+            };
+            /** Result */
+            result: {
+                [key: string]: unknown;
+            } | null;
+            /** Summary */
+            summary: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "idea" | "itinerary_change" | "calendar_slot";
+        };
+        /** ChatMessageOut */
+        ChatMessageOut: {
+            /** Actions */
+            actions: components["schemas"]["ChatActionOut"][];
+            /** Author Is Me */
+            author_is_me: boolean;
+            /** Author User Id */
+            author_user_id: string | null;
+            /** Content */
+            content: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "user" | "assistant";
+        };
+        /**
+         * ChatMessagesOut
+         * @description Oldest to newest. `has_more` says there are older messages than this page.
+         */
+        ChatMessagesOut: {
+            /** Has More */
+            has_more: boolean;
+            /** Messages */
+            messages: components["schemas"]["ChatMessageOut"][];
+        };
+        /** ChatThreadOut */
+        ChatThreadOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Scope
+             * @enum {string}
+             */
+            scope: "private" | "shared";
+            /** Title */
+            title: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** ChecklistIn */
         ChecklistIn: {
@@ -3095,6 +3246,91 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SuggestTimesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    apply_action_api_v1_chat_actions__action_id__apply_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                action_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatActionApplyOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_threads_api_v1_chat_threads_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatThreadOut"][];
+                };
+            };
+        };
+    };
+    list_messages_api_v1_chat_threads__thread_id__messages_get: {
+        parameters: {
+            query?: {
+                before?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatMessagesOut"];
                 };
             };
             /** @description Validation Error */

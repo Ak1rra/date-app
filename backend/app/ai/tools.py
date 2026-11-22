@@ -197,6 +197,11 @@ class ToolExecutor:
     def degraded(self) -> set[str]:
         return self._degraded
 
+    @property
+    def tz(self) -> dt.tzinfo:
+        """The couple's timezone (UTC if theirs isn't recognised)."""
+        return self._tz
+
     def specs(self) -> list[dict[str, Any]]:
         return [dict(spec) for spec in TOOL_SPECS]
 

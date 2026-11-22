@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.v1 import (
     auth,
     calendar,
+    chat,
     couple,
     dev,
     health,
@@ -43,3 +44,4 @@ router.include_router(plan.router)
 router.include_router(plan.idea_router)
 router.include_router(templates.router)
 router.include_router(ws.router)
+router.include_router(chat.router)

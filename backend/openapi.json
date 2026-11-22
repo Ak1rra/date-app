@@ -149,6 +149,225 @@
         "title": "CalendarEntry",
         "type": "object"
       },
+      "ChatActionApplyOut": {
+        "description": "`idea` / `itinerary` are what this call created or changed; both are null when the\naction had already been applied.",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ChatActionOut"
+          },
+          "idea": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IdeaOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "itinerary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ItineraryOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "action",
+          "idea",
+          "itinerary"
+        ],
+        "title": "ChatActionApplyOut",
+        "type": "object"
+      },
+      "ChatActionOut": {
+        "properties": {
+          "applied_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "idea",
+              "itinerary_change",
+              "calendar_slot"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "summary",
+          "payload",
+          "applied_at",
+          "result"
+        ],
+        "title": "ChatActionOut",
+        "type": "object"
+      },
+      "ChatMessageOut": {
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/ChatActionOut"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "author_is_me": {
+            "title": "Author Is Me",
+            "type": "boolean"
+          },
+          "author_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author User Id"
+          },
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "user",
+              "assistant"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "author_user_id",
+          "author_is_me",
+          "content",
+          "actions",
+          "created_at"
+        ],
+        "title": "ChatMessageOut",
+        "type": "object"
+      },
+      "ChatMessagesOut": {
+        "description": "Oldest to newest. `has_more` says there are older messages than this page.",
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/ChatMessageOut"
+            },
+            "title": "Messages",
+            "type": "array"
+          }
+        },
+        "required": [
+          "messages",
+          "has_more"
+        ],
+        "title": "ChatMessagesOut",
+        "type": "object"
+      },
+      "ChatThreadOut": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "scope": {
+            "enum": [
+              "private",
+              "shared"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "scope",
+          "title",
+          "updated_at"
+        ],
+        "title": "ChatThreadOut",
+        "type": "object"
+      },
       "ChecklistIn": {
         "properties": {
           "due_at": {
@@ -5436,6 +5655,149 @@
         "summary": "Suggest Times",
         "tags": [
           "calendar"
+        ]
+      }
+    },
+    "/api/v1/chat/actions/{action_id}/apply": {
+      "post": {
+        "description": "Apply what the assistant proposed, once; applying again returns the stored result.",
+        "operationId": "apply_action_api_v1_chat_actions__action_id__apply_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "action_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Action Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatActionApplyOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Apply Action",
+        "tags": [
+          "chat"
+        ]
+      }
+    },
+    "/api/v1/chat/threads": {
+      "get": {
+        "description": "My private thread, and the shared one once my partner has joined. Created on first use.",
+        "operationId": "list_threads_api_v1_chat_threads_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ChatThreadOut"
+                  },
+                  "title": "Response List Threads Api V1 Chat Threads Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Threads",
+        "tags": [
+          "chat"
+        ]
+      }
+    },
+    "/api/v1/chat/threads/{thread_id}/messages": {
+      "get": {
+        "description": "A page of messages, oldest to newest; pass the first id back as `before` for older ones.",
+        "operationId": "list_messages_api_v1_chat_threads__thread_id__messages_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "thread_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Thread Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Before"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatMessagesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Messages",
+        "tags": [
+          "chat"
         ]
       }
     },
