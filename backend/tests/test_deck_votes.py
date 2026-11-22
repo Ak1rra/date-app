@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 from fastapi import FastAPI
 from httpx import AsyncClient
-from sqlalchemy import select, update
+from sqlalchemy import event, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Idea, Itinerary, Vote
@@ -231,6 +231,40 @@ async def test_undo_takes_back_my_latest_vote(db_app: FastAPI) -> None:
         assert await deck_titles(owner) == ["First", "Second"]
         assert (await call(owner, "POST", UNDO)).status_code == 204
         assert (await call(partner, "POST", UNDO)).json()["id"] == first["id"]
+
+
+async def test_voting_and_undo_lock_the_idea_row_to_serialise_the_match_check(
+    db_app: FastAPI,
+) -> None:
+    """Both partners voting yes at once must not each miss the other's vote: a vote and an
+    undo hold FOR UPDATE on the idea before reading votes."""
+    statements: list[str] = []
+
+    def record(conn: Any, cursor: Any, statement: str, *args: Any) -> None:
+        statements.append(statement)
+
+    def locked_ideas() -> bool:
+        return any("FROM ideas" in s and s.rstrip().endswith("FOR UPDATE") for s in statements)
+
+    engine = db_app.state.engine.sync_engine
+    async with joined_couple(db_app) as (owner, _partner):
+        idea = await shared_idea(owner, "Concert")
+        event.listen(engine, "before_cursor_execute", record)
+        try:
+            assert (await vote(owner, idea["id"], "yes")).status_code == 200
+            assert locked_ideas()
+            vote_reads = [i for i, s in enumerate(statements) if "FROM votes" in s]
+            lock = next(
+                i
+                for i, s in enumerate(statements)
+                if "FROM ideas" in s and s.rstrip().endswith("FOR UPDATE")
+            )
+            assert vote_reads and lock < vote_reads[0]
+            statements.clear()
+            assert (await call(owner, "POST", UNDO)).status_code == 200
+            assert locked_ideas()
+        finally:
+            event.remove(engine, "before_cursor_execute", record)
 
 
 async def test_undo_honours_the_ten_minute_window(

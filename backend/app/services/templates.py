@@ -15,7 +15,7 @@ from app.ai.caps import SessionMaker
 from app.ai.client import AIClient
 from app.config import Settings
 from app.errors import ApiError
-from app.models import Itinerary, PlanTemplate, Stop
+from app.models import Itinerary, PlanTemplate, Stop, User
 from app.providers.registry import Providers
 from app.schemas.plan import PlanSessionIn
 from app.schemas.template import TemplateOut
@@ -39,6 +39,9 @@ async def save_template(
     name: str,
 ) -> PlanTemplate:
     itinerary = await get_editable(session, viewer_user_id, couple_id, itinerary_id)
+    # One planner's saves run one after the other, so the count below can't be raced past the
+    # limit; nobody else's saves wait on this.
+    await session.execute(select(User.id).where(User.id == viewer_user_id).with_for_update())
     count = (
         await session.execute(
             select(func.count())
@@ -155,7 +158,10 @@ async def replan(
     template = await get_own_template(session, couple_id, requester_user_id, template_id)
     snapshot = template.snapshot
     titles = [s["title"] for s in snapshot.get("stops", [])]
-    steer = f"Re-plan this date we loved: {snapshot.get('title', template.name)}."
+    title = snapshot.get("title")
+    steer = f"Re-plan this date we loved: {template.name}."
+    if title and title != template.name:
+        steer += f' (It was called "{title}".)'
     if titles:
         steer += f" Stops: {'; '.join(titles)}."
     plan = await planning.create_session(

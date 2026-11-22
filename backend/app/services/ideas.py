@@ -401,6 +401,15 @@ async def _is_locked(
     return bool((await session.execute(select(dates.exists()))).scalar_one())
 
 
+async def _lock_idea(session: AsyncSession, couple_id: uuid.UUID, idea_id: uuid.UUID) -> None:
+    """Hold the idea's row until commit, so two votes on it run one after the other and the
+    second sees the first's committed vote. Without it both partners can vote yes together,
+    each sees no yes from the other, and no match fires."""
+    await session.execute(
+        select(Idea.id).where(Idea.id == idea_id, Idea.couple_id == couple_id).with_for_update()
+    )
+
+
 async def cast_vote(
     session: AsyncSession,
     couple_id: uuid.UUID,
@@ -411,6 +420,7 @@ async def cast_vote(
 ) -> Idea:
     """Record or change my vote on a shared idea. When that turns the idea into a match,
     `on_match` is called (not again when a match is re-voted yes)."""
+    await _lock_idea(session, couple_id, idea_id)
     idea = await get_visible_idea(session, couple_id, me, idea_id)
     if idea.visibility != "shared":
         raise not_found()
@@ -450,6 +460,16 @@ async def undo_vote(session: AsyncSession, couple_id: uuid.UUID, me: uuid.UUID) 
             )
             .order_by(Vote.updated_at.desc())
             .limit(1)
+        )
+    ).scalar_one_or_none()
+    if vote is None:
+        return None
+    await _lock_idea(session, couple_id, vote.idea_id)
+    vote = (  # re-read under the lock: a vote cast or undone meanwhile has settled
+        await session.execute(
+            select(Vote)
+            .where(Vote.idea_id == vote.idea_id, Vote.user_id == me)
+            .execution_options(populate_existing=True)
         )
     ).scalar_one_or_none()
     if vote is None or now() - vote.updated_at > UNDO_WINDOW:

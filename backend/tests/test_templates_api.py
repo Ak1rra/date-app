@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 from fastapi import FastAPI
-from sqlalchemy import func, select
+from sqlalchemy import event, func, select
 
 from app.models import AIUsage, PlanTemplate
 from tests.authutil import call
@@ -148,6 +148,30 @@ async def test_the_51st_template_is_409(db_app: FastAPI) -> None:
         assert (await save(w.partner, theirs)).status_code == 201
 
 
+async def test_save_locks_the_planners_user_row_before_counting(db_app: FastAPI) -> None:
+    """Concurrent saves by one planner must not both pass the 50-template check."""
+    statements: list[str] = []
+
+    def record(conn: Any, cursor: Any, statement: str, *args: Any) -> None:
+        statements.append(statement)
+
+    engine = db_app.state.engine.sync_engine
+    async with world(db_app) as w:
+        itinerary_id = await seeded(w)
+        event.listen(engine, "before_cursor_execute", record)
+        try:
+            assert (await save(w.owner, itinerary_id)).status_code == 201
+        finally:
+            event.remove(engine, "before_cursor_execute", record)
+    locked = [
+        i
+        for i, s in enumerate(statements)
+        if "FROM users" in s and s.rstrip().endswith("FOR UPDATE")
+    ]
+    counted = [i for i, s in enumerate(statements) if "count(" in s and "plan_templates" in s]
+    assert locked and counted and locked[0] < counted[0]
+
+
 async def test_replan_builds_a_new_date_as_a_replan_run(db_app: FastAPI) -> None:
     async with world(db_app) as w:
         await set_home(w)
@@ -165,7 +189,8 @@ async def test_replan_builds_a_new_date_as_a_replan_run(db_app: FastAPI) -> None
         assert out["status"] == "draft" and out["stops"] and out["idea_id"] is None
         assert out["id"] != (await w.owner.get(TEMPLATES)).json()[0]["source_itinerary_id"]
         assert await usage(w) == [("replan", True)]
-        assert "Re-plan this date we loved: Date night. Stops: Tacos; Stargazing." in seen[0]
+        assert "Re-plan this date we loved: Taco night. (It was called " in seen[0]
+        assert "Date night" in seen[0] and "Stops: Tacos; Stargazing." in seen[0]
         assert "Use exactly 2 stops." in seen[0]
         plans = (await w.owner.get("/api/v1/plan/sessions")).json()
         (plan,) = [p for p in plans if p["itinerary_id"] == out["id"]]
@@ -174,6 +199,27 @@ async def test_replan_builds_a_new_date_as_a_replan_run(db_app: FastAPI) -> None
         end = dt.datetime.fromisoformat(plan["inputs"]["window_end"])
         assert end == start + dt.timedelta(hours=3)
         assert plan["inputs"]["must_include"] is None
+
+
+async def test_replan_steer_leads_with_the_templates_name_and_keeps_the_original_title(
+    db_app: FastAPI,
+) -> None:
+    async with world(db_app) as w:
+        await set_home(w)
+        template_id = (await save(w.owner, await seeded(w), "Our anniversary")).json()["id"]
+        with recording_ai(db_app):
+            response = await call(
+                w.owner,
+                "POST",
+                f"{TEMPLATES}/{template_id}/replan",
+                {"starts_at": when(days=7, hour=18).isoformat()},
+            )
+        assert response.status_code == 201, response.text
+        plans = (await w.owner.get("/api/v1/plan/sessions")).json()
+        (plan,) = [p for p in plans if p["itinerary_id"] == response.json()["id"]]
+        steer = plan["inputs"]["steer"]
+        assert steer.startswith("Re-plan this date we loved: Our anniversary.")
+        assert '"Date night"' in steer and "Stops: Tacos; Stargazing." in steer
 
 
 async def test_replan_with_an_end_and_for_a_template_with_no_stops(db_app: FastAPI) -> None:
