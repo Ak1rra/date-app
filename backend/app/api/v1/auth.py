@@ -17,7 +17,7 @@ from app.deps import (
     require_email_login,
     require_no_login,
 )
-from app.errors import ApiError
+from app.errors import ApiError, rate_limited
 from app.providers.email.base import EmailDeliveryError, EmailSender
 from app.providers.registry import get_email_sender
 from app.schemas.auth import ChooseProfileIn, MagicLinkIn, OkOut, SessionOut, VerifyIn
@@ -28,15 +28,6 @@ from app.services import auth as auth_service
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-
-def _rate_limited(retry_after: int) -> ApiError:
-    return ApiError(
-        429,
-        "rate_limited",
-        "Too many attempts. Please wait a bit and try again.",
-        {"Retry-After": str(retry_after)},
-    )
 
 
 def _cookie_kwargs(settings: Settings) -> dict[str, Any]:
@@ -73,11 +64,11 @@ async def request_magic_link(
     """Email a sign-in link. Always 202 for a valid address, so accounts can't be probed."""
     ip = client_ip(request)
     if (wait := ip_limiter.hit(ip)) is not None:
-        raise _rate_limited(wait)
+        raise rate_limited(wait)
     email = auth_service.normalize_email(body.email)
     await auth_service.lock_email(session, email)  # held through the commit below
     if (wait := await auth_service.magic_link_retry_after(session, email)) is not None:
-        raise _rate_limited(wait)
+        raise rate_limited(wait)
     link = await auth_service.issue_magic_link(session, settings, email, requester_ip=ip)
     await session.commit()
     try:
@@ -126,7 +117,7 @@ async def verify(
 ) -> SessionOut:
     """Redeem a magic-link token: sign in (creating the account and couple space if new)."""
     if (wait := ip_limiter.hit(client_ip(request))) is not None:
-        raise _rate_limited(wait)
+        raise rate_limited(wait)
     signed_in = await auth_service.verify_magic_link(
         session,
         settings,
@@ -149,7 +140,7 @@ async def choose_profile(
 ) -> SessionOut:
     """NO_LOGIN mode only: act as the household's husband or wife (no PIN, trust)."""
     if (wait := ip_limiter.hit(client_ip(request))) is not None:
-        raise _rate_limited(wait)
+        raise rate_limited(wait)
     try:
         signed_in = await auth_service.choose_profile(
             session,

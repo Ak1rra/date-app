@@ -39,6 +39,16 @@ class ApiError(Exception):
         self.extra = extra
 
 
+def rate_limited(retry_after: int) -> ApiError:
+    """The 429 for a per-IP or per-email limiter, with the seconds to wait."""
+    return ApiError(
+        429,
+        "rate_limited",
+        "Too many attempts. Please wait a bit and try again.",
+        {"Retry-After": str(retry_after)},
+    )
+
+
 def error_body(code: str, message: str, **extra: Any) -> dict[str, Any]:
     return {"error": {"code": code, "message": message, **extra}}
 

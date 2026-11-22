@@ -3,7 +3,6 @@ import uuid
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.auth import _rate_limited
 from app.config import Settings
 from app.db import get_session
 from app.deps import (
@@ -14,6 +13,7 @@ from app.deps import (
     get_verify_ip_limiter,
     require_email_login,
 )
+from app.errors import rate_limited
 from app.providers.geocoding.base import Geocoder
 from app.providers.registry import get_geocoder
 from app.schemas.auth import MeOut
@@ -192,7 +192,7 @@ async def join_couple(
 ) -> MeOut:
     """Redeem an invitation (its token or short code) and become the couple's partner."""
     if (wait := ip_limiter.hit(client_ip(request))) is not None:
-        raise _rate_limited(wait)
+        raise rate_limited(wait)
     out = await pairing_service.join(session, current.user, body)
     await session.commit()
     return out
