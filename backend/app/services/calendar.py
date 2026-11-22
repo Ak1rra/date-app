@@ -25,6 +25,8 @@ from app.models import (
     Itinerary,
     PartnerProfile,
 )
+from app.providers.registry import Providers
+from app.providers.types import ProviderUnavailable, is_open_at
 from app.schemas.calendar import CalendarEntry, SuggestTimesIn, SuggestTimesOut, TimeSlot
 from app.services.couple import not_found
 from app.services.ideas_access import get_visible_idea
@@ -265,6 +267,24 @@ def _earliest(
     return None
 
 
+def _open_on(periods: list[dict[str, Any]], zone: ZoneInfo, day: dt.date) -> list[Interval]:
+    """The stretches of the local `day` a venue is open, to 15 minutes. A step counts only if
+    the whole step is open (as `validate_itinerary` probes), so a slot never runs past close."""
+    step = dt.timedelta(minutes=15)
+    out: list[Interval] = []
+    moment, end = _at(zone, day, dt.time.min), _at(zone, day + dt.timedelta(days=1), dt.time.min)
+    while moment < end:
+        first = moment.astimezone(zone).replace(tzinfo=None)
+        last = (moment + step - dt.timedelta(minutes=1)).astimezone(zone).replace(tzinfo=None)
+        if is_open_at(periods, first) and is_open_at(periods, last):
+            if out and out[-1][1] == moment:
+                out[-1] = (out[-1][0], moment + step)
+            else:
+                out.append((moment, moment + step))
+        moment += step
+    return [(a, min(b, end)) for a, b in out]
+
+
 def _part_of_day(start: dt.datetime) -> str:
     return "morning" if start.hour < 12 else "afternoon" if start.hour < 17 else "evening"
 
@@ -311,9 +331,11 @@ def compute_slots(
     weeks: int,
     best_time: str | None,
     event: EventStart | None = None,
+    open_periods: list[dict[str, Any]] | None = None,
 ) -> list[TimeSlot]:
     """Up to three suggested slots, a pure function of its inputs (m3 design, "Suggest times").
-    `today` is the local date; the candidate days start tomorrow."""
+    `today` is the local date; the candidate days start tomorrow. With `open_periods` (the
+    venue's opening hours) a slot lies wholly inside them; None means the hours aren't known."""
     duration = dt.timedelta(minutes=duration_minutes)
     buffered = [(start - BUFFER, end + BUFFER) for start, end in busy]
     anytime = best_time in (None, "any") and event is None
@@ -328,6 +350,8 @@ def compute_slots(
             free = _intersect(free, person.free_on(zone, day))
         for block in buffered:
             free = _subtract(free, block)
+        if open_periods is not None:
+            free = _intersect(free, _open_on(open_periods, zone, day))
         start = _pick_start(free, day, zone, duration, best_time, event) if free else None
         if start is None:
             continue
@@ -394,20 +418,38 @@ async def _availability(session: AsyncSession, couple_id: uuid.UUID) -> list[Ava
     return list(by_profile.values())
 
 
+async def _venue_hours(
+    providers: Providers | None, place_ids: list[Any]
+) -> list[dict[str, Any]] | None:
+    """The opening hours of the idea's first venue, fetched live; None when there is no venue,
+    no provider, the provider is down, or the hours are unknown (no constraint then)."""
+    if providers is None or providers.places is None or not place_ids:
+        return None
+    try:
+        place = await providers.places.details(str(place_ids[0]))
+    except ProviderUnavailable:
+        return None
+    return place.opening_periods
+
+
 async def suggest_times(
     session: AsyncSession,
     viewer_user_id: uuid.UUID,
     couple_id: uuid.UUID,
     body: SuggestTimesIn,
     now: dt.datetime | None = None,
+    providers: Providers | None = None,
 ) -> SuggestTimesOut:
-    """Up to three times both of you are free for `body.duration_minutes`."""
+    """Up to three times both of you are free for `body.duration_minutes`. When the idea has a
+    venue whose opening hours are known, the times fall inside them (FR-CAL-4)."""
     best_time: str | None = body.best_time
     event: EventStart | None = None
+    open_periods: list[dict[str, Any]] | None = None
     if body.idea_id is not None:
         idea = await get_visible_idea(session, couple_id, viewer_user_id, body.idea_id)
         best_time = best_time or idea.best_time
         event = _event_start(idea.generation)
+        open_periods = await _venue_hours(providers, idea.place_ids)
 
     zone = await _couple_zone(session, couple_id)
     today = (now or dt.datetime.now(dt.UTC)).astimezone(zone).date()
@@ -445,5 +487,6 @@ async def suggest_times(
         weeks=body.weeks,
         best_time=best_time,
         event=event,
+        open_periods=open_periods,
     )
     return SuggestTimesOut(slots=slots)

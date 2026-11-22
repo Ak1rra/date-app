@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1.itineraries import get_itinerary_providers
 from app.db import get_session
 from app.deps import CurrentUser, current_user
+from app.providers.registry import Providers
 from app.schemas.calendar import CalendarEntry, SuggestTimesIn, SuggestTimesOut
 from app.services import calendar as service
 from app.services.couple import require_couple_id
@@ -27,11 +29,12 @@ async def get_calendar(
 @router.post("/suggest-times", response_model=SuggestTimesOut)
 async def suggest_times(
     body: SuggestTimesIn,
+    providers: Providers = Depends(get_itinerary_providers),
     session: AsyncSession = Depends(get_session),
     current: CurrentUser = Depends(current_user),
 ) -> SuggestTimesOut:
     """Up to three times when both of you are free, soonest first (weekend evenings first when
     the time of day doesn't matter). Deterministic: no AI."""
     return await service.suggest_times(
-        session, current.user.id, require_couple_id(current.couple_id), body
+        session, current.user.id, require_couple_id(current.couple_id), body, providers=providers
     )

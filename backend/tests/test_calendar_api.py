@@ -19,7 +19,7 @@ from app.models import (
 from app.schemas.calendar import TimeSlot
 from app.services.calendar import Availability, EventStart, _event_start, compute_slots
 from tests.authutil import browser, call, profile_ids
-from tests.itinerary_helpers import World, seed, when, world
+from tests.itinerary_helpers import TAQUERIA, World, seed, when, world
 
 pytestmark = pytest.mark.db
 
@@ -101,6 +101,7 @@ def slots(
     weeks: int = 3,
     best_time: str | None = None,
     event: EventStart | None = None,
+    open_periods: list[dict[str, Any]] | None = None,
     zone: ZoneInfo = UTC,
     today: dt.date = TODAY,
 ) -> list[TimeSlot]:
@@ -113,6 +114,7 @@ def slots(
         weeks=weeks,
         best_time=best_time,
         event=event,
+        open_periods=open_periods,
     )
 
 
@@ -570,3 +572,72 @@ async def test_suggest_times_validates_the_request(db_app: FastAPI) -> None:
             assert response.status_code == 422, body
         edges = {"duration_minutes": 720, "weeks": 6}
         assert (await call(w.owner, "POST", SUGGEST, edges)).status_code == 200
+
+
+# --- Venue opening hours (FR-CAL-4)
+
+
+def open_hours(opens: int, closes: int) -> list[dict[str, dict[str, int]]]:
+    return [
+        {"open": {"day": day, "hour": opens, "minute": 0}, "close": {"day": day, "hour": closes}}
+        for day in range(7)
+    ]
+
+
+def test_slots_stay_inside_the_venue_opening_hours() -> None:
+    # Open 12:00-15:00: only the afternoon is on offer.
+    result = slots(duration_minutes=120, open_periods=open_hours(12, 15))
+    assert len(result) == 3
+    for slot in result:
+        assert dt.time(12) <= slot.starts_at.time()
+        assert slot.ends_at.time() <= dt.time(15)
+
+
+def test_a_slot_that_would_run_past_closing_is_not_offered() -> None:
+    assert slots(duration_minutes=240, open_periods=open_hours(12, 15)) == []
+
+
+def test_a_best_time_the_venue_is_closed_for_gives_no_slot() -> None:
+    assert slots(best_time="evening", open_periods=open_hours(10, 15)) == []
+
+
+def test_unknown_hours_change_nothing() -> None:
+    assert slots(open_periods=None) == slots()
+
+
+def test_slots_follow_hours_that_wrap_past_midnight() -> None:
+    late = [
+        {"open": {"day": day, "hour": 18, "minute": 0}, "close": {"day": (day + 1) % 7, "hour": 2}}
+        for day in range(7)
+    ]
+    result = slots(duration_minutes=60, best_time="evening", open_periods=late)
+    assert len(result) == 3
+    assert all(slot.starts_at.time() >= dt.time(18) for slot in result)
+
+
+async def test_suggest_times_avoid_the_ideas_venue_closed_hours(db_app: FastAPI) -> None:
+    async with world(db_app) as w:
+        await set_timezone(w, "UTC")
+        # Taqueria Sol is open 10:00-21:00; both are free 20:00-23:00, so only 20:00 fits an hour.
+        for who in ("owner", "partner"):
+            await add_availability(
+                w, who, windows=[(d, dt.time(20), dt.time(23)) for d in range(7)]
+            )
+        idea = await add_idea(w, grounded=True, place_ids=[TAQUERIA])
+        body = {"duration_minutes": 60, "idea_id": str(idea)}
+        response = await call(w.owner, "POST", SUGGEST, body)
+        assert response.status_code == 200, response.text
+        found = response.json()["slots"]
+        assert len(found) == 3
+        for slot in found:
+            assert dt.datetime.fromisoformat(slot["starts_at"]).time() == dt.time(20)
+            assert dt.datetime.fromisoformat(slot["ends_at"]).time() <= dt.time(21)
+
+        # 90 minutes would run past closing, though both are free until 23:00.
+        long_ask = await call(w.owner, "POST", SUGGEST, {**body, "duration_minutes": 90})
+        assert long_ask.json() == {"slots": []}
+
+        # An idea with no venue is not constrained.
+        plain = await add_idea(w)
+        free = await call(w.owner, "POST", SUGGEST, {"duration_minutes": 90, "idea_id": str(plain)})
+        assert len(free.json()["slots"]) == 3

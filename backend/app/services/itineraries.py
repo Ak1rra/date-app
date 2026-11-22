@@ -9,9 +9,11 @@ Functions flush but leave the commit to the caller. Callers get the itinerary th
 `itinerary_access` first; nothing here checks who is asking except `react`.
 """
 
+import asyncio
 import logging
 import math
 import uuid
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -22,11 +24,29 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.schemas import DraftStop, ItineraryDraft
+from app.ai.validate import ValidationContext, validate_itinerary
 from app.config import Settings
 from app.errors import ApiError
-from app.models import ChecklistItem, Couple, CoupleMember, Itinerary, Stop, TravelLeg, User
+from app.models import (
+    ChecklistItem,
+    Couple,
+    CoupleMember,
+    Itinerary,
+    Stop,
+    SurpriseHint,
+    TravelLeg,
+    User,
+)
 from app.providers.registry import Providers
-from app.providers.types import LatLng, Place, ProviderUnavailable, to_jsonable
+from app.providers.types import (
+    Event,
+    LatLng,
+    Place,
+    ProviderUnavailable,
+    event_from_json,
+    to_jsonable,
+)
 from app.providers.weather.base import ATTRIBUTION as WEATHER_ATTRIBUTION
 from app.realtime import emit_itinerary
 from app.schemas.itineraries import (
@@ -60,6 +80,9 @@ MAX_VENUE_MAX_AGE_DAYS = 30
 SPEED_KMH = {"walk": 4.5, "bicycle": 14.0, "transit": 20.0, "drive": 30.0, "rideshare": 30.0}
 ESTIMATE_OVERHEAD_MIN = 3
 SURPRISE_STOP_TITLE = "Surprise stop ✨"
+# Issues worded for the AI build's repair pass (they tell the model what to do), never shown to
+# a person as warnings.
+REPAIR_ONLY_CODES = frozenset({"ungrounded", "evergreen_with_id"})
 EVENTS_ATTRIBUTION = "Events from Ticketmaster"
 GOOGLE_TRAVEL_MODES = {
     "drive": "driving",
@@ -198,6 +221,19 @@ async def _live_place(providers: Providers, place_id: str) -> Place | None:
         return None
 
 
+async def _places_by_id(providers: Providers, place_ids: Iterable[str]) -> dict[str, Place | None]:
+    """Live details for each distinct id, fetched concurrently so an outage costs one timeout
+    rather than one per stop. A failed lookup of any kind maps to None."""
+    ids = list(dict.fromkeys(place_ids))
+    found = await asyncio.gather(
+        *(_live_place(providers, pid) for pid in ids), return_exceptions=True
+    )
+    return {
+        pid: result if isinstance(result, Place) else None
+        for pid, result in zip(ids, found, strict=True)
+    }
+
+
 def _float(value: Decimal | None) -> float | None:
     return None if value is None else float(value)
 
@@ -319,6 +355,9 @@ async def itinerary_out(
     previous: tuple[LatLng, str | None] | None = None
     previous_leg: TravelLeg | None = None
     refreshed = False
+    live_places = await _places_by_id(
+        providers, (s.place_id for s, h in zip(stops, hidden, strict=True) if s.place_id and not h)
+    )
     for stop, is_hidden in zip(stops, hidden, strict=True):
         if is_hidden:
             stop_outs.append(_redacted_stop(stop))
@@ -326,7 +365,7 @@ async def itinerary_out(
             previous_leg = None
             stop_coords.append(None)
             continue
-        place = await _live_place(providers, stop.place_id) if stop.place_id else None
+        place = live_places.get(stop.place_id) if stop.place_id else None
         coords = _stored_coords(stop)
         if place is not None:
             for text in place.attributions:
@@ -502,9 +541,94 @@ async def mark_seen(session: AsyncSession, itinerary: Itinerary, viewer_user_id:
 async def compute_warnings(
     session: AsyncSession, itinerary: Itinerary, providers: Providers, settings: Settings
 ) -> list[dict[str, Any]]:
-    """The itinerary's current warnings. The seam where hours/weather/event validation plugs
-    in; for now it leaves them as they are."""
-    return list(itinerary.warnings or [])
+    """The itinerary's warnings, rebuilt from its current stops and times with the checks a
+    build is held to (`validate_itinerary`: hours, event dates, travel, budget, window). Stale
+    warnings drop away and `stop_index` follows the current order. A stop with no times is
+    skipped. A stop whose place the provider can't look up right now gets no hours or
+    unknown-place warning (an outage isn't the stop's fault); its stored `evergreen` flag still
+    counts for the other checks."""
+    stops = await load_stops(session, itinerary.id)
+    couple = await session.get(Couple, itinerary.couple_id)
+    timezone = couple.timezone if couple is not None else "UTC"
+    legs = {
+        (leg.from_stop_id, leg.to_stop_id): leg for leg in await load_legs(session, itinerary.id)
+    }
+
+    timed = [s for s in stops if s.starts_at is not None and s.ends_at is not None]
+    place_ids = list(dict.fromkeys(s.place_id for s in timed if s.place_id))
+    seen_places = {
+        pid: place for pid, place in (await _places_by_id(providers, place_ids)).items() if place
+    }
+    unresolved: set[int] = set()  # checked stops whose place couldn't be looked up
+    seen_events: dict[str, Event] = {}
+    draft_stops: list[DraftStop] = []
+    stop_ids: list[uuid.UUID] = []
+    original: list[int] = []  # the position of each checked stop among all of them
+    for index, stop in enumerate(stops):
+        if stop.starts_at is None or stop.ends_at is None:
+            continue
+        if stop.place_id and stop.place_id not in seen_places:
+            unresolved.add(len(draft_stops))
+        event_id: str | None = None
+        if stop.event:
+            try:
+                event = event_from_json(stop.event)
+            except (KeyError, TypeError, ValueError):
+                event = None
+            if event is not None:
+                seen_events[event.event_id] = event
+                event_id = event.event_id
+        draft_stops.append(
+            DraftStop.model_construct(
+                title=stop.title,
+                place_id=stop.place_id,
+                event_id=event_id,
+                evergreen=stop.evergreen,
+                starts_at=stop.starts_at,
+                ends_at=stop.ends_at,
+                description=stop.description or "",
+                est_cost=None if stop.est_cost is None else float(stop.est_cost),
+                notes=stop.notes,
+                booking_url=None,
+            )
+        )
+        stop_ids.append(stop.id)
+        original.append(index)
+    if not draft_stops:
+        return []
+
+    travel: list[int | None] = []
+    for here, there in zip(stop_ids, stop_ids[1:], strict=False):
+        leg = legs.get((here, there))
+        travel.append(leg.duration_minutes if leg is not None else None)
+    ctx = ValidationContext(
+        seen_places=seen_places,
+        seen_events=seen_events,
+        places=None,  # every place was looked up above
+        timezone=timezone,
+        budget_max=itinerary.budget,
+        travel_minutes=travel,
+        buffer_minutes=settings.travel_buffer_minutes,
+        window_start=itinerary.starts_at or datetime.min.replace(tzinfo=UTC),
+        window_end=itinerary.ends_at or datetime.max.replace(tzinfo=UTC),
+    )
+    draft = ItineraryDraft.model_construct(
+        title=itinerary.title, stops=draft_stops, transport_mode="drive"
+    )
+    issues = [
+        i
+        for i in await validate_itinerary(draft, ctx)
+        if i.code not in REPAIR_ONLY_CODES
+        and not (i.stop_index in unresolved and i.code in ("unknown_place", "closed"))
+    ]
+    return [
+        {
+            "stop_index": None if i.stop_index is None else original[i.stop_index],
+            "code": i.code,
+            "message": i.message,
+        }
+        for i in issues
+    ]
 
 
 async def _partner_id(session: AsyncSession, itinerary: Itinerary) -> uuid.UUID | None:
@@ -653,6 +777,42 @@ async def recompute_legs(
     await session.flush()
 
 
+def _start_shift(previous: datetime | None, new: datetime | None) -> timedelta | None:
+    """How far a date's start moved, None when it didn't or there was no start before."""
+    if previous is None or new is None or new == previous:
+        return None
+    return new - previous
+
+
+async def _shift_stops(session: AsyncSession, itinerary: Itinerary, delta: timedelta) -> None:
+    """Move every stop with the date it belongs to (rescheduling, FR-CAL-3)."""
+    for stop in await load_stops(session, itinerary.id):
+        if stop.starts_at is not None:
+            stop.starts_at = stop.starts_at + delta
+        if stop.ends_at is not None:
+            stop.ends_at = stop.ends_at + delta
+    await session.flush()
+
+
+async def _shift_surprise(
+    session: AsyncSession, itinerary: Itinerary, delta: timedelta, *, shift_reveal: bool
+) -> None:
+    """Move an unrevealed surprise's reveal time and its unreleased hints with its stops, so
+    nothing is revealed or released before the moved date."""
+    if not itinerary.is_surprise or itinerary.revealed_at is not None:
+        return
+    if shift_reveal and itinerary.reveal_at is not None:
+        itinerary.reveal_at = itinerary.reveal_at + delta
+    hints = await session.execute(
+        select(SurpriseHint)
+        .where(SurpriseHint.itinerary_id == itinerary.id, SurpriseHint.released_at.is_(None))
+        .execution_options(populate_existing=True)
+    )
+    for hint in hints.scalars():
+        hint.release_at = hint.release_at + delta
+    await session.flush()
+
+
 async def revalidate(
     session: AsyncSession, itinerary: Itinerary, providers: Providers, settings: Settings
 ) -> None:
@@ -682,12 +842,19 @@ async def patch_itinerary(
     await session.refresh(itinerary, with_for_update=True)  # serialise with completion/cancel
     fields = body.model_fields_set
     starts_at = body.starts_at if "starts_at" in fields else itinerary.starts_at
-    ends_at = body.ends_at if "ends_at" in fields else itinerary.ends_at
+    delta = _start_shift(itinerary.starts_at, starts_at)
+    if "ends_at" in fields:
+        ends_at = body.ends_at
+    elif itinerary.ends_at is not None and delta is not None:
+        ends_at = itinerary.ends_at + delta  # the date keeps its length
+    else:
+        ends_at = itinerary.ends_at
     if starts_at is not None and ends_at is not None and ends_at < starts_at:
         raise _invalid_times()
     if starts_at is None and itinerary.status == "scheduled":
         raise ApiError(422, "invalid_times", "A scheduled date needs a start time.")
     times_changed = starts_at != itinerary.starts_at or ends_at != itinerary.ends_at
+    budget_changed = "budget" in fields and _money(body.budget) != itinerary.budget
     if times_changed and itinerary.status in ("completed", "cancelled"):
         raise ApiError(409, "not_editable", "A finished date's time can't be changed.")
     prev_status, prev_starts_at = itinerary.status, itinerary.starts_at
@@ -696,6 +863,9 @@ async def patch_itinerary(
         itinerary.title = body.title
     itinerary.starts_at = starts_at
     itinerary.ends_at = ends_at
+    if delta is not None:
+        await _shift_stops(session, itinerary, delta)
+        await _shift_surprise(session, itinerary, delta, shift_reveal=True)
     if "budget" in fields:
         itinerary.budget = _money(body.budget)
     for name in ("backup_plan", "bring_wear", "invitation_message"):
@@ -703,11 +873,19 @@ async def patch_itinerary(
             setattr(itinerary, name, getattr(body, name))
     itinerary.updated_at = now()
     await session.flush()
-    if times_changed and itinerary.status == "scheduled":
+    if (times_changed or budget_changed) and itinerary.status == "scheduled":
         await revalidate(session, itinerary, providers, settings)
+    if times_changed and itinerary.status == "scheduled":
         await schedule_completion(session, itinerary)
         await on_scheduled(session, itinerary, settings, prev_status, prev_starts_at, prev_known)
         await reminders.schedule_reminders(session, itinerary)
+        # Jobs queued for the old times stay queued and are harmless: `process_due` re-reads
+        # `reveal_at` and each hint's `release_at` under the lock, so an early job does nothing.
+        # Times moved to now or earlier are handled here, as `schedule` does, because
+        # `schedule_due_jobs` only queues times after `moment`.
+        moment = now()
+        await surprise.process_due(session, itinerary, settings, moment)
+        await surprise.schedule_due_jobs(session, itinerary, moment)
     emit_itinerary(session, itinerary, "itinerary.updated")
 
 
@@ -893,9 +1071,13 @@ async def schedule(
     await session.refresh(itinerary, with_for_update=True)  # serialise with the completion job
     if itinerary.status not in ("draft", "scheduled"):
         raise ApiError(409, "invalid_status", f"A {itinerary.status} date can't be scheduled.")
+    delta = _start_shift(itinerary.starts_at, body.starts_at)
     ends_at = body.ends_at
-    if ends_at is None and itinerary.ends_at is not None and itinerary.ends_at >= body.starts_at:
-        ends_at = itinerary.ends_at
+    if ends_at is None and itinerary.ends_at is not None:
+        if delta is not None:
+            ends_at = itinerary.ends_at + delta  # the date keeps its length
+        elif itinerary.ends_at >= body.starts_at:
+            ends_at = itinerary.ends_at
     if ends_at is not None and ends_at < body.starts_at:
         raise _invalid_times()
     if body.mode == "surprise" and itinerary.seen_by_partner_at is not None:
@@ -904,6 +1086,8 @@ async def schedule(
     prev_known = _partner_knows(itinerary)
     itinerary.starts_at = body.starts_at
     itinerary.ends_at = ends_at
+    if delta is not None:
+        await _shift_stops(session, itinerary, delta)
     if body.invitation_message is not None:
         itinerary.invitation_message = body.invitation_message
     if body.mode == "announce":
@@ -914,6 +1098,8 @@ async def schedule(
     else:
         itinerary.is_surprise = True
         itinerary.reveal_at = body.starts_at
+    if delta is not None:
+        await _shift_surprise(session, itinerary, delta, shift_reveal=False)  # reveal_at is set
     itinerary.status = "scheduled"
     itinerary.updated_at = now()
     await session.flush()

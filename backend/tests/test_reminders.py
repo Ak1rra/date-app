@@ -15,7 +15,7 @@ from app.worker import handlers
 from app.worker.jobs import registered_kinds
 from tests.authutil import call
 from tests.conftest import make_settings
-from tests.itinerary_helpers import ITINERARIES, World, fake_providers, seed, when, world
+from tests.itinerary_helpers import ITINERARIES, TAQUERIA, World, fake_providers, seed, when, world
 
 pytestmark = pytest.mark.db
 
@@ -48,6 +48,24 @@ async def run(
             session, which, payload, SETTINGS, lambda _couple: fake_providers()
         )
         await session.commit()
+
+
+def closed_stops(count: int) -> list[dict[str, Any]]:
+    """Stops at a venue that is shut at 22:00 on the day of a date starting at `when(10, 19)`:
+    each one gives a real "closed" warning when the date is revalidated."""
+    return [
+        {
+            "title": f"Stop {n}",
+            "place_id": TAQUERIA,
+            "starts_at": when(10, 22) + dt.timedelta(minutes=30 * n),
+            "ends_at": when(10, 22) + dt.timedelta(minutes=30 * n + 20),
+        }
+        for n in range(count)
+    ]
+
+
+def closed(n: int) -> str:
+    return f"Taqueria Sol is closed for part of 'Stop {n}''s time."
 
 
 async def set_timezone(w: World, name: str) -> None:
@@ -123,7 +141,7 @@ async def test_reminder_wording_for_both_members(db_app: FastAPI) -> None:
             status="scheduled",
             announced_at=when(-1),
             starts_at=start,
-            warnings=[{"stop_index": 0, "code": "closed", "message": "Rain is likely"}],
+            stops=closed_stops(1),
         )
         for text in ("wine", "flowers", "tickets", "umbrella"):
             added = await call(
@@ -147,7 +165,7 @@ async def test_reminder_wording_for_both_members(db_app: FastAPI) -> None:
             (note,) = await notes(w, user_id, "reminder_day_before")
             assert note.body == (
                 "Dinner out tomorrow at 7:00 PM. Bring: flowers, tickets, umbrella."
-                " Heads-up: Rain is likely."
+                f" Heads-up: {closed(0)}."
             )
             assert note.data["url"] == f"/itineraries/{itinerary_id}"
 
@@ -169,19 +187,16 @@ async def test_day_before_lists_up_to_three_warnings(db_app: FastAPI) -> None:
             "announced_at": when(-1),
             "starts_at": start,
         }
-        pair = [{"code": "a", "message": "Rain is likely"}, {"code": "b", "message": "Closed"}]
-        two = await seed(w, title="Two", warnings=pair, **fields)
-        many = await seed(
-            w,
-            title="Many",
-            warnings=[{"code": "x", "message": f"W{n}"} for n in range(5)],
-            **fields,
-        )
+        two = await seed(w, title="Two", stops=closed_stops(2), **fields)
+        many = await seed(w, title="Many", stops=closed_stops(5), **fields)
         await run(w, "day", two, start)
         await run(w, "day", many, start)
         bodies = {n.body for n in await notes(w, w.partner_id, "reminder_day_before")}
-        assert "Two tomorrow at 7:00 PM. Heads-up: Rain is likely; Closed." in bodies
-        assert "Many tomorrow at 7:00 PM. Heads-up: W0; W1; W2. (+2 more)" in bodies
+        assert f"Two tomorrow at 7:00 PM. Heads-up: {closed(0)}; {closed(1)}." in bodies
+        assert (
+            f"Many tomorrow at 7:00 PM. Heads-up: {closed(0)}; {closed(1)}; {closed(2)}. (+2 more)"
+            in bodies
+        )
 
 
 async def test_day_before_adds_forecast_and_wear_for_the_planner_not_the_surprisee(

@@ -458,22 +458,15 @@ async def test_what_is_still_wrong_after_the_repair_is_stored_as_warnings(db_app
     async with world(db_app) as w:
         await set_home(w)
         itinerary_id, before = await dated(
-            w,
-            warnings=[
-                {"stop_index": 1, "code": "closed", "message": "stale"},
-                {"stop_index": 2, "code": "closed", "message": "kept"},
-            ],
+            w, warnings=[{"stop_index": 2, "code": "closed", "message": "stale"}]
         )
         with fake_ai(db_app, {ItineraryDraft: respond}):
             response = await call(w.owner, "POST", regenerate_path(itinerary_id, before[1]["id"]))
         assert response.status_code == 200, response.text
         warnings = response.json()["warnings"]
-        # The other stops are flagged "ungrounded" in the draft too, but only the replaced stop's
-        # issues are taken from this run.
-        assert [(x["stop_index"], x["code"]) for x in warnings] == [
-            (2, "closed"),
-            (1, "ungrounded"),
-        ]
+        # "ungrounded" is worded for the model, so it is not stored; the hand-seeded warning is
+        # rebuilt away.
+        assert warnings == []
 
 
 async def test_a_blank_replacement_title_is_a_handled_failure(db_app: FastAPI) -> None:

@@ -55,6 +55,7 @@ from app.services import couple as couple_service
 from app.services.couple import _money, not_found, now
 from app.services.ideas_access import get_visible_idea
 from app.services.itineraries import (
+    REPAIR_ONLY_CODES,
     LegSnapshot,
     estimate_leg,
     recompute_legs,
@@ -553,7 +554,9 @@ async def _persist(
         backup_plan=draft.backup_plan,
         bring_wear=draft.bring_wear,
         warnings=[
-            {"stop_index": i.stop_index, "code": i.code, "message": i.message} for i in issues
+            {"stop_index": i.stop_index, "code": i.code, "message": i.message}
+            for i in issues
+            if i.code not in REPAIR_ONLY_CODES
         ],
         updated_at=now(),
     )
@@ -745,6 +748,7 @@ async def build_from_idea(
                 weeks=3,
                 idea_id=idea.id,
             ),
+            providers=providers,
         )
         if not found.slots:
             raise ApiError(

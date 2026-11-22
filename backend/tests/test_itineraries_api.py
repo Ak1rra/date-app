@@ -579,8 +579,9 @@ async def test_replace_stops_keeps_known_places_without_a_lookup_and_survives_ro
         body = {"stops": [stop_body(s, notes="n") for s in current]}
         response = await call(w.owner, "PUT", f"{ITINERARIES}/{itinerary_id}/stops", body)
         assert response.status_code == 200, response.text
-        # Only itinerary_out looked places up (3 stops); the edit itself reused the snapshots.
-        assert places.details_calls == [TRATTORIA, TAQUERIA, GELATO]
+        # The edit reused the snapshots, so only revalidating the hours (3 stops) and then
+        # itinerary_out (3 stops) looked places up.
+        assert places.details_calls == [TRATTORIA, TAQUERIA, GELATO] * 2
         assert [s.venue for s in await db_stops(w, itinerary_id)] == before
         stops = response.json()["stops"]
         # Routes down: the stored estimates are served, marked as estimates.
@@ -751,14 +752,19 @@ async def test_patch_updates_fields_and_a_scheduled_time_change_revalidates(
             w.owner,
             "PATCH",
             url,
-            {"title": "  Our night  ", "budget": 150.5, "backup_plan": "Movie at home"},
+            {"title": "  Our night  ", "backup_plan": "Movie at home"},
         )
         assert response.status_code == 200, response.text
         body = response.json()
-        assert body["title"] == "Our night" and body["budget"] == 150.5
+        assert body["title"] == "Our night"
         assert body["backup_plan"] == "Movie at home"
-        assert body["weather"] is None  # no time change: no revalidation
+        assert body["weather"] is None  # no time or budget change: no revalidation
         assert await db_legs(w, itinerary_id) == []
+
+        # A budget change on a scheduled date does revalidate (over_budget depends on it).
+        budget = await call(w.owner, "PATCH", url, {"budget": 150.5})
+        assert budget.json()["budget"] == 150.5 and budget.json()["weather"] is not None
+        assert len(await db_legs(w, itinerary_id)) == 2
 
         new_start = when(12, 18)
         response = await call(
@@ -801,7 +807,8 @@ async def test_patch_validates(db_app: FastAPI) -> None:
             {"title": None},
             {"budget": -1},
             {"starts_at": "2026-01-01T10:00:00"},  # no timezone
-            {"starts_at": when(hour=22).isoformat()},  # after the stored end
+            # the end is before the start
+            {"starts_at": when(hour=22).isoformat(), "ends_at": when(hour=21).isoformat()},
         ):
             assert (await call(w.owner, "PATCH", url, body)).status_code == 422, body
 

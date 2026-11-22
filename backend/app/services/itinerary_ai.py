@@ -204,7 +204,7 @@ async def regenerate_stop(
         *(
             {"stop_index": i.stop_index, "code": i.code, "message": i.message}
             for i in issues
-            if i.stop_index in (index, None)
+            if i.stop_index in (index, None) and i.code not in itinerary_service.REPAIR_ONLY_CODES
         ),
     ]
     itinerary.updated_at = now()

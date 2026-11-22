@@ -339,8 +339,8 @@ async def test_issues_left_after_the_repair_become_warnings(db_app: FastAPI) -> 
         fx = await new_plan(w)
         itinerary = await build_with(fx, respond)
         assert calls == 2  # one run and exactly one repair
-        assert [(x["stop_index"], x["code"]) for x in itinerary.warnings] == [(0, "ungrounded")]
-        assert set(itinerary.warnings[0]) == {"stop_index", "code", "message"}
+        # "ungrounded" is worded for the model, so it is not stored as a warning.
+        assert itinerary.warnings == []
         (stop,) = await rows(w, Stop)
         assert stop.place_id is None and stop.venue is None  # an id no tool returned is dropped
 
