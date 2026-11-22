@@ -23,7 +23,7 @@ function removeOthersData(queryClient: QueryClient, userId: string) {
   });
 }
 
-function broadcast(message: { type: 'profile-changed'; userId: string | null }) {
+export function broadcast(message: { type: 'profile-changed'; userId: string | null }) {
   try {
     if (typeof BroadcastChannel === 'undefined') return;
     const channel = new BroadcastChannel(CHANNEL_NAME);

@@ -874,6 +874,9 @@ export interface paths {
          * Delete Me
          * @description Delete the caller's own account. In NO_LOGIN mode the household user must survive (the
          *     profile picker needs them), so their data is reset instead. Only ever yourself.
+         *
+         *     `user_id` is a guard: the profile the caller saw when they confirmed. If the session has since
+         *     moved to another profile (a switch in this or another tab), nothing is deleted.
          */
         delete: operations["delete_me_api_v1_me_delete"];
         options?: never;
@@ -5095,7 +5098,10 @@ export interface operations {
     };
     delete_me_api_v1_me_delete: {
         parameters: {
-            query?: never;
+            query: {
+                /** @description The profile the caller means to delete. */
+                user_id: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -5109,6 +5115,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AccountDeleteOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

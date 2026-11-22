@@ -1,5 +1,6 @@
 import { Link } from 'react-router';
 import { ButtonLink } from '../components/Button';
+import { AccountData } from '../components/AccountData';
 import { Card } from '../components/EmptyState';
 import { PushSettings } from '../components/PushSettings';
 import { PROFILES, ProfileError } from '../components/ProfileChoice';
@@ -68,6 +69,7 @@ export function ProfilePage() {
         </div>
       </Card>
       <PushSettings key={viewerId ?? 'none'} />
+      <AccountData key={`account-${viewerId ?? 'none'}`} />
       <p className="text-sm text-muted">
         <Link to="/privacy" className="underline">
           Privacy

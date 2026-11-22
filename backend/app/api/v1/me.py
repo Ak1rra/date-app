@@ -1,6 +1,7 @@
 import datetime as dt
+import uuid
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy import func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,6 +9,7 @@ from app.api.v1.auth import _clear_session_cookies
 from app.config import Settings
 from app.db import get_session
 from app.deps import CurrentUser, current_user, get_app_settings
+from app.errors import ApiError
 from app.models import CoupleMember, PartnerProfile
 from app.schemas.account import AccountDeleteOut, AccountExportOut
 from app.schemas.auth import MeOut, MePatch
@@ -55,13 +57,23 @@ async def export_me(
 @router.delete("", response_model=AccountDeleteOut)
 async def delete_me(
     response: Response,
+    user_id: uuid.UUID = Query(description="The profile the caller means to delete."),
     settings: Settings = Depends(get_app_settings),
     session: AsyncSession = Depends(get_session),
     current: CurrentUser = Depends(current_user),
 ) -> AccountDeleteOut:
     """Delete the caller's own account. In NO_LOGIN mode the household user must survive (the
-    profile picker needs them), so their data is reset instead. Only ever yourself."""
+    profile picker needs them), so their data is reset instead. Only ever yourself.
+
+    `user_id` is a guard: the profile the caller saw when they confirmed. If the session has since
+    moved to another profile (a switch in this or another tab), nothing is deleted."""
     user = current.user
+    if user_id != user.id:
+        raise ApiError(
+            409,
+            "profile_changed",
+            "You switched profiles. Check which profile you're on and try again.",
+        )
     if settings.no_login:
         await account.delete_personal_data(session, user.id, current.couple_id, keep_name=True)
         await session.commit()

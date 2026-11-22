@@ -8426,8 +8426,22 @@
     },
     "/api/v1/me": {
       "delete": {
-        "description": "Delete the caller's own account. In NO_LOGIN mode the household user must survive (the\nprofile picker needs them), so their data is reset instead. Only ever yourself.",
+        "description": "Delete the caller's own account. In NO_LOGIN mode the household user must survive (the\nprofile picker needs them), so their data is reset instead. Only ever yourself.\n\n`user_id` is a guard: the profile the caller saw when they confirmed. If the session has since\nmoved to another profile (a switch in this or another tab), nothing is deleted.",
         "operationId": "delete_me_api_v1_me_delete",
+        "parameters": [
+          {
+            "description": "The profile the caller means to delete.",
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "description": "The profile the caller means to delete.",
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -8438,6 +8452,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Delete Me",

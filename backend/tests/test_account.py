@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 import pytest
 from fastapi import FastAPI
-from httpx import AsyncClient
+from httpx import AsyncClient, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -222,6 +222,12 @@ async def seed(
     )
 
 
+async def delete_me(client: AsyncClient) -> Response:
+    """DELETE /me as the client's own user, passing that id as the profile guard requires."""
+    me = (await client.get(ME)).json()
+    return await call(client, "DELETE", f"{ME}?user_id={me['id']}")
+
+
 async def count_for(db: AsyncSession, user_id: uuid.UUID) -> dict[str, int]:
     """How many personal rows of each kind `user_id` still has."""
     await db.rollback()
@@ -426,7 +432,7 @@ async def test_export_of_a_user_with_no_data_is_empty(
 
 async def test_export_and_delete_need_a_session(db_client: AsyncClient) -> None:
     assert (await db_client.get(EXPORT)).status_code == 401
-    assert (await call(db_client, "DELETE", ME)).status_code == 401
+    assert (await call(db_client, "DELETE", f"{ME}?user_id={uuid.uuid4()}")).status_code == 401
 
 
 # -- delete, NO_LOGIN -------------------------------------------------------------------------
@@ -455,7 +461,7 @@ async def test_no_login_delete_resets_my_data_and_keeps_the_household(
     seeded = await seed(db_session, uuid.UUID(me["couple_id"]), mine, theirs)
     assert await count_for(db_session, mine) == OWNER_KEPT
 
-    response = await call(husband, "DELETE", ME)
+    response = await delete_me(husband)
     assert response.status_code == 200
     assert response.json() == {"mode": "reset"}
 
@@ -510,7 +516,7 @@ async def test_email_delete_anonymises_revokes_leaves_and_schedules_the_purge(
         )
         await db_session.commit()
 
-        response = await call(owner, "DELETE", ME)
+        response = await delete_me(owner)
         assert response.status_code == 200
         assert response.json() == {"mode": "deleted"}
         assert "session" not in owner.cookies  # the cookie is cleared
@@ -588,7 +594,7 @@ async def test_purge_deletes_a_solo_couple_and_shared_data(
     db_session.add(shared)
     await db_session.commit()
 
-    assert (await call(db_client, "DELETE", ME)).status_code == 200
+    assert (await delete_me(db_client)).status_code == 200
     async with db_app.state.sessionmaker() as session:
         await handlers.user_purge(session, {"user_id": str(mine)})
         await session.commit()
@@ -628,7 +634,7 @@ async def test_no_login_delete_keeps_partner_and_couple_dates_but_removes_my_dat
     )
     await db_session.commit()
 
-    response = await call(husband, "DELETE", ME)
+    response = await delete_me(husband)
     assert response.status_code == 200
     await db_session.rollback()
     dates = (
@@ -687,7 +693,7 @@ async def test_purge_cleans_an_older_left_membership(
         )
         await db_session.commit()
 
-        assert (await call(owner, "DELETE", ME)).status_code == 200
+        assert (await delete_me(owner)).status_code == 200
         async with db_app.state.sessionmaker() as session:
             await handlers.user_purge(session, {"user_id": str(mine)})
             await session.commit()
@@ -719,3 +725,24 @@ async def test_purge_ignores_a_user_who_is_not_deleted_or_a_bad_payload(
             await handlers.user_purge(session, {})
             await session.commit()
         assert await count_for(db_session, mine) == OWNER_KEPT
+
+
+async def test_delete_with_another_users_id_is_409_and_changes_nothing(
+    nl_app: FastAPI, household: tuple[AsyncClient, AsyncClient], db_session: AsyncSession
+) -> None:
+    husband, wife = household
+    me = (await husband.get(ME)).json()
+    other = (await wife.get(ME)).json()
+    mine, theirs = uuid.UUID(me["id"]), uuid.UUID(other["id"])
+    await seed(db_session, uuid.UUID(me["couple_id"]), mine, theirs)
+
+    for wrong in (other["id"], str(uuid.uuid4())):  # the other profile, then a stranger
+        response = await call(husband, "DELETE", f"{ME}?user_id={wrong}")
+        assert response.status_code == 409
+        assert response.json()["error"]["code"] == "profile_changed"
+    assert await count_for(db_session, mine) == OWNER_KEPT
+    assert await count_for(db_session, theirs) == PARTNER_KEPT
+
+    missing = await call(husband, "DELETE", ME)
+    assert missing.status_code == 422
+    assert await count_for(db_session, mine) == OWNER_KEPT
