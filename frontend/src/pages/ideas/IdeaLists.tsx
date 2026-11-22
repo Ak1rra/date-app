@@ -61,7 +61,7 @@ function IdeaRow({
 
   return (
     <li className="flex flex-col gap-3 rounded-2xl border border-line p-3">
-      <IdeaDetails idea={idea} titleLevel={4}>
+      <IdeaDetails idea={idea}>
         <VoteChips idea={idea} people={people} />
       </IdeaDetails>
       <div className="flex flex-wrap gap-2">

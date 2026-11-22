@@ -12,6 +12,22 @@ import {
 } from '../hooks/useNotifications';
 import { isIos, isStandalone } from '../lib/install';
 
+/** Friendly names for the backend's notification kinds (KINDS in backend/app/schemas/notify.py). */
+const KIND_LABELS: Record<string, string> = {
+  reminder_day_before: 'Day-before reminder',
+  reminder_hour_before: 'Hour-before reminder',
+  checklist_due: 'Checklist nudges',
+  match: "It's a match",
+  ideas_added: 'New shared ideas',
+  date_announced: 'New dates',
+  date_rescheduled: 'Date moved',
+  date_cancelled: 'Date cancelled',
+  hint_released: 'Surprise hints',
+  surprise_revealed: 'Surprise revealed',
+  partner_reaction: 'Partner reactions',
+  rate_prompt: 'Rate your date',
+};
+
 function base64UrlToBytes(value: string): Uint8Array {
   const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
   const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
@@ -193,7 +209,7 @@ function PushSettingsContent() {
                       )
                     }
                   />
-                  <span>{kind.replaceAll('_', ' ')}</span>
+                  <span>{KIND_LABELS[kind] ?? kind.replaceAll('_', ' ')}</span>
                 </label>
               ))}
             </fieldset>

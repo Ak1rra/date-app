@@ -139,6 +139,7 @@ export function PlanForm({ disabled, onSubmit, windowError }: PlanFormProps) {
           value={budget}
           onChange={(e) => setBudget(e.target.value)}
           aria-invalid={budgetInvalid}
+          error={budgetInvalid ? 'Enter a budget of 0 or more, or leave it blank.' : undefined}
         />
         <TextAreaField
           label="What are you in the mood for?"

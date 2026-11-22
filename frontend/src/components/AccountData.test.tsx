@@ -110,6 +110,27 @@ describe('AccountData', () => {
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
 
+  it('returns focus to the opening button when the confirmation closes', async () => {
+    mockApi({
+      'GET /api/v1/auth/session': session,
+      'GET /api/v1/meta': meta(true),
+      'DELETE /api/v1/me': { mode: 'reset' },
+    });
+    renderApp('/profile');
+    const open = async () =>
+      userEvent.click(await screen.findByRole('button', { name: "Reset this profile's data" }));
+
+    await open();
+    expect(screen.getByRole('button', { name: 'Yes, reset' })).toHaveFocus();
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.getByRole('button', { name: "Reset this profile's data" })).toHaveFocus();
+
+    await open();
+    await userEvent.click(await screen.findByRole('button', { name: 'Yes, reset' }));
+    expect(await screen.findByRole('status')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: "Reset this profile's data" })).toHaveFocus();
+  });
+
   it('signs out and goes to /signin after an account is deleted', async () => {
     let deleted = false;
     const api = mockApi({

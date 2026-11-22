@@ -146,6 +146,26 @@ describe('PlanPage', () => {
     expect(api.find('POST', '/api/v1/plan/sessions')).toHaveLength(0);
   });
 
+  it('explains an invalid budget and blocks both submit buttons', async () => {
+    const api = setup();
+    renderApp('/plan');
+    const budget = await screen.findByLabelText('Budget (USD)');
+    expect(screen.queryByText(/Enter a budget of 0 or more/)).not.toBeInTheDocument();
+    await userEvent.type(budget, '-5');
+
+    const message = await screen.findByText('Enter a budget of 0 or more, or leave it blank.');
+    expect(message).toHaveAttribute('role', 'alert');
+    expect(budget).toHaveAttribute('aria-invalid', 'true');
+    expect(budget.getAttribute('aria-describedby')).toContain(message.id);
+    await userEvent.type(screen.getByLabelText(/What are you in the mood for/), 'cozy');
+    await userEvent.click(screen.getByRole('button', { name: 'Show me 3 options' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Plan the whole thing' }));
+    expect(api.find('POST', '/api/v1/plan/sessions')).toHaveLength(0);
+
+    await userEvent.clear(budget);
+    expect(screen.queryByText(/Enter a budget of 0 or more/)).not.toBeInTheDocument();
+  });
+
   it('builds several options with a combine note, capped at three', async () => {
     const api = setup({
       'POST /api/v1/plan/sessions/p1/options': {

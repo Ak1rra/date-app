@@ -90,20 +90,21 @@ describe('PushSettings', () => {
   });
 
   it('lists every notification kind with a readable label', async () => {
-    const kinds = [
-      'reminder_day_before',
-      'reminder_hour_before',
-      'checklist_due',
-      'match',
-      'ideas_added',
-      'date_announced',
-      'date_rescheduled',
-      'date_cancelled',
-      'hint_released',
-      'surprise_revealed',
-      'partner_reaction',
-      'rate_prompt',
-    ];
+    const labels = {
+      reminder_day_before: 'Day-before reminder',
+      reminder_hour_before: 'Hour-before reminder',
+      checklist_due: 'Checklist nudges',
+      match: "It's a match",
+      ideas_added: 'New shared ideas',
+      date_announced: 'New dates',
+      date_rescheduled: 'Date moved',
+      date_cancelled: 'Date cancelled',
+      hint_released: 'Surprise hints',
+      surprise_revealed: 'Surprise revealed',
+      partner_reaction: 'Partner reactions',
+      rate_prompt: 'Rate your date',
+    };
+    const kinds = Object.keys(labels);
     pushApi({
       'GET /api/v1/me/notification-settings': {
         ...settings,
@@ -112,9 +113,21 @@ describe('PushSettings', () => {
     });
     setupPush();
     renderApp('/profile');
-    for (const kind of kinds) {
-      expect(await screen.findByLabelText(kind.replaceAll('_', ' '))).toBeInTheDocument();
+    for (const label of Object.values(labels)) {
+      expect(await screen.findByLabelText(label)).toBeInTheDocument();
     }
+  });
+
+  it('falls back to the spaced-out kind for one it has no label for', async () => {
+    pushApi({
+      'GET /api/v1/me/notification-settings': {
+        ...settings,
+        kinds: { brand_new_kind: true },
+      },
+    });
+    setupPush();
+    renderApp('/profile');
+    expect(await screen.findByLabelText('brand new kind')).toBeInTheDocument();
   });
 
   it('subscribes with the decoded VAPID key and posts the subscription', async () => {

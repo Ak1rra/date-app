@@ -55,11 +55,11 @@ export function VoteChips({ idea, people }: { idea: IdeaOut; people: People }) {
 /** Title, pitch, estimated cost and tags: what every idea shows wherever it appears. */
 export function IdeaDetails({
   idea,
-  titleLevel = 3,
+  titleLevel = 2,
   children,
 }: {
   idea: IdeaOut;
-  titleLevel?: 3 | 4;
+  titleLevel?: 2 | 3 | 4;
   children?: ReactNode;
 }) {
   const Title = `h${titleLevel}` as const;

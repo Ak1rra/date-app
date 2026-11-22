@@ -39,6 +39,8 @@ export function AccountData() {
   const [target, setTarget] = useState<string | null>(null);
   const [wasReset, setWasReset] = useState(false);
   const confirmRef = useRef<HTMLButtonElement>(null);
+  const openerRef = useRef<HTMLButtonElement>(null);
+  const wasConfirming = useRef(false);
   // The wording depends on the server mode, so the destructive action waits until it is known.
   const known = meta.data !== undefined;
   const noLogin = meta.data?.no_login === true;
@@ -46,6 +48,9 @@ export function AccountData() {
 
   useEffect(() => {
     if (confirming) confirmRef.current?.focus();
+    // Closing the confirmation (Cancel or a finished reset) hands focus back to the button that opened it.
+    else if (wasConfirming.current) openerRef.current?.focus();
+    wasConfirming.current = confirming;
   }, [confirming]);
 
   const download = () => {
@@ -127,6 +132,7 @@ export function AccountData() {
             <div className="flex flex-col gap-3">
               <div>
                 <Button
+                  ref={openerRef}
                   variant="secondary"
                   onClick={() => {
                     if (!viewerId) return;

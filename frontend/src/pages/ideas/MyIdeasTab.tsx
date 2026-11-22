@@ -44,7 +44,7 @@ function MyIdeaRow({ idea, partnerName }: { idea: IdeaOut; partnerName: string }
 
   return (
     <li className="flex flex-col gap-3 rounded-2xl border border-line p-3">
-      <IdeaDetails idea={idea} titleLevel={4} />
+      <IdeaDetails idea={idea} />
       {confirmingShare ? (
         <div role="group" aria-label={`Share ${idea.title}?`} className="flex flex-col gap-2">
           <p>

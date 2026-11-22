@@ -49,10 +49,15 @@ export function LoadError({ error, onRetry }: { error: unknown; onRetry: () => v
 interface FieldProps extends Omit<ComponentProps<'input'>, 'id'> {
   label: string;
   hint?: string;
+  /** A visible, announced problem with the current value. */
+  error?: string;
 }
 
-export function TextField({ label, hint, className, ...props }: FieldProps) {
+export function TextField({ label, hint, error, className, ...props }: FieldProps) {
   const id = useId();
+  const describedBy = [hint ? `${id}-hint` : null, error ? `${id}-error` : null]
+    .filter(Boolean)
+    .join(' ');
   return (
     <div className="flex flex-col gap-1">
       <label htmlFor={id} className="text-sm font-semibold">
@@ -60,13 +65,18 @@ export function TextField({ label, hint, className, ...props }: FieldProps) {
       </label>
       <input
         id={id}
-        aria-describedby={hint ? `${id}-hint` : undefined}
+        aria-describedby={describedBy || undefined}
         className={`${inputClass} ${className ?? ''}`}
         {...props}
       />
       {hint ? (
         <p id={`${id}-hint`} className="text-sm text-muted">
           {hint}
+        </p>
+      ) : null}
+      {error ? (
+        <p id={`${id}-error`} className="text-sm text-coral" role="alert">
+          {error}
         </p>
       ) : null}
     </div>
