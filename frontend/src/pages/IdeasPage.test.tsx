@@ -483,6 +483,31 @@ describe('IdeasPage lists', () => {
     });
   });
 
+  it('shows staged progress while making it a date and removes it afterwards', async () => {
+    let release: (response: Response) => void = () => {};
+    ideasApi({
+      'GET /api/v1/ideas/lists': lists,
+      'POST /api/v1/ideas/m1/itinerary': () =>
+        new Promise<Response>((resolve) => {
+          release = resolve;
+        }),
+    });
+    renderApp('/ideas');
+    await userEvent.click(await screen.findByRole('tab', { name: 'Matches (1)' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Make Wine tasting a date' }));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Make it a date' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Checking venues…');
+    release(
+      new Response(JSON.stringify({ error: { code: 'ai_failed', message: 'x' } }), {
+        status: 502,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    await screen.findByRole('alert');
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
   it('sends the picked time as ISO strings', async () => {
     const api = ideasApi({
       'GET /api/v1/ideas/lists': lists,

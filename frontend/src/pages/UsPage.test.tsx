@@ -161,7 +161,7 @@ describe('UsPage', () => {
     renderApp('/us');
 
     const trip = await screen.findByLabelText('Longest trip (minutes)');
-    const radius = screen.getByLabelText('Furthest from home (km)');
+    const radius = screen.getByLabelText('Furthest from home (miles)');
     expect(trip).toHaveAttribute('min', '1');
     expect(radius).toHaveAttribute('min', '1');
     const save = screen.getByRole('button', { name: 'Save shared limits' });
@@ -173,9 +173,9 @@ describe('UsPage', () => {
 
     await userEvent.clear(trip);
     await userEvent.type(trip, '30');
-    await userEvent.type(radius, '1001');
+    await userEvent.type(radius, '622');
     await userEvent.click(save);
-    expect(await screen.findByRole('alert')).toHaveTextContent('from 1 to 1000 km');
+    expect(await screen.findByRole('alert')).toHaveTextContent('from 1 to 621 miles');
     expect(api.find('PUT', '/api/v1/couple/constraints')).toHaveLength(0);
 
     await userEvent.clear(radius);
@@ -184,7 +184,35 @@ describe('UsPage', () => {
     await vi.waitFor(() => expect(api.find('PUT', '/api/v1/couple/constraints')).toHaveLength(1));
     expect(api.body('PUT', '/api/v1/couple/constraints')).toMatchObject({
       max_travel_minutes: 30,
-      max_radius_km: 15,
+      max_radius_km: 24,
     });
+  });
+
+  it('shows the stored kilometres as miles and keeps them exact when untouched', async () => {
+    const api = usApi({
+      'GET /api/v1/couple/constraints': { ...constraints, max_radius_km: 16 },
+      'PUT /api/v1/couple/constraints': constraints,
+    });
+    renderApp('/us');
+
+    expect(await screen.findByLabelText('Furthest from home (miles)')).toHaveValue(10);
+    await userEvent.click(screen.getByRole('button', { name: 'Save shared limits' }));
+    await vi.waitFor(() => expect(api.find('PUT', '/api/v1/couple/constraints')).toHaveLength(1));
+    expect(api.body('PUT', '/api/v1/couple/constraints')).toMatchObject({ max_radius_km: 16 });
+  });
+
+  it('converts an edited mileage back to whole kilometres', async () => {
+    const api = usApi({
+      'GET /api/v1/couple/constraints': { ...constraints, max_radius_km: 16 },
+      'PUT /api/v1/couple/constraints': constraints,
+    });
+    renderApp('/us');
+
+    const radius = await screen.findByLabelText('Furthest from home (miles)');
+    await userEvent.clear(radius);
+    await userEvent.type(radius, '20');
+    await userEvent.click(screen.getByRole('button', { name: 'Save shared limits' }));
+    await vi.waitFor(() => expect(api.find('PUT', '/api/v1/couple/constraints')).toHaveLength(1));
+    expect(api.body('PUT', '/api/v1/couple/constraints')).toMatchObject({ max_radius_km: 32 });
   });
 });

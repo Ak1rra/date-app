@@ -1,16 +1,7 @@
 import { Link } from 'react-router';
 import { ApiError } from '../../api/http';
 import { friendlyMessage } from '../../components/forms';
-import { PlanApiError } from '../../hooks/usePlan';
-
-function formatReset(resetAt: string | null): string | null {
-  if (!resetAt) return null;
-  const date = new Date(resetAt);
-  if (Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
-    date,
-  );
-}
+import { formatReset } from '../../lib/resetTime';
 
 /** True when the error is the API rejecting the date window (shown next to the time fields). */
 export function isWindowError(error: unknown): boolean {
@@ -26,7 +17,7 @@ export function PlanError({ error }: { error: unknown }) {
   let content = <>{friendlyMessage(error)}</>;
   if (error instanceof ApiError) {
     if (error.status === 429) {
-      const reset = formatReset(error instanceof PlanApiError ? error.resetAt : null);
+      const reset = formatReset(error.resetAt);
       content = (
         <>
           You two have used up all the planning magic for now.{' '}

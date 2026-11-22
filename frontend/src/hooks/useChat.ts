@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { client, unwrap, type Schemas } from '../api/client';
 import { ApiError } from '../api/http';
 import { plannerError } from '../api/plannerError';
+import { capMessage } from '../lib/resetTime';
 import { streamChat, type ChatActionOut, type ChatMessageOut } from '../api/sse';
 import { friendlyMessage } from '../components/forms';
 import { useViewerId } from './useSession';
@@ -95,7 +96,10 @@ export function describeApplyError(error: unknown): string {
 /** A sentence for a failed send, before or during the stream. */
 export function describeSendError(error: unknown): string {
   if (error instanceof ApiError && (error.status === 429 || error.code === 'rate_limited')) {
-    return "You've used today's chat messages. Try again tomorrow.";
+    return (
+      capMessage(error.resetAt, 'chat messages') ??
+      "You've used today's chat messages. Try again tomorrow."
+    );
   }
   return friendlyMessage(plannerError(error));
 }

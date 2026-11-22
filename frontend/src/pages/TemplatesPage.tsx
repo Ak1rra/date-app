@@ -9,9 +9,10 @@ import {
   useTemplates,
   type TemplateOut,
 } from '../hooks/useTemplates';
-import { plannerError } from '../api/plannerError';
+import { aiError } from '../api/plannerError';
 import { localToIso } from './itinerary/dateWindow';
 import { Sheet } from '../components/Sheet';
+import { BuildProgress, DATE_STAGES } from './plan/BuildProgress';
 
 function ReplanSheet({ template, onClose }: { template: TemplateOut; onClose: () => void }) {
   const navigate = useNavigate();
@@ -70,7 +71,8 @@ function ReplanSheet({ template, onClose }: { template: TemplateOut; onClose: ()
             aria-invalid={endsTooEarly || undefined}
           />
         </div>
-        <FormError error={plannerError(replan.error)} />
+        {replan.isPending ? <BuildProgress label="Planning…" stages={DATE_STAGES} /> : null}
+        <FormError error={aiError(replan.error)} />
         <Button type="submit" disabled={!starts || endsTooEarly || replan.isPending}>
           {replan.isPending ? 'Planning…' : 'Plan this date'}
         </Button>

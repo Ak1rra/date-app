@@ -1,3 +1,4 @@
+import { capMessage } from '../lib/resetTime';
 import { ApiError } from './http';
 
 /**
@@ -15,11 +16,14 @@ const RATE_LIMITED = "You've hit the AI limit for now — try again later.";
 
 /**
  * plannerError plus the AI-run extras: a 429 (daily/monthly AI cap) gets its own sentence instead
- * of FormError's generic one.
+ * of FormError's generic one, with the reset time when the server sent it.
  */
 export function aiError(error: unknown) {
   if (error instanceof ApiError) {
-    if (error.status === 429) return new ApiError(422, error.code, RATE_LIMITED);
+    if (error.status === 429) {
+      const capped = error.code === 'ai_cap_reached' ? capMessage(error.resetAt) : null;
+      return new ApiError(422, error.code, capped ?? RATE_LIMITED);
+    }
   }
   return plannerError(error);
 }

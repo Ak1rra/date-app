@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { client, unwrap, type Schemas } from '../api/client';
-import { ApiError } from '../api/http';
 import { itinerariesKey, type ItineraryOut } from './useItineraries';
 import { useViewerId } from './useSession';
 
@@ -11,26 +10,6 @@ export type PlanOptionOut = Schemas['PlanOptionOut'];
 export type PlanOptionStop = Schemas['PlanOptionStop'];
 export type PlanBuildIn = Schemas['PlanBuildIn'];
 
-/** An ApiError that also carries the `reset_at` the API adds to a 429 ai_cap_reached. */
-export class PlanApiError extends ApiError {
-  readonly resetAt: string | null;
-
-  constructor(source: ApiError, resetAt: string | null) {
-    super(source.status, source.code, source.message);
-    this.resetAt = resetAt;
-  }
-}
-
-function unwrapPlan<T>(result: { data?: T; error?: unknown; response: Response }): T {
-  try {
-    return unwrap(result);
-  } catch (error) {
-    if (!(error instanceof ApiError)) throw error;
-    const resetAt = (result.error as { error?: { reset_at?: unknown } } | null)?.error?.reset_at;
-    throw new PlanApiError(error, typeof resetAt === 'string' ? resetAt : null);
-  }
-}
-
 const planKey = (userId: string | undefined) => ['plan-sessions', userId] as const;
 
 /** GET /plan/sessions: used to offer "Pick up where you left off". */
@@ -39,7 +18,7 @@ export function usePlanSessions() {
   return useQuery({
     queryKey: planKey(userId),
     enabled: !!userId,
-    queryFn: async () => unwrapPlan(await client.GET('/api/v1/plan/sessions')),
+    queryFn: async () => unwrap(await client.GET('/api/v1/plan/sessions')),
   });
 }
 
@@ -54,7 +33,7 @@ export interface StartPlanVars {
 
 async function sessionFor({ body, sessionId, onSession }: StartPlanVars): Promise<string> {
   if (sessionId) return sessionId;
-  const created: PlanSessionOut = unwrapPlan(await client.POST('/api/v1/plan/sessions', { body }));
+  const created: PlanSessionOut = unwrap(await client.POST('/api/v1/plan/sessions', { body }));
   onSession?.(created.id);
   return created.id;
 }
@@ -74,7 +53,7 @@ export function useShowOptions() {
   return useMutation({
     mutationFn: async (vars: StartPlanVars): Promise<PlanOptionsOut> => {
       const planId = await sessionFor(vars);
-      return unwrapPlan(
+      return unwrap(
         await client.POST('/api/v1/plan/sessions/{plan_id}/options', {
           params: { path: { plan_id: planId } },
           body: { more: false },
@@ -91,7 +70,7 @@ export function usePlanAll() {
   return useMutation({
     mutationFn: async (vars: StartPlanVars): Promise<ItineraryOut> => {
       const planId = await sessionFor(vars);
-      return unwrapPlan(
+      return unwrap(
         await client.POST('/api/v1/plan/sessions/{plan_id}/plan-all', {
           params: { path: { plan_id: planId } },
         }),
@@ -106,7 +85,7 @@ export function useMoreOptions(id: string | undefined) {
   const invalidate = usePlanInvalidation();
   return useMutation({
     mutationFn: async (): Promise<PlanOptionsOut> =>
-      unwrapPlan(
+      unwrap(
         await client.POST('/api/v1/plan/sessions/{plan_id}/options', {
           params: { path: { plan_id: id! } },
           body: { more: true },
@@ -121,7 +100,7 @@ export function useBuildPlan(id: string | undefined) {
   const invalidate = usePlanInvalidation();
   return useMutation({
     mutationFn: async (body: PlanBuildIn): Promise<ItineraryOut> =>
-      unwrapPlan(
+      unwrap(
         await client.POST('/api/v1/plan/sessions/{plan_id}/build', {
           params: { path: { plan_id: id! } },
           body,

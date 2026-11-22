@@ -4,6 +4,7 @@ import { Button } from '../../components/Button';
 import { FormError, Segmented, SelectField, TextField } from '../../components/forms';
 import { useGenerateIdeas, type GenerateIdeasIn } from '../../hooks/useIdeas';
 import { Sheet } from '../../components/Sheet';
+import { BuildProgress, IDEA_STAGES } from '../plan/BuildProgress';
 
 export type GenerateMode = GenerateIdeasIn['mode'];
 
@@ -160,6 +161,9 @@ export function GenerateIdeasSheet({
               />
               Surprise me
             </label>
+            {generate.isPending ? (
+              <BuildProgress label="Dreaming up ideas…" stages={IDEA_STAGES} />
+            ) : null}
             <FormError error={aiError(generate.error)} />
             <Button type="submit" disabled={budgetInvalid || generate.isPending}>
               {generate.isPending ? 'Dreaming up ideas…' : 'Generate ideas'}

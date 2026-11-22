@@ -122,6 +122,39 @@ describe('GenerateIdeasSheet', () => {
     expect(await sheet.findByRole('button', { name: 'Dreaming up ideas…' })).toBeDisabled();
   });
 
+  it('shows staged progress while generating and removes it afterwards', async () => {
+    let release: (response: Response) => void = () => {};
+    api({
+      'POST /api/v1/ideas/generate': () =>
+        new Promise<Response>((resolve) => {
+          release = resolve;
+        }),
+    });
+    renderApp('/ideas');
+    const sheet = await openSheet();
+    expect(sheet.queryByRole('status')).not.toBeInTheDocument();
+    await userEvent.click(sheet.getByRole('button', { name: 'Generate ideas' }));
+    expect(await sheet.findByRole('status')).toHaveTextContent('Finding spots…');
+    release(apiError(503, 'provider_unavailable'));
+    await sheet.findByRole('alert');
+    expect(sheet.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['daily', 8, /You've used today's AI planning\. It resets /],
+    ['monthly', 240, /You've used this month's AI planning\. It resets /],
+  ])('explains a %s cap with the reset time', async (_name, hours, message) => {
+    const reset = new Date(Date.now() + hours * 3_600_000).toISOString();
+    api({
+      'POST /api/v1/ideas/generate': () =>
+        jsonResponse({ error: { code: 'ai_cap_reached', message: 'raw', reset_at: reset } }, 429),
+    });
+    renderApp('/ideas');
+    const sheet = await openSheet();
+    await userEvent.click(sheet.getByRole('button', { name: 'Generate ideas' }));
+    expect(await sheet.findByRole('alert')).toHaveTextContent(message);
+  });
+
   it.each(['0', '-5', '10001'])('blocks a budget of %s with a hint', async (value) => {
     const mock = api();
     renderApp('/ideas');

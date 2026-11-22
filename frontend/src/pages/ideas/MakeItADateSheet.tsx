@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { plannerError } from '../../api/plannerError';
+import { aiError } from '../../api/plannerError';
 import { Button, ButtonLink } from '../../components/Button';
 import { FormError, SelectField, TextField } from '../../components/forms';
 import { useMakeItADate, type IdeaItineraryIn, type IdeaOut } from '../../hooks/useIdeas';
 import { localToIso } from '../itinerary/dateWindow';
 import { Sheet } from '../../components/Sheet';
+import { BuildProgress, DATE_STAGES } from '../plan/BuildProgress';
 
 /** "Make it a date" for an active idea: opens the sheet below. */
 export function MakeItADateButton({ idea }: { idea: IdeaOut }) {
@@ -141,7 +142,8 @@ export function MakeItADateSheet({
             onChange={(event) => setBudget(event.target.value)}
           />
         </div>
-        <FormError error={plannerError(make.error)} />
+        {make.isPending ? <BuildProgress label="Planning…" stages={DATE_STAGES} /> : null}
+        <FormError error={aiError(make.error)} />
         <Button type="submit" disabled={!ready || make.isPending}>
           {make.isPending ? 'Planning…' : 'Make it a date'}
         </Button>

@@ -4,12 +4,15 @@ import { PROFILE_HEADER } from '../lib/offlineApi';
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
+  /** The `reset_at` the API adds to a 429 ai_cap_reached (ISO), when it sent one. */
+  readonly resetAt: string | null;
 
-  constructor(status: number, code: string, message: string) {
+  constructor(status: number, code: string, message: string, resetAt: string | null = null) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.code = code;
+    this.resetAt = resetAt;
   }
 }
 
@@ -93,15 +96,19 @@ export const csrfMiddleware: Middleware = {
 export async function toApiError(res: Response): Promise<ApiError> {
   let code = 'unknown_error';
   let message = res.statusText || 'Something went wrong';
+  let resetAt: string | null = null;
   try {
     const body: unknown = await res.json();
-    const err = (body as { error?: { code?: unknown; message?: unknown } } | null)?.error;
+    const err = (
+      body as { error?: { code?: unknown; message?: unknown; reset_at?: unknown } } | null
+    )?.error;
     if (typeof err?.code === 'string') code = err.code;
     if (typeof err?.message === 'string') message = err.message;
+    if (typeof err?.reset_at === 'string') resetAt = err.reset_at;
   } catch {
     // Non-JSON error body: keep the defaults.
   }
-  return new ApiError(res.status, code, message);
+  return new ApiError(res.status, code, message, resetAt);
 }
 
 /** fetch with cookies and CSRF handling; resolves to the parsed JSON body (undefined for 204). */

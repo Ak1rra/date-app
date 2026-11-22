@@ -96,6 +96,25 @@ describe('TemplatesPage', () => {
     });
   });
 
+  it('shows staged progress while replanning and removes it afterwards', async () => {
+    let release: (response: Response) => void = () => {};
+    setup({
+      'POST /api/v1/templates/t1/replan': () =>
+        new Promise<Response>((resolve) => {
+          release = resolve;
+        }),
+    });
+    renderApp('/templates');
+    await userEvent.click(await screen.findByRole('button', { name: 'Replan Classic night' }));
+    fireEvent.change(screen.getByLabelText('Starts'), { target: { value: '2026-12-12T19:00' } });
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Plan this date' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Checking venues…');
+    release(jsonResponse({ error: { code: 'ai_failed', message: 'x' } }, 502));
+    await screen.findByRole('alert');
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
   it("shows the server's message when the planner is unavailable", async () => {
     setup({
       'POST /api/v1/templates/t1/replan': jsonResponse(

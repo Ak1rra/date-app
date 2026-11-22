@@ -21,7 +21,11 @@ import { ALCOHOL, TRANSPORT_MODES, pretty } from './options';
 /** Empty input -> null, otherwise a number. */
 const num = (v: string): number | null => (v.trim() === '' ? null : Number(v));
 const TRAVEL_MAX = 1440;
-const RADIUS_MAX = 1000;
+const RADIUS_MAX = 1000; // km, the API's cap
+const MILES_PER_KM = 0.621371;
+const kmToMiles = (km: number) => Math.round(km * MILES_PER_KM);
+const milesToKm = (miles: number) => Math.round(miles / MILES_PER_KM);
+const RADIUS_MAX_MILES = kmToMiles(RADIUS_MAX);
 
 /** The API takes whole numbers from 1 up to a cap; empty (no limit) is always fine. */
 const outOfRange = (v: number | null | undefined, max: number) =>
@@ -39,6 +43,10 @@ function ConstraintsForm({ initial }: { initial: ConstraintsOut }) {
     max_travel_minutes: initial.max_travel_minutes,
     transport_modes: initial.transport_modes as ConstraintsIn['transport_modes'],
   });
+  // The radius is shown and edited in miles; the API field stays kilometres.
+  const [radiusMiles, setRadiusMiles] = useState<number | null>(
+    initial.max_radius_km === null ? null : kmToMiles(initial.max_radius_km),
+  );
   const save = useSaveConstraints();
   const [limitError, setLimitError] = useState<string | null>(null);
   const set = <K extends keyof ConstraintsIn>(key: K, value: ConstraintsIn[K]) =>
@@ -54,12 +62,24 @@ function ConstraintsForm({ initial }: { initial: ConstraintsOut }) {
           setLimitError(`Longest trip must be a whole number from 1 to ${TRAVEL_MAX} minutes.`);
           return;
         }
-        if (outOfRange(form.max_radius_km, RADIUS_MAX)) {
-          setLimitError(`Furthest from home must be a whole number from 1 to ${RADIUS_MAX} km.`);
+        if (outOfRange(radiusMiles, RADIUS_MAX_MILES)) {
+          setLimitError(
+            `Furthest from home must be a whole number from 1 to ${RADIUS_MAX_MILES} miles.`,
+          );
           return;
         }
         setLimitError(null);
-        save.mutate(form);
+        // Untouched, the stored km goes back as it was: miles are rounded, so converting would drift.
+        const untouched =
+          initial.max_radius_km !== null && radiusMiles === kmToMiles(initial.max_radius_km);
+        save.mutate({
+          ...form,
+          max_radius_km: untouched
+            ? initial.max_radius_km
+            : radiusMiles === null
+              ? null
+              : Math.max(1, milesToKm(radiusMiles)),
+        });
       }}
     >
       <p className="px-2 text-muted">
@@ -102,14 +122,14 @@ function ConstraintsForm({ initial }: { initial: ConstraintsOut }) {
           onChange={(e) => set('max_travel_minutes', num(e.target.value))}
         />
         <TextField
-          label="Furthest from home (km)"
+          label="Furthest from home (miles)"
           type="number"
           min={1}
-          max={RADIUS_MAX}
+          max={RADIUS_MAX_MILES}
           step={1}
           inputMode="numeric"
-          value={show(form.max_radius_km)}
-          onChange={(e) => set('max_radius_km', num(e.target.value))}
+          value={show(radiusMiles)}
+          onChange={(e) => setRadiusMiles(num(e.target.value))}
         />
       </div>
       <ChipGroup

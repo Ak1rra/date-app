@@ -19,10 +19,13 @@ client.use(csrfMiddleware);
 function errorFrom(response: Response, body: unknown): ApiError {
   let code = 'unknown_error';
   let message = response.statusText || 'Something went wrong';
-  const envelope = (body as { error?: { code?: unknown; message?: unknown } } | null)?.error;
+  const envelope = (
+    body as { error?: { code?: unknown; message?: unknown; reset_at?: unknown } } | null
+  )?.error;
   if (typeof envelope?.code === 'string') code = envelope.code;
   if (typeof envelope?.message === 'string') message = envelope.message;
-  return new ApiError(response.status, code, message);
+  const resetAt = typeof envelope?.reset_at === 'string' ? envelope.reset_at : null;
+  return new ApiError(response.status, code, message, resetAt);
 }
 
 /** Returns the data of an openapi-fetch result, or throws an ApiError built from the error envelope. */
