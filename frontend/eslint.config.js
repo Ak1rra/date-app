@@ -5,7 +5,17 @@ import jsxA11y from 'eslint-plugin-jsx-a11y';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules', 'coverage', 'dev-dist', 'src/api/schema.d.ts'] },
+  {
+    ignores: [
+      'dist',
+      'node_modules',
+      'coverage',
+      'dev-dist',
+      'e2e-results',
+      'playwright-report',
+      'src/api/schema.d.ts',
+    ],
+  },
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
@@ -17,7 +27,7 @@ export default tseslint.config(
     languageOptions: { ecmaVersion: 2022, globals: globals.browser },
   },
   {
-    files: ['scripts/**/*.mjs', 'vite.config.ts', 'eslint.config.js'],
+    files: ['scripts/**/*.mjs', 'vite.config.ts', 'eslint.config.js', 'playwright.config.ts'],
     languageOptions: { globals: globals.node },
   },
 );

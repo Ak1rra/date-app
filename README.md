@@ -155,4 +155,24 @@ The app's `/privacy` page describes what third parties receive, including Anthro
 
 ## End-to-end smoke
 
-_Coming in the next change._
+```text
+bash scripts/e2e.sh            # both paths
+bash scripts/e2e.sh -g match   # extra arguments go to `playwright test`
+```
+
+The smoke runs two paths in Playwright (`frontend/e2e/smoke.e2e.ts`):
+
+- **Solo planner:** setup, both profiles, plan with options, schedule as a surprise, then the planner's read after the date completes.
+- **Match:** both profiles swipe yes, match, make it a date, schedule, and both rate.
+
+The script runs the server and the browser on different machines:
+
+1. It builds the frontend.
+2. It copies `backend/` and `frontend/dist` to `~/projects/date-app-ci/e2e` on `REMOTE_HOST` (default `rogue@192.168.1.167`).
+3. There it starts a throwaway `dateapp serve` on `E2E_PORT` (default `18090`). It uses `DEMO_MODE=1`, `NO_LOGIN=1`, fake weather, no provider keys, and a scratch database `dateapp_test_e2e`.
+4. It runs Playwright on this machine against `http://localhost:18090`, through an SSH tunnel.
+5. On exit it stops that server, closes the tunnel, and drops the database. It never touches the deployed app.
+
+Dates are scheduled in the past, so the in-process worker completes them at once.
+
+Run `npx playwright install chromium` once, in `frontend/`, to get the browser.
