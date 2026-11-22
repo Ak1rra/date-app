@@ -213,7 +213,13 @@ export interface paths {
          */
         get: operations["list_messages_api_v1_chat_threads__thread_id__messages_get"];
         put?: never;
-        post?: never;
+        /**
+         * Send Message
+         * @description Send a message and stream the assistant's reply as Server-Sent Events: `ack` (my stored
+         *     message), then `delta`, `status` and `action` events, then `done` or `error`. Problems found
+         *     before the stream starts (404, 429) are ordinary JSON errors and store nothing.
+         */
+        post: operations["send_message_api_v1_chat_threads__thread_id__messages_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1505,6 +1511,11 @@ export interface components {
              * @enum {string}
              */
             type: "idea" | "itinerary_change" | "calendar_slot";
+        };
+        /** ChatMessageIn */
+        ChatMessageIn: {
+            /** Content */
+            content: string;
         };
         /** ChatMessageOut */
         ChatMessageOut: {
@@ -3485,6 +3496,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChatMessagesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_message_api_v1_chat_threads__thread_id__messages_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatMessageIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

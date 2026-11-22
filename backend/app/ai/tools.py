@@ -167,6 +167,7 @@ class ToolExecutor:
         home: LatLng | None,
         timezone: str,
         radius_km: float,
+        shared: bool = False,
     ) -> None:
         self._providers = providers
         self._session = session
@@ -175,6 +176,7 @@ class ToolExecutor:
         self._recipient_profile_id = recipient_profile_id
         self._home = home
         self._radius_km = radius_km
+        self._shared = shared  # the reply is read by both partners: see `build_context`
         try:
             self._tz: dt.tzinfo = ZoneInfo(timezone)
         except (ZoneInfoNotFoundError, ValueError):
@@ -324,7 +326,11 @@ class ToolExecutor:
 
     async def _get_couple_context(self, args: dict[str, Any]) -> str:
         raw = await build_context(
-            self._session, self._couple_id, self._requester_user_id, self._recipient_profile_id
+            self._session,
+            self._couple_id,
+            self._requester_user_id,
+            self._recipient_profile_id,
+            shared=self._shared,
         )
         return _result(json.loads(raw), "couple")
 

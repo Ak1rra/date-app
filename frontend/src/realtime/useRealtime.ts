@@ -35,6 +35,7 @@ export function realtimeUrl(): string {
 export function rootsFor(event: string): string[] {
   const roots = ['notifications-unread-count'];
   if (/^(idea|vote|match)\./.test(event)) roots.push('ideas');
+  if (event === 'chat.message') roots.push('chat');
   if (event === 'itinerary.updated' || /^date\./.test(event)) {
     roots.push('itinerary', 'itineraries', 'calendar', 'hints');
   }

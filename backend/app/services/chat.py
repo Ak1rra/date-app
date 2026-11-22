@@ -241,3 +241,32 @@ async def apply_action(
     return ChatActionApplyOut(
         action=action_out(actions[index]), idea=idea_out, itinerary=itinerary_out
     )
+
+
+# --- Sending a message ----------------------------------------------------------------------
+
+
+async def add_message(
+    session: AsyncSession,
+    thread: ChatThread,
+    *,
+    role: str,
+    author: uuid.UUID | None,
+    content: str,
+    actions: list[dict[str, Any]] | None = None,
+    tool_trace: list[dict[str, Any]] | None = None,
+) -> ChatMessage:
+    """Store a message and touch the thread; `created_at` is loaded, ready for `message_out`."""
+    message = ChatMessage(
+        thread_id=thread.id,
+        role=role,
+        author_user_id=author,
+        content=content,
+        actions=actions or [],
+        tool_trace=tool_trace or [],
+    )
+    session.add(message)
+    thread.updated_at = now()
+    await session.flush()
+    await session.refresh(message)
+    return message

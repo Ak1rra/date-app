@@ -245,6 +245,21 @@
         "title": "ChatActionOut",
         "type": "object"
       },
+      "ChatMessageIn": {
+        "properties": {
+          "content": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Content",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "ChatMessageIn",
+        "type": "object"
+      },
       "ChatMessageOut": {
         "properties": {
           "actions": {
@@ -6110,6 +6125,56 @@
           }
         },
         "summary": "List Messages",
+        "tags": [
+          "chat"
+        ]
+      },
+      "post": {
+        "description": "Send a message and stream the assistant's reply as Server-Sent Events: `ack` (my stored\nmessage), then `delta`, `status` and `action` events, then `done` or `error`. Problems found\nbefore the stream starts (404, 429) are ordinary JSON errors and store nothing.",
+        "operationId": "send_message_api_v1_chat_threads__thread_id__messages_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "thread_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Thread Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatMessageIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Send Message",
         "tags": [
           "chat"
         ]

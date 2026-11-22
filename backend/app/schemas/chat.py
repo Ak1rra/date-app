@@ -76,6 +76,13 @@ class ProposeCalendarSlot(BaseModel):
         return self
 
 
+# --- Requests
+
+
+class ChatMessageIn(BaseModel):
+    content: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)]
+
+
 # --- Responses
 
 

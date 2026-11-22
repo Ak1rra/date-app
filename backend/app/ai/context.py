@@ -8,6 +8,7 @@ are the requester's own notes about the recipient, never anyone else's.
 import datetime as dt
 import json
 import uuid
+from collections.abc import Sequence
 from decimal import Decimal
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -124,12 +125,17 @@ async def build_context(
     recipient_profile_id: uuid.UUID,
     *,
     exclude_surprises_for: uuid.UUID | None = None,
+    shared: bool = False,
 ) -> str:
     """The context for a run planned by `requester_user_id` for `recipient_profile_id`.
 
     The requester's idea list never includes another member's `is_surprise` idea, whatever the
     caller passes. `exclude_surprises_for` is still accepted for callers that pass it, but the rule
     no longer needs it.
+
+    `shared` is for a reply both partners will read (the shared chat thread): the planner notes
+    are left out entirely, as is every surprise (the requester's own included), anyone's private
+    idea, how the members voted and the recipient's taste summary.
     """
     couple = await session.get(Couple, couple_id)
     profiles = list(
@@ -160,56 +166,73 @@ async def build_context(
     )
     # Only the requester's own notes. Filtering on the author here, in the query, is what keeps
     # the partner's notes out of the model's hands.
-    notes = (
-        await session.execute(
-            select(PlannerNote.kind, PlannerNote.text)
-            .where(
-                PlannerNote.couple_id == couple_id,
-                PlannerNote.author_user_id == requester_user_id,
-                PlannerNote.about_profile_id == recipient.id,
-                PlannerNote.archived_at.is_(None),
+    notes: Sequence[Any] = (
+        []
+        if shared
+        else (
+            await session.execute(
+                select(PlannerNote.kind, PlannerNote.text)
+                .where(
+                    PlannerNote.couple_id == couple_id,
+                    PlannerNote.author_user_id == requester_user_id,
+                    PlannerNote.about_profile_id == recipient.id,
+                    PlannerNote.archived_at.is_(None),
+                )
+                .order_by(PlannerNote.created_at)
             )
-            .order_by(PlannerNote.created_at)
-        )
-    ).all()
+        ).all()
+    )
+    # It is derived partly from the other partner's private planner reads, so a shared reply
+    # does not get it.
     taste = (
-        await session.execute(
-            select(TasteSummary.summary).where(TasteSummary.about_profile_id == recipient.id)
-        )
-    ).scalar_one_or_none()
+        None
+        if shared
+        else (
+            await session.execute(
+                select(TasteSummary.summary).where(TasteSummary.about_profile_id == recipient.id)
+            )
+        ).scalar_one_or_none()
+    )
 
-    # Ideas the requester can see: the shared deck plus their own private ones.
+    # Ideas the requester can see: the shared deck plus their own private ones, and no one
+    # else's surprise. A shared reply is read by both, so it gets the shared deck only, less
+    # every surprise.
+    if shared:
+        visible = (Idea.visibility == "shared") & (Idea.is_surprise == false())
+    else:
+        visible = (
+            (Idea.visibility == "shared") | (Idea.created_by_user_id == requester_user_id)
+        ) & ((Idea.is_surprise == false()) | (Idea.created_by_user_id == requester_user_id))
     ideas = (
         await session.execute(
             select(Idea.id, Idea.title, Idea.status)
-            .where(
-                Idea.couple_id == couple_id,
-                (Idea.visibility == "shared") | (Idea.created_by_user_id == requester_user_id),
-                (Idea.is_surprise == false()) | (Idea.created_by_user_id == requester_user_id),
-            )
+            .where(Idea.couple_id == couple_id, visible)
             .order_by(Idea.created_at.desc())
         )
     ).all()
     # A partner's vote stays hidden until both have voted (FR-VOTE-2): a "no" counts as passed
     # only for a requester who has voted on that idea too (their own "no" included).
     own_vote = aliased(Vote)
-    voted_no = set(
-        (
-            await session.execute(
-                select(Vote.idea_id)
-                .join(Idea, Idea.id == Vote.idea_id)
-                .where(
-                    Idea.couple_id == couple_id,
-                    Vote.value == "no",
-                    exists().where(
-                        own_vote.idea_id == Vote.idea_id, own_vote.user_id == requester_user_id
-                    ),
+    voted_no: set[uuid.UUID] = set()
+    if not shared:
+        voted_no = set(
+            (
+                await session.execute(
+                    select(Vote.idea_id)
+                    .join(Idea, Idea.id == Vote.idea_id)
+                    .where(
+                        Idea.couple_id == couple_id,
+                        Vote.value == "no",
+                        exists().where(
+                            own_vote.idea_id == Vote.idea_id,
+                            own_vote.user_id == requester_user_id,
+                        ),
+                    )
                 )
             )
+            .scalars()
+            .all()
         )
-        .scalars()
-        .all()
-    )
 
     home: dict[str, Any] | None = None
     if couple.home_lat is not None and couple.home_lng is not None:

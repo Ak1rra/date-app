@@ -311,3 +311,63 @@ async def test_a_recipient_outside_the_couple_is_not_found(db_session: AsyncSess
     with pytest.raises(ApiError) as caught:
         await build_context(db_session, fx.couple_id, fx.ann.id, uuid.uuid4())
     assert caught.value.status == 404
+
+
+async def test_a_shared_context_has_no_notes_surprises_private_ideas_or_votes(
+    db_session: AsyncSession,
+) -> None:
+    fx = await seed(db_session)
+
+    def idea(title: str, by: User, **kw: Any) -> Idea:
+        values: dict[str, Any] = {
+            "couple_id": fx.couple_id,
+            "created_by_user_id": by.id,
+            "source": "manual",
+            "visibility": "shared",
+            "title": title,
+            "pitch": "p",
+        }
+        values.update(kw)
+        return Idea(**values)
+
+    voted = idea("Voted down", fx.bea)
+    db_session.add_all(
+        [
+            TasteSummary(
+                couple_id=fx.couple_id,
+                about_profile_id=fx.bea_profile.id,
+                summary={"likes": ["quiet bars"]},
+            ),
+            note(fx, fx.ann, fx.bea_profile, "ANN-NOTE-ABOUT-BEA"),
+            idea("Shared deck idea", fx.bea),
+            idea("Ann's private idea", fx.ann, visibility="private"),
+            idea("Ann's own surprise", fx.ann, visibility="private", is_surprise=True),
+            idea("A shared surprise", fx.ann, is_surprise=True),
+            voted,
+        ]
+    )
+    await db_session.flush()
+    db_session.add_all(
+        [
+            Vote(idea_id=voted.id, user_id=fx.bea.id, value="no"),
+            Vote(idea_id=voted.id, user_id=fx.ann.id, value="yes"),
+        ]
+    )
+    await db_session.commit()
+
+    solo = json.loads(await build_context(db_session, fx.couple_id, fx.ann.id, fx.bea_profile.id))
+    assert solo["notes_about_recipient"]
+    assert "Ann's own surprise" in solo["ideas"]["recent"]
+    assert "Voted down" in solo["ideas"]["passed"]
+    assert solo["taste"] == {"likes": ["quiet bars"]}
+
+    raw = await build_context(db_session, fx.couple_id, fx.ann.id, fx.bea_profile.id, shared=True)
+    ctx = json.loads(raw)
+    assert ctx["notes_about_recipient"] == []
+    assert set(ctx["ideas"]["recent"]) == {"Shared deck idea", "Voted down"}
+    assert ctx["ideas"]["passed"] == []
+    assert ctx["taste"] is None
+    for hidden in ("ANN-NOTE-ABOUT-BEA", "private idea", "surprise", "quiet bars"):
+        assert hidden not in raw
+    # The constraints and profiles are still there.
+    assert ctx["recipient"]["hard_constraints"]["allergies"] == ["peanuts"]
