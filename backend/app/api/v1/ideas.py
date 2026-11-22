@@ -128,11 +128,12 @@ async def delete_idea(
 @router.post("/ideas/{idea_id}/share", response_model=IdeaOut)
 async def share_idea(
     idea_id: uuid.UUID,
+    settings: Settings = Depends(get_app_settings),
     session: AsyncSession = Depends(get_session),
     current: CurrentUser = Depends(current_user),
 ) -> IdeaOut:
     idea = await idea_service.share_idea(
-        session, require_couple_id(current.couple_id), current.user.id, idea_id
+        session, require_couple_id(current.couple_id), current.user.id, idea_id, settings
     )
     await session.commit()
     return await _out(session, current, idea)

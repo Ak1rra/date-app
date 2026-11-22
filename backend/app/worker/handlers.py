@@ -24,7 +24,8 @@ from app.models.itinerary import Itinerary
 from app.models.jobs import Job
 from app.models.notify import Notification, PushSubscription
 from app.models.user import MagicLinkToken, UserSession
-from app.services import feedback, taste
+from app.providers.registry import build_providers
+from app.services import feedback, reminders, taste
 from app.services.surprise import SURPRISE_DUE, process_due
 from app.worker.jobs import enqueue, register
 
@@ -270,3 +271,35 @@ async def ratings_reveal(session: AsyncSession, payload: dict[str, Any]) -> None
     except (AttributeError, ValueError):
         return
     await feedback.reveal_ratings(session, itinerary_id)
+
+
+@register(reminders.REMINDER_DAY_BEFORE)
+async def reminder_day_before(session: AsyncSession, payload: dict[str, Any]) -> None:
+    """The day-before reminder; a no-op if the date moved or was cancelled since."""
+    settings = get_settings()
+    await reminders.send_reminder(
+        session,
+        "day",
+        payload,
+        settings,
+        lambda couple_id: build_providers(settings, couple_id=couple_id),
+    )
+
+
+@register(reminders.REMINDER_HOUR_BEFORE)
+async def reminder_hour_before(session: AsyncSession, payload: dict[str, Any]) -> None:
+    """The hour-before reminder; a no-op if the date moved or was cancelled since."""
+    settings = get_settings()
+    await reminders.send_reminder(
+        session,
+        "hour",
+        payload,
+        settings,
+        lambda couple_id: build_providers(settings, couple_id=couple_id),
+    )
+
+
+@register(reminders.CHECKLIST_DUE)
+async def checklist_due(session: AsyncSession, payload: dict[str, Any]) -> None:
+    """Remind the planner of a checklist item that is still open and still due then."""
+    await reminders.send_checklist_due(session, payload, get_settings())

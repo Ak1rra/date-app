@@ -73,6 +73,32 @@ async def on_match(
     )
 
 
+async def notify_ideas_added(
+    session: AsyncSession,
+    couple_id: uuid.UUID,
+    actor_user_id: uuid.UUID,
+    count: int,
+    settings: Settings,
+) -> None:
+    """Tell the partner that new shared ideas are in the deck: at most one notification an hour
+    (the dedupe key is the UTC hour). Never call it for a surprise idea."""
+    partner = await partner_user_id(session, couple_id, actor_user_id)
+    if partner is None or count < 1:
+        return
+    hour = now().astimezone(UTC).replace(minute=0, second=0, microsecond=0)
+    await notify(
+        session,
+        partner,
+        "ideas_added",
+        "New date ideas to swipe 💡",
+        f"{count} new {'idea' if count == 1 else 'ideas'} in your deck.",
+        {"url": "/ideas"},
+        couple_id=couple_id,
+        dedupe_key=f"ideas_added:{partner}:{hour.isoformat()}",
+        settings=settings,
+    )
+
+
 async def get_couple(session: AsyncSession, couple_id: uuid.UUID) -> Couple:
     couple = (
         await session.execute(select(Couple).where(Couple.id == couple_id))
@@ -324,7 +350,11 @@ async def archive_idea(
 
 
 async def share_idea(
-    session: AsyncSession, couple_id: uuid.UUID, me: uuid.UUID, idea_id: uuid.UUID
+    session: AsyncSession,
+    couple_id: uuid.UUID,
+    me: uuid.UUID,
+    idea_id: uuid.UUID,
+    settings: Settings,
 ) -> Idea:
     """Private to shared, once and for good (FR-IDEA-0). Only the creator can see a private
     idea, so only they can share it; sharing a shared one changes nothing."""
@@ -337,6 +367,7 @@ async def share_idea(
         await session.flush()
         if not idea.is_surprise:  # a surprise idea stays with its creator
             emit(session, idea.couple_id, "idea.created", {"id": str(idea.id)}, except_user=me)
+            await notify_ideas_added(session, idea.couple_id, me, 1, settings)
     return idea
 
 

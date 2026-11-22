@@ -197,7 +197,7 @@ async def cancel_itinerary(
     itinerary = await get_editable(
         session, current.user.id, require_couple_id(current.couple_id), itinerary_id
     )
-    await service.cancel(session, itinerary)
+    await service.cancel(session, itinerary, settings)
     out = await service.itinerary_out(
         session, itinerary, current.user.id, providers, settings=settings
     )
@@ -217,7 +217,7 @@ async def react_to_itinerary(
     itinerary = await get_visible(
         session, current.user.id, require_couple_id(current.couple_id), itinerary_id
     )
-    await service.react(session, itinerary, current.user.id, body)
+    await service.react(session, itinerary, current.user.id, body, settings)
     out = await service.itinerary_out(
         session, itinerary, current.user.id, providers, settings=settings
     )

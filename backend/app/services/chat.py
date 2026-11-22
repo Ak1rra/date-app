@@ -189,7 +189,7 @@ async def apply_action(
         idea = await idea_service.create_idea(session, couple_id, me, IdeaIn(**payload))
         idea.source = "chat"
         if thread.scope == "shared":
-            idea = await idea_service.share_idea(session, couple_id, me, idea.id)
+            idea = await idea_service.share_idea(session, couple_id, me, idea.id, settings)
         couple = await idea_service.get_couple(session, couple_id)
         idea_out = await idea_service.idea_out(session, idea, me, couple)
         result = {"idea_id": str(idea.id)}

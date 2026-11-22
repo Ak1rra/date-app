@@ -24,7 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings
 from app.errors import ApiError
-from app.models import ChecklistItem, Couple, CoupleMember, Itinerary, Stop, TravelLeg
+from app.models import ChecklistItem, Couple, CoupleMember, Itinerary, Stop, TravelLeg, User
 from app.providers.registry import Providers
 from app.providers.types import LatLng, Place, ProviderUnavailable, to_jsonable
 from app.providers.weather.base import ATTRIBUTION as WEATHER_ATTRIBUTION
@@ -45,7 +45,7 @@ from app.schemas.itineraries import (
     TravelOut,
     VenueOut,
 )
-from app.services import surprise
+from app.services import reminders, surprise
 from app.services.couple import _money, not_found, now
 from app.services.feedback import schedule_completion
 from app.services.itinerary_access import visible_itineraries
@@ -504,14 +504,9 @@ async def compute_warnings(
     return list(itinerary.warnings or [])
 
 
-async def on_scheduled(session: AsyncSession, itinerary: Itinerary, settings: Settings) -> None:
-    """Notify the non-planner member after an announced date is scheduled."""
-    if itinerary.announced_at is None or itinerary.is_surprise or itinerary.starts_at is None:
-        return
-    couple = await session.get(Couple, itinerary.couple_id)
-    if couple is None:
-        return
-    partner = (
+async def _partner_id(session: AsyncSession, itinerary: Itinerary) -> uuid.UUID | None:
+    """The active member who isn't the planner."""
+    return (
         await session.execute(
             select(CoupleMember.user_id).where(
                 CoupleMember.couple_id == itinerary.couple_id,
@@ -520,20 +515,54 @@ async def on_scheduled(session: AsyncSession, itinerary: Itinerary, settings: Se
             )
         )
     ).scalar_one_or_none()
+
+
+def _partner_knows(itinerary: Itinerary) -> bool:
+    """Whether the non-planner member has been told of this date: it was announced, or (for a
+    surprise) revealed. An unrevealed surprise is still a secret."""
+    if itinerary.is_surprise:
+        return itinerary.revealed_at is not None
+    return itinerary.announced_at is not None
+
+
+async def on_scheduled(
+    session: AsyncSession,
+    itinerary: Itinerary,
+    settings: Settings,
+    prev_status: str | None = None,
+    prev_starts_at: datetime | None = None,
+    prev_known: bool = False,
+) -> None:
+    """Notify the non-planner member after an announced date is scheduled, or moved when the
+    partner already knew of it at another time (`prev_*` is the state before scheduling; a
+    revealed surprise counts as known)."""
+    if itinerary.starts_at is None:
+        return
+    # Switching a known date to an unrevealed surprise makes it a secret again: stay silent.
+    known = prev_status == "scheduled" and prev_known and _partner_knows(itinerary)
+    if known and prev_starts_at == itinerary.starts_at:
+        return  # the partner already has this date at this time
+    if not known and (itinerary.announced_at is None or itinerary.is_surprise):
+        return
+    couple = await session.get(Couple, itinerary.couple_id)
+    if couple is None:
+        return
+    partner = await _partner_id(session, itinerary)
     if partner is None:
         return
     local = itinerary.starts_at.astimezone(zone_for(couple.timezone))
-    hour = local.strftime("%I").lstrip("0") or "0"
-    local_time = f"{local:%a} {local.day} {local:%b}, {hour}:{local:%M} {local:%p}"
     await notify(
         session,
         partner,
-        "date_announced",
-        "You've got a date 📅",
-        f"{itinerary.title} — {local_time}",
+        "date_rescheduled" if known else "date_announced",
+        "Your date moved 📅" if known else "You've got a date 📅",
+        f"{itinerary.title} — {reminders.local_label(local)}",
         {"url": f"/itineraries/{itinerary.id}"},
         couple_id=itinerary.couple_id,
-        dedupe_key=f"announced:{itinerary.id}:{itinerary.starts_at.isoformat()}",
+        dedupe_key=(
+            f"{'rescheduled' if known else 'announced'}:{itinerary.id}:"
+            f"{itinerary.starts_at.isoformat()}"
+        ),
         settings=settings,
     )
 
@@ -658,6 +687,8 @@ async def patch_itinerary(
     times_changed = starts_at != itinerary.starts_at or ends_at != itinerary.ends_at
     if times_changed and itinerary.status in ("completed", "cancelled"):
         raise ApiError(409, "not_editable", "A finished date's time can't be changed.")
+    prev_status, prev_starts_at = itinerary.status, itinerary.starts_at
+    prev_known = _partner_knows(itinerary)
     if "title" in fields:
         itinerary.title = body.title
     itinerary.starts_at = starts_at
@@ -672,6 +703,8 @@ async def patch_itinerary(
     if times_changed and itinerary.status == "scheduled":
         await revalidate(session, itinerary, providers, settings)
         await schedule_completion(session, itinerary)
+        await on_scheduled(session, itinerary, settings, prev_status, prev_starts_at, prev_known)
+        await reminders.schedule_reminders(session, itinerary)
     emit_itinerary(session, itinerary, "itinerary.updated")
 
 
@@ -787,6 +820,7 @@ async def add_checklist_item(
     )
     session.add(item)
     await session.flush()
+    await reminders.schedule_checklist_due(session, itinerary, item)
     emit_itinerary(session, itinerary, "itinerary.updated")
     return _checklist_out(item)
 
@@ -810,6 +844,7 @@ async def patch_checklist_item(
     session: AsyncSession, itinerary: Itinerary, item_id: uuid.UUID, body: ChecklistPatch
 ) -> ChecklistItemOut:
     item = await _get_item(session, itinerary, item_id)
+    was_done = item.done_at is not None
     fields = body.model_fields_set
     if "text" in fields:
         item.text = body.text
@@ -825,6 +860,10 @@ async def patch_checklist_item(
         elif item.done_at is None:
             item.done_at = now()
     await session.flush()
+    # A new due time needs a nudge, and so does an item unticked after its date was scheduled
+    # (scheduling skips ticked items); the dedupe key stops a double.
+    if "due_at" in fields or (was_done and item.done_at is None):
+        await reminders.schedule_checklist_due(session, itinerary, item)
     emit_itinerary(session, itinerary, "itinerary.updated")
     return _checklist_out(item)
 
@@ -858,6 +897,8 @@ async def schedule(
         raise _invalid_times()
     if body.mode == "surprise" and itinerary.seen_by_partner_at is not None:
         raise ApiError(409, "already_seen", "Your partner has already seen this date.")
+    prev_status, prev_starts_at = itinerary.status, itinerary.starts_at
+    prev_known = _partner_knows(itinerary)
     itinerary.starts_at = body.starts_at
     itinerary.ends_at = ends_at
     if body.invitation_message is not None:
@@ -874,37 +915,73 @@ async def schedule(
     itinerary.updated_at = now()
     await session.flush()
     await revalidate(session, itinerary, providers, settings)
-    await on_scheduled(session, itinerary, settings)
     await schedule_completion(session, itinerary)
+    await on_scheduled(session, itinerary, settings, prev_status, prev_starts_at, prev_known)
     if itinerary.is_surprise:
         moment = now()
         await surprise.process_due(session, itinerary, settings, moment)
         await surprise.schedule_due_jobs(session, itinerary, moment)
     emit_itinerary(session, itinerary, "date.scheduled")
+    await reminders.schedule_reminders(session, itinerary)
 
 
-async def cancel(session: AsyncSession, itinerary: Itinerary) -> None:
+async def cancel(session: AsyncSession, itinerary: Itinerary, settings: Settings) -> None:
     await session.refresh(itinerary, with_for_update=True)  # serialise with the completion job
     if itinerary.status == "completed":
         raise ApiError(409, "invalid_status", "A completed date can't be cancelled.")
+    # An unrevealed surprise never told the surprisee anything, so cancelling it tells them
+    # nothing; a revealed one they know about.
+    tell_partner = itinerary.status == "scheduled" and _partner_knows(itinerary)
     itinerary.status = "cancelled"
     itinerary.updated_at = now()
     await session.flush()
+    if tell_partner:
+        partner = await _partner_id(session, itinerary)
+        if partner is not None:
+            await notify(
+                session,
+                partner,
+                "date_cancelled",
+                "Date cancelled",
+                itinerary.title,
+                {"url": f"/itineraries/{itinerary.id}"},
+                couple_id=itinerary.couple_id,
+                dedupe_key=f"cancelled:{itinerary.id}",
+                settings=settings,
+            )
     emit_itinerary(session, itinerary, "date.cancelled")
 
 
 async def react(
-    session: AsyncSession, itinerary: Itinerary, viewer_user_id: uuid.UUID, body: ReactIn
+    session: AsyncSession,
+    itinerary: Itinerary,
+    viewer_user_id: uuid.UUID,
+    body: ReactIn,
+    settings: Settings,
 ) -> None:
     """The partner's heart or "can we move it?" (FR-CAL-5). The planner can't react."""
     if itinerary.planner_user_id == viewer_user_id:
         raise ApiError(403, "forbidden", "You planned this date; only your partner can react.")
+    at = now().isoformat()
     itinerary.partner_reaction = {
         "kind": body.kind,
         "suggested_start": body.suggested_start.isoformat() if body.suggested_start else None,
         "note": body.note or None,
-        "at": now().isoformat(),
+        "at": at,
     }
     itinerary.updated_at = now()
     await session.flush()
+    viewer = await session.get(User, viewer_user_id)
+    name = (viewer.display_name if viewer is not None else None) or "Your partner"
+    await notify(
+        session,
+        itinerary.planner_user_id,
+        "partner_reaction",
+        f"❤️ {name} loved the plan" if body.kind == "heart" else f"{name} asked to move the date",
+        body.note or itinerary.title,
+        {"url": f"/itineraries/{itinerary.id}"},
+        couple_id=itinerary.couple_id,
+        dedupe_key=f"reaction:{itinerary.id}:{at}",
+        settings=settings,
+    )
     emit_itinerary(session, itinerary, "itinerary.updated")

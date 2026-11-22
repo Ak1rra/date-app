@@ -32,6 +32,7 @@ from app.providers.registry import Providers
 from app.realtime import emit
 from app.schemas.ideas import GenerateIdeasIn
 from app.services.couple import _money, now
+from app.services.ideas import notify_ideas_added
 from app.services.ideas_access import _visible_to
 from app.services.itineraries import venue_snapshot
 from app.services.planning import _recipient_id, ai_run
@@ -234,4 +235,7 @@ async def generate_ideas(
     for idea in saved:
         if idea.visibility == "shared":  # match mode: they land in the partner's deck
             emit(session, couple_id, "idea.created", {"id": str(idea.id)}, except_user=user_id)
+    shared = [idea for idea in saved if idea.visibility == "shared" and not idea.is_surprise]
+    if shared:
+        await notify_ideas_added(session, couple_id, user_id, len(shared), settings)
     return saved, sorted(run.executor.degraded)

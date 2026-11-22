@@ -58,7 +58,8 @@ async def test_match_notifies_the_earlier_voter_once_after_undo(db_app: FastAPI)
         assert first[0].title == "It's a match! 💘"
         assert first[0].body == "You both said yes to “A very good date”."
         assert first[0].data == {"url": "/ideas"}
-        assert await notifications(w.app, w.partner_id) == []
+        # The partner's only notification is the "new ideas" one from the owner sharing it.
+        assert [n.kind for n in await notifications(w.app, w.partner_id)] == ["ideas_added"]
 
         undone = await call(w.partner, "POST", "/api/v1/deck/undo")
         assert undone.status_code == 200
