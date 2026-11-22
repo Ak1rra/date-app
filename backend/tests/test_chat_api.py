@@ -411,6 +411,40 @@ async def test_a_calendar_slot_schedules_the_itinerary(db_app: FastAPI) -> None:
         assert response.json()["action"]["result"] == {"itinerary_id": str(itinerary_id)}
 
 
+async def test_a_calendar_slot_keeps_an_unrevealed_surprise_hidden(db_app: FastAPI) -> None:
+    async with world(db_app) as w:
+        itinerary_id = await seed(
+            w,
+            title="Secret Night",
+            status="scheduled",
+            is_surprise=True,
+            starts_at=when(5, 18),
+            reveal_at=when(5, 18),
+        )
+        thread = (await threads_of(w.owner))["private"]
+        start = when(days=6, hour=18)
+        payload = {
+            "starts_at": start.isoformat(),
+            "ends_at": None,
+            "itinerary_id": str(itinerary_id),
+            "idea_id": None,
+        }
+        card = action("calendar_slot", payload)
+        await add_message(w, thread, "slot", role="assistant", actions=[card])
+        response = await call(w.owner, "POST", apply_path(card["id"]))
+        assert response.status_code == 200, response.text
+        assert response.json()["itinerary"]["is_surprise"] is True
+
+        async with w.app.state.sessionmaker() as session:
+            row = await session.get(Itinerary, itinerary_id)
+            assert row is not None
+            assert row.is_surprise is True and row.announced_at is None
+            assert row.starts_at == start
+        # The partner still cannot see it.
+        assert (await w.partner.get(f"/api/v1/itineraries/{itinerary_id}")).status_code == 404
+        assert "Secret Night" not in (await w.partner.get("/api/v1/itineraries")).text
+
+
 async def test_the_partner_cannot_schedule_the_planners_itinerary(db_app: FastAPI) -> None:
     async with world(db_app) as w:
         itinerary_id = await seed(w, status="scheduled", announced_at=when(-1), starts_at=when(5))

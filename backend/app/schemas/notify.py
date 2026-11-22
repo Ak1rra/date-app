@@ -20,6 +20,7 @@ KINDS = (
     "surprise_revealed",
     "partner_reaction",
     "rate_prompt",
+    "plan_nudge",
 )
 
 _TIME_RE = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")

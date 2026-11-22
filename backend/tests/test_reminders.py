@@ -184,6 +184,49 @@ async def test_day_before_lists_up_to_three_warnings(db_app: FastAPI) -> None:
         assert "Many tomorrow at 7:00 PM. Heads-up: W0; W1; W2. (+2 more)" in bodies
 
 
+async def test_day_before_adds_forecast_and_wear_for_the_planner_not_the_surprisee(
+    db_app: FastAPI,
+) -> None:
+    async with world(db_app) as w:
+        await set_timezone(w, "UTC")
+        start = when(10, 19)
+        weather = {
+            "hourly": [
+                {"time": "2099-01-01T18:00:00", "temp_c": 15.0, "weather_code": 0},
+                {"time": "2099-01-01T19:00:00", "temp_c": 18.0, "weather_code": 61},
+            ],
+            "summary": "Light rain, 15 to 18 C",
+            "risk": "low",
+        }
+        fields: dict[str, Any] = {
+            "status": "scheduled",
+            "starts_at": start,
+            "weather": weather,
+            "bring_wear": "A light layer and comfy shoes.",
+        }
+        open_id = await seed(w, title="Dinner", announced_at=when(-1), **fields)
+        secret_id = await seed(w, title="Secret", is_surprise=True, reveal_at=start, **fields)
+        await run(w, "day", open_id, start)
+        await run(w, "day", secret_id, start)
+
+        bodies = {n.body for n in await notes(w, w.partner_id, "reminder_day_before")}
+        expected = "Dinner tomorrow at 7:00 PM. Wear: A light layer and comfy shoes. "
+        assert expected + "Forecast: 64°F, light rain." in bodies
+        (secret,) = [
+            n
+            for n in await notes(w, w.owner_id, "reminder_day_before")
+            if n.data["itinerary_id"] == str(secret_id)
+        ]
+        assert "Forecast: 64°F, light rain." in secret.body  # the planner knows the secret
+        (hidden,) = [
+            n
+            for n in await notes(w, w.partner_id, "reminder_day_before")
+            if n.data["itinerary_id"] == str(secret_id)
+        ]
+        assert hidden.body == "Get ready — hints are on the way."
+        assert "Forecast" not in hidden.body and "Wear" not in hidden.body
+
+
 async def test_day_before_lists_up_to_three_bring_items(db_app: FastAPI) -> None:
     async with world(db_app) as w:
         await set_timezone(w, "UTC")

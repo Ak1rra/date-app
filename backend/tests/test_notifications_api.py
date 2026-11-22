@@ -17,7 +17,7 @@ async def test_settings_round_trip_and_push_config(db_app: FastAPI, db_client: A
     await sign_in(db_app, db_client, "ann@example.com")
     response = await db_client.get("/api/v1/me/notification-settings")
     assert response.status_code == 200
-    assert len(response.json()["kinds"]) == 12
+    assert len(response.json()["kinds"]) == 13
     changed = await call(
         db_client,
         "PUT",

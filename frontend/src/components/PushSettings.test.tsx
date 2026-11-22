@@ -103,6 +103,7 @@ describe('PushSettings', () => {
       surprise_revealed: 'Surprise revealed',
       partner_reaction: 'Partner reactions',
       rate_prompt: 'Rate your date',
+      plan_nudge: 'Weekly plan nudges',
     };
     const kinds = Object.keys(labels);
     pushApi({

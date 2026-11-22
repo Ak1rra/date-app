@@ -49,6 +49,11 @@ _LABELS = {
 }
 
 
+def condition_label(code: int) -> str | None:
+    """The plain-words label for a WMO weather code, or None if it has none."""
+    return _LABELS.get(code)
+
+
 class WeatherProvider(Protocol):
     async def forecast(self, location: LatLng, start: datetime, end: datetime) -> Forecast:
         """Hourly weather for the window (local wall-clock times at `location`). Beyond the

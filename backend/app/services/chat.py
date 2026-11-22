@@ -209,7 +209,12 @@ async def apply_action(
             itinerary = await get_editable(
                 session, me, couple_id, uuid.UUID(payload["itinerary_id"])
             )
-            when = ScheduleIn(starts_at=starts_at, ends_at=ends_at, mode="announce")
+            # A surprise stays a surprise: announcing it here would expose it to the partner.
+            # Read is_surprise under the same row lock schedule() takes, so a concurrent change
+            # can't turn it into a surprise between this read and the schedule.
+            await session.refresh(itinerary, with_for_update=True)
+            mode = "surprise" if itinerary.is_surprise else "announce"
+            when = ScheduleIn(starts_at=starts_at, ends_at=ends_at, mode=mode)
             await itinerary_service.schedule(session, itinerary, when, providers, settings)
         elif payload.get("idea_id"):
             ai = get_ai_client(settings)

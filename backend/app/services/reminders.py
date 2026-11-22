@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import Settings
 from app.models import ChecklistItem, Couple, CoupleMember, Itinerary, Notification, User
 from app.providers.registry import Providers
+from app.providers.weather.base import LOW_CODES, MEANINGFUL_CODES, condition_label
 from app.services.notify import deliver_after_for, effective_settings, notify
 from app.worker.jobs import enqueue
 
@@ -153,6 +154,22 @@ def _capped(texts: list[str], sep: str) -> str:
     return f"{sep.join(texts[:SHOWN_MAX])}.{more}"
 
 
+def _forecast_line(weather: dict[str, Any] | None) -> str | None:
+    """The line "Forecast: 64°F, light rain." from the stored forecast (hourly temp_c and
+    weather_code), or None when there are no hours: the warmest hour, in °F, and the worst
+    condition."""
+    hourly = [h for h in (weather or {}).get("hourly") or [] if isinstance(h, dict)]
+    temps = [float(h["temp_c"]) for h in hourly if isinstance(h.get("temp_c"), int | float)]
+    codes = [h["weather_code"] for h in hourly if isinstance(h.get("weather_code"), int)]
+    if not temps:
+        return None
+    line = f"{round(max(temps) * 9 / 5 + 32)}°F"
+    if codes:
+        worst = max(codes, key=lambda c: (c in MEANINGFUL_CODES, c in LOW_CODES, c))
+        line += f", {(condition_label(worst) or 'mixed conditions').lower()}"
+    return f"Forecast: {line}."
+
+
 def _starts_in_quiet_hours(user: User, starts_at: dt.datetime) -> bool:
     quiet = effective_settings(user.notification_settings or {})
     start = dt.time.fromisoformat(quiet.quiet_start)
@@ -217,6 +234,11 @@ async def send_reminder(
         bring = await _bring(session, itinerary.id)
         if bring:
             extra += f" Bring: {_capped(bring, ', ')}"
+        if itinerary.bring_wear:
+            extra += f" Wear: {_capped([itinerary.bring_wear.strip().rstrip('.')], ', ')}"
+        forecast = _forecast_line(itinerary.weather)
+        if forecast:
+            extra += f" {forecast}"
         messages = [
             str(w["message"])
             for w in itinerary.warnings or []

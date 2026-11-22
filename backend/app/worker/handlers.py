@@ -27,6 +27,7 @@ from app.models.notify import Notification, PushSubscription
 from app.models.user import MagicLinkToken, User, UserSession
 from app.providers.registry import build_providers
 from app.services import account, feedback, pairing, reminders, taste
+from app.services.notify import notify
 from app.services.surprise import SURPRISE_DUE, process_due
 from app.worker.jobs import enqueue, register
 
@@ -102,6 +103,85 @@ async def ideas_expire(session: AsyncSession, payload: dict[str, Any]) -> None:
         .values(status="expired", updated_at=func.now())
     )
     await schedule_ideas_expire(session, next_day=True)
+
+
+NUDGE_WEEKLY = "nudge.weekly"
+NUDGE_WINDOW = timedelta(days=14)  # nothing scheduled this far ahead
+NUDGE_GAP = timedelta(days=7)  # at most one plan_nudge per member in this long
+
+
+def _nudge_key(day: date) -> str:
+    return f"{NUDGE_WEEKLY}:{day.isoformat()}"
+
+
+async def schedule_nudge_weekly(
+    session: AsyncSession, *, next_day: bool, today: date | None = None
+) -> bool:
+    """Enqueue the nudge.weekly job for today (due now) or tomorrow (due at 00:00 UTC). One job
+    per day: the dedupe key is the date, so repeats are no-ops. `today` pins the date (the
+    job passes the day it started on, so a run that crosses midnight still queues tomorrow, not
+    the day after). The caller commits."""
+    day = today or _utcnow().astimezone(UTC).date()
+    if next_day:
+        day += timedelta(days=1)
+        run_at = datetime.combine(day, datetime.min.time(), tzinfo=UTC)
+        return await enqueue(session, NUDGE_WEEKLY, {}, run_at=run_at, dedupe_key=_nudge_key(day))
+    return await enqueue(session, NUDGE_WEEKLY, {}, dedupe_key=_nudge_key(day))
+
+
+@register(NUDGE_WEEKLY)
+async def nudge_weekly(session: AsyncSession, payload: dict[str, Any]) -> None:
+    """Nudge each member of an active couple with nothing scheduled in the next 14 days to plan
+    something (at most one nudge per member a week), then schedule the next run. Goes through
+    notify, so quiet hours and push apply. Self-scheduling, so a missed day just runs late."""
+    now = _utcnow()
+    today = now.astimezone(UTC).date()
+    busy = (
+        select(Itinerary.id)
+        .where(
+            Itinerary.couple_id == Couple.id,
+            Itinerary.status == "scheduled",
+            Itinerary.starts_at >= now,
+            Itinerary.starts_at < now + NUDGE_WINDOW,
+        )
+        .exists()
+    )
+    rows = (
+        await session.execute(
+            select(CoupleMember.couple_id, CoupleMember.user_id)
+            .join(Couple, Couple.id == CoupleMember.couple_id)
+            .join(User, User.id == CoupleMember.user_id)
+            .where(Couple.status == "active", CoupleMember.left_at.is_(None))
+            .where(User.deleted_at.is_(None), ~busy)
+        )
+    ).all()
+    settings = get_settings()
+    for couple_id, user_id in rows:
+        recent = (
+            await session.execute(
+                select(Notification.id)
+                .where(
+                    Notification.user_id == user_id,
+                    Notification.kind == "plan_nudge",
+                    Notification.created_at >= now - NUDGE_GAP,
+                )
+                .limit(1)
+            )
+        ).first()
+        if recent is not None:
+            continue
+        await notify(
+            session,
+            user_id,
+            "plan_nudge",
+            "Nothing on the calendar 👀",
+            "The next two weeks are wide open. Want me to plan something fun?",
+            {"url": "/plan"},
+            couple_id=couple_id,
+            dedupe_key=f"plan_nudge:{user_id}:{now.date().isoformat()}",
+            settings=settings,
+        )
+    await schedule_nudge_weekly(session, next_day=True, today=today)
 
 
 async def schedule_auth_cleanup(session: AsyncSession, *, next_hour: bool) -> bool:
