@@ -11,8 +11,8 @@ the caller can still record it (`caps.finalize`).
 
 import json
 import logging
-from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, field
+from collections.abc import AsyncIterator, Awaitable, Callable
+from dataclasses import dataclass, field, replace
 from functools import lru_cache
 from typing import Any, Literal, Protocol, cast
 
@@ -119,6 +119,36 @@ class ToolRunner(Protocol):
         ...
 
 
+@dataclass(frozen=True)
+class TextDelta:
+    """A piece of the reply text, as it streams."""
+
+    text: str
+
+
+@dataclass(frozen=True)
+class ToolStarted:
+    name: str
+
+
+@dataclass(frozen=True)
+class ToolFinished:
+    name: str
+
+
+@dataclass(frozen=True)
+class ChatFinished:
+    """The last event of a chat stream. `text` is everything streamed, across all tool rounds."""
+
+    text: str
+    usage: Usage
+    tool_calls: int
+    degraded: set[str]
+
+
+ChatEvent = TextDelta | ToolStarted | ToolFinished | ChatFinished
+
+
 class AIClient(Protocol):
     async def run[T: BaseModel](
         self,
@@ -130,6 +160,19 @@ class AIClient(Protocol):
         tools: ToolRunner | None,
         output_model: type[T],
     ) -> AIResult[T]: ...
+
+    def chat_stream(
+        self,
+        *,
+        system: str,
+        context: str,
+        messages: list[dict[str, Any]],
+        tools: ToolRunner | None,
+    ) -> AsyncIterator[ChatEvent]:
+        """A free-text, streaming turn with the same tool loop as `run`, always on the smart
+        tier. Yields deltas and tool events, then one `ChatFinished`. Failures raise `AIError`,
+        possibly after some deltas: the caller decides what to do with the partial text."""
+        ...
 
 
 _CALLER_CACHE_CONTROL = "callers must not set cache_control; the client places cache markers"
@@ -219,19 +262,17 @@ class AnthropicAIClient:
         self._sdk = sdk
 
     def _request(
-        self, tier: Tier, system: str, context: str, output_model: type[BaseModel]
+        self, tier: Tier, system: str, context: str, output_model: type[BaseModel] | None
     ) -> dict[str, Any]:
-        """The parts of the request that stay the same for every round of the tool loop."""
+        """The parts of the request that stay the same for every round of the tool loop. With no
+        `output_model` the reply is free text (no `format`)."""
         s = self._settings
         smart = tier == "smart"
         request: dict[str, Any] = {
             "model": s.ai_model_smart if smart else s.ai_model_fast,
             "max_tokens": MAX_OUTPUT_TOKENS,
             "thinking": {"type": "adaptive"},
-            "output_config": {
-                "effort": s.ai_effort_smart if smart else s.ai_effort_fast,
-                "format": {"type": "json_schema", "schema": transform_schema(output_model)},
-            },
+            "output_config": {"effort": s.ai_effort_smart if smart else s.ai_effort_fast},
             # Caching: the request renders tools, then the stable system prompt, then the couple's
             # context (its own block, unmarked, so it can change without touching what comes
             # before it), then the messages. One breakpoint ends the stable system prompt, so
@@ -242,6 +283,11 @@ class AnthropicAIClient:
                 {"type": "text", "text": context},
             ],
         }
+        if output_model is not None:
+            request["output_config"]["format"] = {
+                "type": "json_schema",
+                "schema": transform_schema(output_model),
+            }
         if smart:
             request["betas"] = [FALLBACK_BETA]
             request["fallbacks"] = "default"
@@ -319,6 +365,79 @@ class AnthropicAIClient:
             )
         raise AssertionError("unreachable")  # the last round returns or raises
 
+    async def chat_stream(
+        self,
+        *,
+        system: str,
+        context: str,
+        messages: list[dict[str, Any]],
+        tools: ToolRunner | None,
+    ) -> AsyncIterator[ChatEvent]:
+        specs = tools.specs() if tools is not None else []
+        _reject_caller_cache_control(messages, specs)
+        request = self._request("smart", system, context, None)
+        if specs:
+            request["tools"] = specs
+        convo: list[Any] = list(messages)
+        max_rounds = self._settings.ai_max_tool_iterations
+        usage = Usage(model=request["model"])
+        tool_calls = 0
+        texts: list[str] = []
+
+        def fail(code: ErrorCode, message: str) -> AIError:
+            return AIError(code, message, usage=usage, tool_calls=tool_calls)
+
+        for round_no in range(max_rounds + 1):
+            try:
+                async with self._sdk.beta.messages.stream(
+                    **request, messages=_with_cache_marker(convo)
+                ) as stream:
+                    async for event in stream:
+                        if event.type == "content_block_delta" and event.delta.type == "text_delta":
+                            yield TextDelta(event.delta.text)
+                    response = await stream.get_final_message()
+            except Exception as exc:  # a dropped stream can also raise raw httpx errors
+                logger.warning("anthropic stream failed: %s: %s", type(exc).__name__, exc)
+                raise fail("ai_unavailable", "The AI service is unavailable.") from exc
+            usage = usage + _usage_of(response)
+            texts.append("".join(b.text for b in response.content if b.type == "text"))
+            stop = response.stop_reason
+
+            if stop == "refusal":
+                raise fail("refused", "The model declined this request.")
+            if stop in ("max_tokens", "model_context_window_exceeded"):
+                raise fail("truncated", f"The response was cut off ({stop}).")
+
+            if stop in ("tool_use", "pause_turn"):
+                if round_no == max_rounds:
+                    raise fail("truncated", "The tool-use iteration limit was reached.")
+                convo.append({"role": "assistant", "content": response.content})
+                results: list[dict[str, Any]] = []
+                for block in response.content:
+                    if block.type != "tool_use":
+                        continue
+                    if tools is None:
+                        raise fail("ai_unavailable", "The model called a tool but none exist.")
+                    tool_calls += 1
+                    yield ToolStarted(block.name)
+                    result = await self._call_tool(tools, block.name, block.input, block.id)
+                    yield ToolFinished(block.name)
+                    results.append(result)
+                if results:
+                    convo.append({"role": "user", "content": results})
+                continue
+
+            if stop not in ("end_turn", "stop_sequence"):
+                raise fail("ai_unavailable", f"Unexpected stop reason {stop!r}.")
+            yield ChatFinished(
+                text="".join(texts),
+                usage=usage,
+                tool_calls=tool_calls,
+                degraded=set(tools.degraded) if tools is not None else set(),
+            )
+            return
+        raise AssertionError("unreachable")  # the last round returns or raises
+
     @staticmethod
     async def _call_tool(
         tools: ToolRunner, name: str, tool_input: object, tool_use_id: str
@@ -345,6 +464,11 @@ Responder = Callable[[ToolRunner | None, str, list[dict[str, Any]]], Awaitable[B
 # (`FAKE_RESPONDERS[IdeaBatch] = fake_ideas`); `get_ai_client` hands this dict to the fake.
 FAKE_RESPONDERS: dict[type[BaseModel], Responder] = {}
 
+ChatResponder = Callable[[ToolRunner | None, str, list[dict[str, Any]]], AsyncIterator[ChatEvent]]
+
+# The chat responder DEMO_MODE uses; None means the fake's built-in canned reply.
+FAKE_CHAT_RESPONDER: ChatResponder | None = None
+
 
 class _CountingRunner:
     """Wraps a ToolRunner to count the calls a responder makes."""
@@ -370,9 +494,14 @@ class FakeAIClient:
     `(tools, context, messages) -> output` that calls the tools itself and builds the output
     from what they return. Usage is zeros, so fake runs cost nothing."""
 
-    def __init__(self, responders: dict[type[BaseModel], Responder] | None = None) -> None:
+    def __init__(
+        self,
+        responders: dict[type[BaseModel], Responder] | None = None,
+        chat_responder: ChatResponder | None = None,
+    ) -> None:
         # Not `or {}`: an empty dict passed in is shared on purpose, so callers can extend it.
         self.responders = responders if responders is not None else {}
+        self.chat_responder = chat_responder
 
     async def run[T: BaseModel](
         self,
@@ -408,6 +537,83 @@ class FakeAIClient:
             degraded=set(tools.degraded) if tools is not None else set(),
         )
 
+    async def chat_stream(
+        self,
+        *,
+        system: str,
+        context: str,
+        messages: list[dict[str, Any]],
+        tools: ToolRunner | None,
+    ) -> AsyncIterator[ChatEvent]:
+        """Delegates to `chat_responder` when set, else streams a canned reply (proposing an
+        idea first when the user's message asks for one and the tool exists). Usage is zeros."""
+        counter = _CountingRunner(tools) if tools is not None else None
+        responder = self.chat_responder or _default_chat_responder
+        try:
+            async for event in responder(counter, context, messages):
+                if isinstance(event, ChatFinished):
+                    event = replace(event, tool_calls=counter.calls if counter else 0)
+                yield event
+        except AIError:
+            raise
+        except Exception as exc:
+            logger.exception("fake chat responder failed")
+            raise AIError(
+                "ai_unavailable",
+                "The fake responder failed.",
+                tool_calls=counter.calls if counter is not None else 0,
+            ) from exc
+
+
+def _last_user_message_text(messages: list[dict[str, Any]]) -> str:
+    for message in reversed(messages):
+        if message.get("role") != "user":
+            continue
+        content = message.get("content")
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            return "".join(
+                str(block.get("text", "")) for block in content if isinstance(block, dict)
+            )
+    return ""
+
+
+_FAKE_IDEA: dict[str, Any] = {
+    "title": "Sunset picnic",
+    "pitch": "Pack a blanket and some snacks and watch the sun go down together.",
+    "category": "outdoors",
+    "est_cost": 25,
+    "duration_minutes": 120,
+    "best_time": "evening",
+    "indoor_outdoor": "outdoor",
+    "tags": ["cozy"],
+}
+
+
+async def _default_chat_responder(
+    tools: ToolRunner | None, context: str, messages: list[dict[str, Any]]
+) -> AsyncIterator[ChatEvent]:
+    """The fake's reply when no `chat_responder` is set."""
+    asks_for_idea = "idea" in _last_user_message_text(messages).lower()
+    if (
+        asks_for_idea
+        and tools is not None
+        and any(spec.get("name") == "propose_idea" for spec in tools.specs())
+    ):
+        yield ToolStarted("propose_idea")
+        await tools.execute("propose_idea", dict(_FAKE_IDEA))
+        yield ToolFinished("propose_idea")
+    chunks = ["Here's a thought: ", "how about a ", "sunset picnic ", "this weekend?"]
+    for chunk in chunks:
+        yield TextDelta(chunk)
+    yield ChatFinished(
+        text="".join(chunks),
+        usage=Usage(model="fake"),
+        tool_calls=0,
+        degraded=set(tools.degraded) if tools is not None else set(),
+    )
+
 
 # --- Selection --------------------------------------------------------------------------------
 
@@ -420,7 +626,7 @@ def get_ai_client(settings: Settings) -> AIClient | None:
     if settings.demo_mode:
         import app.ai.fakes  # noqa: F401  (importing registers the demo responders)
 
-        return FakeAIClient(FAKE_RESPONDERS)
+        return FakeAIClient(FAKE_RESPONDERS, FAKE_CHAT_RESPONDER)
     return None
 
 
