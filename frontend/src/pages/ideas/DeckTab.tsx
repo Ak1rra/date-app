@@ -25,13 +25,15 @@ const NOTHING_TO_UNDO =
 
 interface DeckTabProps {
   partnerName: string;
-  /** True while another layer (the match overlay) owns the keyboard. */
+  /** True while another layer (the match overlay, the generate sheet) owns the keyboard. */
   paused: boolean;
   onMatch: (idea: IdeaOut) => void;
+  /** Opens the generate sheet, which the page owns so a deck refetch can't unmount it. */
+  onGenerate: () => void;
 }
 
 /** The swipe deck: one card at a time, voted by drag, buttons or arrow keys. */
-export function DeckTab({ partnerName, paused, onMatch }: DeckTabProps) {
+export function DeckTab({ partnerName, paused, onMatch, onGenerate }: DeckTabProps) {
   const deck = useDeck();
   const vote = useVote();
   const undo = useUndoVote();
@@ -125,7 +127,11 @@ export function DeckTab({ partnerName, paused, onMatch }: DeckTabProps) {
           </p>
         </>
       ) : (
-        <EmptyState icon={<IdeasIcon />} title="You're all caught up">
+        <EmptyState
+          icon={<IdeasIcon />}
+          title="You're all caught up"
+          action={<Button onClick={onGenerate}>Generate ideas</Button>}
+        >
           Nothing left to swipe on. Check back soon, and we&apos;ll have more sparks for you and{' '}
           {partnerName}.
         </EmptyState>

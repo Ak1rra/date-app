@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button } from '../../components/Button';
+import { aiError } from '../../api/plannerError';
 import { FormError, TextField } from '../../components/forms';
 import { useDeck } from '../../hooks/useIdeas';
 import type { ItineraryOut } from '../../hooks/useItineraries';
@@ -10,11 +11,19 @@ import {
   useRefreshHintsOnChange,
   useRevealNow,
   useSetRevealAt,
+  useSuggestHints,
   useUpdateHint,
   type HintOut,
 } from '../../hooks/useSurprise';
 import { localToIso } from './dateWindow';
-import { HINT_MAX, HintForm, isoToLocal, kindLabel, PAST_TIME_MESSAGE } from './HintForm';
+import {
+  HINT_MAX,
+  HintForm,
+  isoToLocal,
+  kindLabel,
+  PAST_TIME_MESSAGE,
+  type HintKind,
+} from './HintForm';
 
 const when = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 const day = new Intl.DateTimeFormat(undefined, { dateStyle: 'full' });
@@ -275,7 +284,9 @@ export function SurpriseSection({ itinerary }: { itinerary: ItineraryOut }) {
   useRefreshHintsOnChange(itinerary.id, `${itinerary.updated_at}|${itinerary.status}`);
   const add = useAddHint(itinerary.id);
   const deck = useDeck();
+  const suggest = useSuggestHints(itinerary.id);
   const [formKey, setFormKey] = useState(0);
+  const [prefill, setPrefill] = useState<{ kind: HintKind; text: string } | undefined>();
   const list = hints.data ?? [];
   const full = list.length >= HINT_MAX;
   // Nobody to notify until the partner has joined, so the planner shares released hints by hand.
@@ -324,15 +335,68 @@ export function SurpriseSection({ itinerary }: { itinerary: ItineraryOut }) {
           <p className="text-sm text-muted">That&apos;s 20 hints, the most a surprise can hold.</p>
         ) : (
           <div className="flex flex-col gap-3 border-t border-line pt-4">
-            <h3 className="text-lg font-semibold">Add a hint</h3>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-lg font-semibold">Add a hint</h3>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={suggest.isPending}
+                onClick={() => suggest.mutate()}
+              >
+                {suggest.isPending ? 'Thinking of hints…' : 'Suggest hints ✨'}
+              </Button>
+            </div>
+            <FormError error={aiError(suggest.error)} />
+            {suggest.data ? (
+              suggest.data.suggestions.length > 0 ? (
+                <ul className="flex flex-col gap-2" aria-label="Suggested hints">
+                  {suggest.data.suggestions.map((suggestion, index) => (
+                    <li
+                      key={`${index}|${suggestion.kind}|${suggestion.text}`}
+                      className="flex flex-col gap-2 rounded-2xl border border-line bg-surface-2 p-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-muted">
+                          {kindLabel(suggestion.kind)}
+                        </p>
+                        <p className="font-semibold">{suggestion.text}</p>
+                      </div>
+                      <div>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          aria-label={`Use this hint: ${suggestion.text}`}
+                          // A pending add would clear this prefill on success and wipe the new pick.
+                          disabled={add.isPending}
+                          onClick={() => {
+                            setPrefill({ kind: suggestion.kind, text: suggestion.text });
+                            setFormKey((value) => value + 1);
+                          }}
+                        >
+                          Use this
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted">No suggestions this time. Try again in a bit.</p>
+              )
+            ) : null}
             <HintForm
               key={formKey}
+              prefill={prefill}
               startsAt={itinerary.starts_at}
               submitLabel="Add hint"
               pending={add.isPending}
               error={add.error}
               onSubmit={(body) =>
-                add.mutate(body, { onSuccess: () => setFormKey((value) => value + 1) })
+                add.mutate(body, {
+                  onSuccess: () => {
+                    setPrefill(undefined);
+                    setFormKey((value) => value + 1);
+                  },
+                })
               }
             />
           </div>

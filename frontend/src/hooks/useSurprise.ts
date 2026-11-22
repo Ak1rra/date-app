@@ -8,6 +8,7 @@ export type HintOut = Schemas['HintOut'];
 export type HintIn = Schemas['HintIn'];
 export type HintPatch = Schemas['HintPatch'];
 export type RevealAtIn = Schemas['RevealAtIn'];
+export type HintSuggestionOut = Schemas['HintSuggestionOut'];
 
 export const hintsKey = (userId: string | undefined, id: string | undefined) =>
   ['hints', userId, id] as const;
@@ -59,6 +60,18 @@ export function useAddHint(id: string) {
         }),
       ),
     onSuccess: invalidate,
+  });
+}
+
+/** POST /hints/suggest: AI hint ideas for the planner. Nothing is saved, so nothing is refetched. */
+export function useSuggestHints(id: string) {
+  return useMutation({
+    mutationFn: async () =>
+      unwrap(
+        await client.POST('/api/v1/itineraries/{itinerary_id}/hints/suggest', {
+          params: { path: { itinerary_id: id } },
+        }),
+      ),
   });
 }
 

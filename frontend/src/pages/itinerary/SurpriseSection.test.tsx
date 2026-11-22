@@ -5,7 +5,7 @@ import { isoToLocal } from './HintForm';
 import { itineraryKey, type ItineraryOut } from '../../hooks/useItineraries';
 import type { HintOut } from '../../hooks/useSurprise';
 import { mockApi } from '../../test/mockApi';
-import { renderApp, renderAppWithClient } from '../../test/renderApp';
+import { jsonResponse, renderApp, renderAppWithClient } from '../../test/renderApp';
 
 const session = {
   authenticated: true,
@@ -469,5 +469,92 @@ describe('SurpriseSection', () => {
     renderApp('/itineraries/i1');
     await screen.findByText('Bring a jacket');
     expect(screen.queryByRole('button', { name: /^Copy hint:/ })).not.toBeInTheDocument();
+  });
+
+  it('suggests hints and prefills the form with one, released now', async () => {
+    const api = setup(itinerary, [released], {
+      'POST /api/v1/itineraries/i1/hints/suggest': {
+        suggestions: [
+          { kind: 'eat', text: 'Come hungry' },
+          { kind: 'bring', text: 'Bring a scarf' },
+        ],
+      },
+    });
+    renderApp('/itineraries/i1');
+    await addForm();
+    await userEvent.click(screen.getByRole('button', { name: 'Suggest hints ✨' }));
+    const list = within(await screen.findByRole('list', { name: 'Suggested hints' }));
+    expect(list.getByText('Eating')).toBeInTheDocument();
+    expect(list.getByText('Bring a scarf')).toBeInTheDocument();
+
+    await userEvent.click(list.getByRole('button', { name: /Use this hint: Come hungry/ }));
+    const filled = within(screen.getByRole('form', { name: 'Add a hint' }));
+    expect(filled.getByLabelText('Hint')).toHaveValue('Come hungry');
+    expect(filled.getByRole('button', { name: 'Eating' })).toHaveAttribute('aria-pressed', 'true');
+    expect(filled.getByLabelText('When to release')).toHaveValue('now');
+
+    // A second "Use this" re-seeds the form, even after it was edited.
+    await userEvent.type(filled.getByLabelText('Hint'), ' later');
+    await userEvent.click(list.getByRole('button', { name: /Use this hint: Bring a scarf/ }));
+    const reseeded = within(screen.getByRole('form', { name: 'Add a hint' }));
+    expect(reseeded.getByLabelText('Hint')).toHaveValue('Bring a scarf');
+    expect(reseeded.getByRole('button', { name: 'What to bring' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+
+    await userEvent.click(reseeded.getByRole('button', { name: 'Add hint' }));
+    await waitFor(() =>
+      expect(api.body('POST', '/api/v1/itineraries/i1/hints')).toEqual({
+        kind: 'bring',
+        text: 'Bring a scarf',
+        release_at: null,
+      }),
+    );
+    expect(api.find('POST', '/api/v1/itineraries/i1/hints/suggest')).toHaveLength(1);
+  });
+
+  it('disables "Use this" while a hint is being added, so a newer pick survives', async () => {
+    setup(itinerary, [released], {
+      'POST /api/v1/itineraries/i1/hints/suggest': {
+        suggestions: [
+          { kind: 'eat', text: 'Come hungry' },
+          { kind: 'bring', text: 'Bring a scarf' },
+        ],
+      },
+      'POST /api/v1/itineraries/i1/hints': () => new Promise<never>(() => {}),
+    });
+    renderApp('/itineraries/i1');
+    await addForm();
+    await userEvent.click(screen.getByRole('button', { name: 'Suggest hints ✨' }));
+    const list = within(await screen.findByRole('list', { name: 'Suggested hints' }));
+    await userEvent.click(list.getByRole('button', { name: /Use this hint: Come hungry/ }));
+    await userEvent.click(
+      within(screen.getByRole('form', { name: 'Add a hint' })).getByRole('button', {
+        name: 'Add hint',
+      }),
+    );
+    expect(list.getByRole('button', { name: /Use this hint: Come hungry/ })).toBeDisabled();
+    expect(list.getByRole('button', { name: /Use this hint: Bring a scarf/ })).toBeDisabled();
+  });
+
+  it('shows a friendly message when suggestions fail', async () => {
+    setup(itinerary, [released], {
+      'POST /api/v1/itineraries/i1/hints/suggest': () =>
+        jsonResponse({ error: { code: 'ai_rate_limited', message: 'raw' } }, 429),
+    });
+    renderApp('/itineraries/i1');
+    await addForm();
+    await userEvent.click(screen.getByRole('button', { name: 'Suggest hints ✨' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "You've hit the AI limit for now — try again later.",
+    );
+  });
+
+  it('shows no suggest button once the date is over', async () => {
+    setup({ ...itinerary, status: 'completed' });
+    renderApp('/itineraries/i1');
+    await screen.findByRole('heading', { name: 'A very good night' });
+    expect(screen.queryByRole('button', { name: 'Suggest hints ✨' })).not.toBeInTheDocument();
   });
 });

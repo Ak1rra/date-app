@@ -77,6 +77,7 @@ function useNow(ms: number) {
 
 export function HintForm({
   initial,
+  prefill,
   startsAt,
   submitLabel,
   pending,
@@ -85,6 +86,8 @@ export function HintForm({
   onCancel,
 }: {
   initial?: { kind: HintKind; text: string; release_at: string };
+  /** Seeds the kind and text only (a suggestion); the release choice stays "Now". */
+  prefill?: { kind: HintKind; text: string };
   startsAt: string | null;
   submitLabel: string;
   pending: boolean;
@@ -92,8 +95,8 @@ export function HintForm({
   onSubmit: (body: HintIn) => void;
   onCancel?: () => void;
 }) {
-  const [kind, setKind] = useState<HintKind>(initial?.kind ?? 'dress_code');
-  const [text, setText] = useState(initial?.text ?? '');
+  const [kind, setKind] = useState<HintKind>(initial?.kind ?? prefill?.kind ?? 'dress_code');
+  const [text, setText] = useState(initial?.text ?? prefill?.text ?? '');
   const [choice, setChoice] = useState<ReleaseChoice>(initial ? 'pick' : 'now');
   const [pick, setPick] = useState(isoToLocal(initial?.release_at));
   const [pastError, setPastError] = useState(false);

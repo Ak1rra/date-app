@@ -1,9 +1,11 @@
 import { useState } from 'react';
+import { Button } from '../components/Button';
 import { Card } from '../components/EmptyState';
-import { useIdeaLists, type IdeaOut } from '../hooks/useIdeas';
+import { useDeck, useIdeaLists, type IdeaOut } from '../hooks/useIdeas';
 import { useViewerId } from '../hooks/useSession';
 import { useMatchCelebration } from '../realtime/RealtimeProvider';
 import { DeckTab } from './ideas/DeckTab';
+import { GenerateIdeasSheet, type GenerateMode } from './ideas/GenerateIdeasSheet';
 import { IdeaLists, type ListName } from './ideas/IdeaLists';
 import { MyIdeasTab } from './ideas/MyIdeasTab';
 import { usePeople } from './ideas/usePeople';
@@ -23,7 +25,12 @@ export function IdeasPage() {
 function IdeasBody() {
   const people = usePeople();
   const lists = useIdeaLists().data;
+  const viewerId = useViewerId();
+  const deck = useDeck().data;
   const [tab, setTab] = useState<TabId>('deck');
+  // Owned here, outside the tab panel and its loading/error branches, so a deck refetch that
+  // fails can't unmount the sheet and lose its success or degraded notice.
+  const [generateMode, setGenerateMode] = useState<GenerateMode | null>(null);
   // The overlay lives in RealtimeProvider so a match found anywhere raises the same one.
   const celebration = useMatchCelebration();
   const onMatch = (idea: IdeaOut) => celebration.celebrate(idea.id, idea.title);
@@ -40,7 +47,18 @@ function IdeasBody() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold">Ideas</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold">Ideas</h1>
+        {viewerId ? (
+          <Button
+            variant="secondary"
+            disabled={!deck}
+            onClick={() => deck && setGenerateMode(deck.partner_joined ? 'match' : 'plan')}
+          >
+            Generate ideas
+          </Button>
+        ) : null}
+      </div>
       <div
         role="tablist"
         aria-label="Idea lists"
@@ -73,8 +91,9 @@ function IdeasBody() {
           {tab === 'deck' ? (
             <DeckTab
               partnerName={people.partnerName}
-              paused={celebration.active}
+              paused={celebration.active || generateMode !== null}
               onMatch={onMatch}
+              onGenerate={() => setGenerateMode('match')}
             />
           ) : tab === 'mine' ? (
             <MyIdeasTab partnerName={people.partnerName} />
@@ -83,6 +102,9 @@ function IdeasBody() {
           )}
         </div>
       </Card>
+      {generateMode ? (
+        <GenerateIdeasSheet defaultMode={generateMode} onClose={() => setGenerateMode(null)} />
+      ) : null}
     </div>
   );
 }

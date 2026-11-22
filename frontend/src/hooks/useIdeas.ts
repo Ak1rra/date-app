@@ -7,6 +7,8 @@ import { useViewerId } from './useSession';
 export type IdeaOut = Schemas['IdeaOut'];
 export type IdeaIn = Schemas['IdeaIn'];
 export type IdeaPatch = Schemas['IdeaPatch'];
+export type GenerateIdeasIn = Schemas['GenerateIdeasIn'];
+export type GenerateIdeasOut = Schemas['GenerateIdeasOut'];
 export type IdeaListsOut = Schemas['IdeaListsOut'];
 export type IdeaItineraryIn = Schemas['IdeaItineraryIn'];
 export type VoteValue = Schemas['VoteIn']['value'];
@@ -100,6 +102,17 @@ export function useCreateIdea() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (body: IdeaIn) => unwrap(await client.POST('/api/v1/ideas', { body })),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ideasKey(userId) }),
+  });
+}
+
+/** POST /ideas/generate: the AI dreams up a batch of ideas; `degraded` lists what it had to skip. */
+export function useGenerateIdeas() {
+  const userId = useViewerId();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: GenerateIdeasIn) =>
+      unwrap(await client.POST('/api/v1/ideas/generate', { body })),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ideasKey(userId) }),
   });
 }
