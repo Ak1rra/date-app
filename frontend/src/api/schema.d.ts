@@ -318,6 +318,81 @@ export interface paths {
         patch: operations["patch_important_date_api_v1_couple_important_dates__date_id__patch"];
         trace?: never;
     };
+    "/api/v1/couple/invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Invite
+         * @description Owner only: a fresh invitation to the couple, revoking the previous one.
+         */
+        post: operations["create_invite_api_v1_couple_invites_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/couple/invites/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Current Invite */
+        get: operations["get_current_invite_api_v1_couple_invites_current_get"];
+        put?: never;
+        post?: never;
+        /** Revoke Current Invite */
+        delete: operations["revoke_current_invite_api_v1_couple_invites_current_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/couple/join": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Join Couple
+         * @description Redeem an invitation (its token or short code) and become the couple's partner.
+         */
+        post: operations["join_couple_api_v1_couple_join_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/couple/leave": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Leave Couple */
+        post: operations["leave_couple_api_v1_couple_leave_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/deck": {
         parameters: {
             query?: never;
@@ -2180,6 +2255,28 @@ export interface components {
             /** Recurring */
             recurring?: boolean;
         };
+        /** InviteCurrentOut */
+        InviteCurrentOut: {
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Short Code */
+            short_code: string;
+        };
+        /** InviteOut */
+        InviteOut: {
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Link */
+            link: string;
+            /** Short Code */
+            short_code: string;
+        };
         /** ItineraryOut */
         ItineraryOut: {
             /** Announced At */
@@ -2301,6 +2398,16 @@ export interface components {
             stop_count: number;
             /** Title */
             title: string;
+        };
+        /**
+         * JoinIn
+         * @description Exactly one of `token` (from the invite link) or `short_code` (typed in).
+         */
+        JoinIn: {
+            /** Short Code */
+            short_code?: string | null;
+            /** Token */
+            token?: string | null;
         };
         /** MagicLinkIn */
         MagicLinkIn: {
@@ -3922,6 +4029,115 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    create_invite_api_v1_couple_invites_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteOut"];
+                };
+            };
+        };
+    };
+    get_current_invite_api_v1_couple_invites_current_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteCurrentOut"];
+                };
+            };
+        };
+    };
+    revoke_current_invite_api_v1_couple_invites_current_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    join_couple_api_v1_couple_join_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JoinIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    leave_couple_api_v1_couple_leave_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

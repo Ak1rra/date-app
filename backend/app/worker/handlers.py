@@ -26,7 +26,7 @@ from app.models.jobs import Job
 from app.models.notify import Notification, PushSubscription
 from app.models.user import MagicLinkToken, User, UserSession
 from app.providers.registry import build_providers
-from app.services import account, feedback, reminders, taste
+from app.services import account, feedback, pairing, reminders, taste
 from app.services.surprise import SURPRISE_DUE, process_due
 from app.worker.jobs import enqueue, register
 
@@ -369,3 +369,14 @@ async def user_purge(session: AsyncSession, payload: dict[str, Any]) -> None:
         update(User).where(User.id == user_id).values(notification_settings={}, timezone="UTC")
     )
     await session.execute(update(AIUsage).where(AIUsage.user_id == user_id).values(user_id=None))
+
+
+@register(pairing.COUPLE_PURGE)
+async def couple_purge(session: AsyncSession, payload: dict[str, Any]) -> None:
+    """Delete an archived couple's shared data, 30 days after the pairing ended (FR-PAIR-3). A
+    couple that is gone or active again no-ops, and so does a second run."""
+    try:
+        couple_id = uuid.UUID(str(payload.get("couple_id")))
+    except (AttributeError, ValueError):
+        return
+    await pairing.purge_couple(session, couple_id)

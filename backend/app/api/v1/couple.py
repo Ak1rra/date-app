@@ -1,12 +1,22 @@
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1.auth import _rate_limited
+from app.config import Settings
 from app.db import get_session
-from app.deps import CurrentUser, current_user
+from app.deps import (
+    CurrentUser,
+    client_ip,
+    current_user,
+    get_app_settings,
+    get_verify_ip_limiter,
+    require_email_login,
+)
 from app.providers.geocoding.base import Geocoder
 from app.providers.registry import get_geocoder
+from app.schemas.auth import MeOut
 from app.schemas.couple import (
     ConstraintsIn,
     ConstraintsOut,
@@ -18,7 +28,10 @@ from app.schemas.couple import (
     ImportantDateOut,
     ImportantDatePatch,
 )
+from app.schemas.pairing import InviteCurrentOut, InviteOut, JoinIn
+from app.security.ratelimit import SlidingWindowLimiter
 from app.services import couple as couple_service
+from app.services import pairing as pairing_service
 from app.services.couple import require_couple_id
 
 router = APIRouter(prefix="/couple", tags=["couple"])
@@ -126,4 +139,69 @@ async def delete_important_date(
     await couple_service.delete_important_date(
         session, require_couple_id(current.couple_id), date_id
     )
+    await session.commit()
+
+
+@router.post(
+    "/invites",
+    response_model=InviteOut,
+    status_code=201,
+    dependencies=[Depends(require_email_login)],
+)
+async def create_invite(
+    settings: Settings = Depends(get_app_settings),
+    session: AsyncSession = Depends(get_session),
+    current: CurrentUser = Depends(current_user),
+) -> InviteOut:
+    """Owner only: a fresh invitation to the couple, revoking the previous one."""
+    out = await pairing_service.create_invite(
+        session, settings, current.user, current.couple_id, current.role
+    )
+    await session.commit()
+    return out
+
+
+@router.get(
+    "/invites/current",
+    response_model=InviteCurrentOut,
+    dependencies=[Depends(require_email_login)],
+)
+async def get_current_invite(
+    session: AsyncSession = Depends(get_session),
+    current: CurrentUser = Depends(current_user),
+) -> InviteCurrentOut:
+    return await pairing_service.current_invite(session, current.couple_id, current.role)
+
+
+@router.delete("/invites/current", status_code=204, dependencies=[Depends(require_email_login)])
+async def revoke_current_invite(
+    session: AsyncSession = Depends(get_session),
+    current: CurrentUser = Depends(current_user),
+) -> None:
+    await pairing_service.revoke_current_invite(session, current.couple_id, current.role)
+    await session.commit()
+
+
+@router.post("/join", response_model=MeOut, dependencies=[Depends(require_email_login)])
+async def join_couple(
+    body: JoinIn,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    ip_limiter: SlidingWindowLimiter = Depends(get_verify_ip_limiter),
+    current: CurrentUser = Depends(current_user),
+) -> MeOut:
+    """Redeem an invitation (its token or short code) and become the couple's partner."""
+    if (wait := ip_limiter.hit(client_ip(request))) is not None:
+        raise _rate_limited(wait)
+    out = await pairing_service.join(session, current.user, body)
+    await session.commit()
+    return out
+
+
+@router.post("/leave", status_code=204, dependencies=[Depends(require_email_login)])
+async def leave_couple(
+    session: AsyncSession = Depends(get_session),
+    current: CurrentUser = Depends(current_user),
+) -> None:
+    await pairing_service.leave(session, current.user.id, current.couple_id)
     await session.commit()

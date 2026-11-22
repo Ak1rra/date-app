@@ -2208,6 +2208,49 @@
         "title": "ImportantDatePatch",
         "type": "object"
       },
+      "InviteCurrentOut": {
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "short_code": {
+            "title": "Short Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "short_code",
+          "expires_at"
+        ],
+        "title": "InviteCurrentOut",
+        "type": "object"
+      },
+      "InviteOut": {
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "link": {
+            "title": "Link",
+            "type": "string"
+          },
+          "short_code": {
+            "title": "Short Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "link",
+          "short_code",
+          "expires_at"
+        ],
+        "title": "InviteOut",
+        "type": "object"
+      },
       "ItineraryOut": {
         "properties": {
           "announced_at": {
@@ -2639,6 +2682,39 @@
           "stop_count"
         ],
         "title": "ItinerarySummary",
+        "type": "object"
+      },
+      "JoinIn": {
+        "description": "Exactly one of `token` (from the invite link) or `short_code` (typed in).",
+        "properties": {
+          "short_code": {
+            "anyOf": [
+              {
+                "maxLength": 12,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short Code"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token"
+          }
+        },
+        "title": "JoinIn",
         "type": "object"
       },
       "MagicLinkIn": {
@@ -6689,6 +6765,117 @@
           }
         },
         "summary": "Patch Important Date",
+        "tags": [
+          "couple"
+        ]
+      }
+    },
+    "/api/v1/couple/invites": {
+      "post": {
+        "description": "Owner only: a fresh invitation to the couple, revoking the previous one.",
+        "operationId": "create_invite_api_v1_couple_invites_post",
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InviteOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Create Invite",
+        "tags": [
+          "couple"
+        ]
+      }
+    },
+    "/api/v1/couple/invites/current": {
+      "delete": {
+        "operationId": "revoke_current_invite_api_v1_couple_invites_current_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Revoke Current Invite",
+        "tags": [
+          "couple"
+        ]
+      },
+      "get": {
+        "operationId": "get_current_invite_api_v1_couple_invites_current_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InviteCurrentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Current Invite",
+        "tags": [
+          "couple"
+        ]
+      }
+    },
+    "/api/v1/couple/join": {
+      "post": {
+        "description": "Redeem an invitation (its token or short code) and become the couple's partner.",
+        "operationId": "join_couple_api_v1_couple_join_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join Couple",
+        "tags": [
+          "couple"
+        ]
+      }
+    },
+    "/api/v1/couple/leave": {
+      "post": {
+        "operationId": "leave_couple_api_v1_couple_leave_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Leave Couple",
         "tags": [
           "couple"
         ]
