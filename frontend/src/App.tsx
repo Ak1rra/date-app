@@ -9,6 +9,7 @@ import { IdeasPage } from './pages/IdeasPage';
 import { InstallPage } from './pages/InstallPage';
 import { ItinerariesPage } from './pages/ItinerariesPage';
 import { ItineraryPage } from './pages/ItineraryPage';
+import { JoinPage } from './pages/JoinPage';
 import { SurprisePage } from './pages/SurprisePage';
 import { NotificationsPage } from './pages/NotificationsPage';
 import { PlanPage } from './pages/PlanPage';
@@ -27,6 +28,7 @@ export const routes: RouteObject[] = [
       { path: '/signin', element: <SignInPage /> },
       { path: '/auth/verify', element: <VerifyPage /> },
       { path: '/privacy', element: <PrivacyPage /> },
+      { path: '/join', element: <JoinPage /> },
       {
         path: '/setup',
         element: (

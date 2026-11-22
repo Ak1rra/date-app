@@ -1,3 +1,4 @@
+import { InviteCard } from '../components/InviteCard';
 import { useProfiles } from '../hooks/useProfiles';
 import { AvailabilitySection } from './us/AvailabilitySection';
 import { ConstraintsSection } from './us/ConstraintsSection';
@@ -13,6 +14,7 @@ export function UsPage() {
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-bold">Us</h1>
+      <InviteCard />
       <ProfileSection />
       <AvailabilitySection />
       <ConstraintsSection />

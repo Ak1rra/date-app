@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { Link } from 'react-router';
 import { Card, EmptyState } from '../components/EmptyState';
 import { LoadError, Segmented, Skeleton } from '../components/forms';
 import { ChatIcon } from '../components/Icons';
 import { useThreads } from '../hooks/useChat';
+import { useEmailMode } from '../hooks/usePairing';
 import { useViewerId } from '../hooks/useSession';
 import { ChatThread } from './chat/ChatThread';
 
@@ -16,6 +18,7 @@ export function ChatPage() {
 
 function ChatBody() {
   const threads = useThreads();
+  const emailMode = useEmailMode();
   const [which, setWhich] = useState<Which>('mine');
 
   const mine = threads.data?.find((t) => t.scope === 'private');
@@ -44,6 +47,14 @@ function ChatBody() {
           ) : (
             <p className="text-sm text-muted">
               Invite your partner to unlock a shared chat you can both see.
+              {emailMode ? (
+                <>
+                  {' '}
+                  <Link to="/us#invite" className="underline">
+                    Invite them
+                  </Link>
+                </>
+              ) : null}
             </p>
           )}
           <Card>

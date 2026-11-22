@@ -403,6 +403,12 @@ const cases: Case[] = [
     ready: () => screen.findByRole('heading', { level: 1, name: 'Checking your link' }),
   },
   {
+    name: 'Join',
+    path: '/join',
+    routes: { 'GET /api/v1/meta': { ...meta, no_login: false } },
+    ready: () => screen.findByRole('button', { name: 'Join' }),
+  },
+  {
     name: 'Setup',
     path: '/setup',
     routes: { 'GET /api/v1/auth/session': session(null) },

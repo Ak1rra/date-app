@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button } from '../../components/Button';
+import { Button, ButtonLink } from '../../components/Button';
 import { EmptyState } from '../../components/EmptyState';
 import { IdeasIcon, UsIcon } from '../../components/Icons';
 import { LoadError, Skeleton } from '../../components/forms';
@@ -11,6 +11,7 @@ import {
   type IdeaOut,
   type VoteValue,
 } from '../../hooks/useIdeas';
+import { useEmailMode } from '../../hooks/usePairing';
 import { usePrefersReducedMotion } from '../../hooks/useReducedMotion';
 import { SwipeCard } from './SwipeCard';
 
@@ -35,6 +36,7 @@ interface DeckTabProps {
 /** The swipe deck: one card at a time, voted by drag, buttons or arrow keys. */
 export function DeckTab({ partnerName, paused, onMatch, onGenerate }: DeckTabProps) {
   const deck = useDeck();
+  const emailMode = useEmailMode();
   const vote = useVote();
   const undo = useUndoVote();
   const reducedMotion = usePrefersReducedMotion();
@@ -95,7 +97,15 @@ export function DeckTab({ partnerName, paused, onMatch, onGenerate }: DeckTabPro
       <EmptyState
         icon={<UsIcon />}
         title="Swipe on ideas together"
-        action={<Button variant="secondary">Invite your partner to swipe together</Button>}
+        action={
+          emailMode ? (
+            <ButtonLink to="/us#invite" variant="secondary">
+              Invite your partner to swipe together
+            </ButtonLink>
+          ) : (
+            <Button variant="secondary">Invite your partner to swipe together</Button>
+          )
+        }
       >
         Once your partner joins, you&apos;ll each swipe on date ideas and see where you match.
       </EmptyState>
