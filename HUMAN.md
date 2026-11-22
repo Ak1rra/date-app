@@ -46,3 +46,7 @@ earned its status.
 - Does switching profiles on a shared phone ever show the other person's data?
 - Surprise mode, end to end on two phones: as the planner, schedule a date as a surprise, add hints (including "Suggest hints"), and set a reveal time; as the surprisee, does the Home card, the calendar's "Surprise date ✨" entry and the surprise page give away nothing beyond the time and the released hints, and does the reveal land you on the full date?
 - Does a released hint's push/in-app notification feel exciting rather than spoilery?
+- Email-login mode only: on two phones, does "Invite your partner" → share link → /join → sign in land the partner in the shared space, and does "Leave" feel safe and clear?
+- Does the weekly "Nothing on the calendar 👀" nudge feel flirty rather than naggy?
+- When you reschedule a planned date to another day, do the stops move with it and do any opening-hours warnings that appear make sense?
+- Is the "Evergreen" stop pill and the "double-check before you go" note on a date clear, or noisy?
