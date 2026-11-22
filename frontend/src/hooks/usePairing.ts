@@ -1,6 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { client, unwrap, type Schemas } from '../api/client';
 import { ApiError } from '../api/http';
+import { clearOfflineApiCache } from '../lib/offlineApi';
 import { useMeta } from './useMeta';
 import { useViewerId } from './useSession';
 
@@ -58,6 +59,17 @@ export function useRevokeInvite() {
   });
 }
 
+/**
+ * The couple changed, so nothing cached for the old space is right any more. Reset (not just
+ * invalidate) puts every query back to its initial state, so inactive ones can't render stale
+ * data later, and refetches the active ones. The offline copy goes first so it can't serve the
+ * old couple either.
+ */
+async function resetEverything(queryClient: QueryClient) {
+  await clearOfflineApiCache();
+  await queryClient.resetQueries();
+}
+
 /** POST /couple/join with the link's token or a typed short code. */
 export function useJoin() {
   const queryClient = useQueryClient();
@@ -65,8 +77,7 @@ export function useJoin() {
     mutationFn: async (body: JoinIn) => unwrap(await client.POST('/api/v1/couple/join', { body })),
     onSuccess: async () => {
       clearPendingInvite();
-      // The couple changed, so nothing cached for the old space is right any more.
-      await queryClient.invalidateQueries();
+      await resetEverything(queryClient);
     },
   });
 }
@@ -76,9 +87,7 @@ export function useLeave() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async () => unwrap<undefined>(await client.POST('/api/v1/couple/leave')),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries();
-    },
+    onSuccess: () => resetEverything(queryClient),
   });
 }
 

@@ -44,13 +44,15 @@ export function JoinPage() {
   const join = useJoin();
   const navigate = useNavigate();
   const { hash } = useLocation();
+  const hashToken = new URLSearchParams(hash.replace(/^#/, '')).get('token');
   const [stored] = useState(getPendingInvite);
   const [used, setUsed] = useState(false);
-  const [code, setCode] = useState(stored?.short_code ?? '');
+  // A link's token wins over an older stored invite, so an old code is never prefilled beside it.
+  const [code, setCode] = useState(hashToken ? '' : (stored?.short_code ?? ''));
+  const [codeEdited, setCodeEdited] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
-  // A link's token wins over an older stored invite. `used` drops it once the server refuses it.
-  const hashToken = new URLSearchParams(hash.replace(/^#/, '')).get('token');
+  // `used` drops the invite once the server refuses it.
   const pending: PendingInvite | null = used ? null : hashToken ? { token: hashToken } : stored;
 
   useEffect(() => {
@@ -108,7 +110,15 @@ export function JoinPage() {
   const authenticated = !signedOut && session.data?.authenticated && !!session.data.user;
 
   const codeReady = code.length === CODE_LENGTH;
-  const body = codeReady ? { short_code: code } : pending?.token ? { token: pending.token } : null;
+  // The token wins unless the person typed a code themselves.
+  const body =
+    pending?.token && !codeEdited
+      ? { token: pending.token }
+      : codeReady
+        ? { short_code: code }
+        : pending?.token
+          ? { token: pending.token }
+          : null;
 
   const codeField = (
     <TextField
@@ -122,6 +132,7 @@ export function JoinPage() {
       onChange={(e) => {
         join.reset();
         setError(null);
+        setCodeEdited(true);
         setCode(
           e.target.value
             .toUpperCase()
@@ -169,7 +180,9 @@ export function JoinPage() {
             size="xl"
             onClick={() => {
               // Keep a typed code across the sign-in round trip (the link's token is saved already).
-              if (codeReady) setPendingInvite({ ...pending, short_code: code });
+              if (codeReady && (codeEdited || !pending?.token)) {
+                setPendingInvite({ short_code: code });
+              }
             }}
           >
             Sign in to join your partner

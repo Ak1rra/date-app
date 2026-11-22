@@ -32,6 +32,9 @@ export function InviteCard() {
 
   if (!open) return null;
 
+  // Make and stop must not overlap: a late POST would resurrect an invite the person just stopped.
+  const busy = create.isPending || revoke.isPending;
+
   const link = create.data?.link;
   const invite = create.data ?? current.data ?? null;
   const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
@@ -124,11 +127,11 @@ export function InviteCard() {
               </p>
               <div className="flex flex-wrap gap-3">
                 {link ? null : (
-                  <Button variant="secondary" onClick={make} disabled={create.isPending}>
+                  <Button variant="secondary" onClick={make} disabled={busy}>
                     {create.isPending ? 'Working…' : 'Make a new link'}
                   </Button>
                 )}
-                <Button variant="secondary" onClick={stop} disabled={revoke.isPending}>
+                <Button variant="secondary" onClick={stop} disabled={busy}>
                   {revoke.isPending ? 'Working…' : 'Stop sharing'}
                 </Button>
               </div>
@@ -140,7 +143,7 @@ export function InviteCard() {
                 partner; once they join you&apos;ll share ideas, dates and chats.
               </p>
               <div>
-                <Button onClick={make} disabled={create.isPending}>
+                <Button onClick={make} disabled={busy}>
                   {create.isPending ? 'Working…' : 'Invite your partner'}
                 </Button>
               </div>

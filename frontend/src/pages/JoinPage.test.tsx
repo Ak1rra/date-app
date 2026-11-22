@@ -60,6 +60,29 @@ describe('JoinPage', () => {
     expect(getPendingInvite()).toBeNull();
   });
 
+  it('submits a new link token, not an older stored code', async () => {
+    const api = setup({ 'POST /api/v1/couple/join': me });
+    setPendingInvite({ short_code: 'OLDCODE2' });
+    renderApp('/join#token=newtok');
+
+    expect(await screen.findByLabelText('Have a code?')).toHaveValue('');
+    await userEvent.click(screen.getByRole('button', { name: 'Join' }));
+
+    await waitFor(() => expect(api.find('POST', '/api/v1/couple/join')).toHaveLength(1));
+    expect(api.body('POST', '/api/v1/couple/join')).toEqual({ token: 'newtok' });
+  });
+
+  it('submits a code the person typed even when a link token is pending', async () => {
+    const api = setup({ 'POST /api/v1/couple/join': me });
+    renderApp('/join#token=newtok');
+
+    await userEvent.type(await screen.findByLabelText('Have a code?'), 'wxyz6789');
+    await userEvent.click(screen.getByRole('button', { name: 'Join' }));
+
+    await waitFor(() => expect(api.find('POST', '/api/v1/couple/join')).toHaveLength(1));
+    expect(api.body('POST', '/api/v1/couple/join')).toEqual({ short_code: 'WXYZ6789' });
+  });
+
   it('joins with a typed code, uppercased', async () => {
     const api = setup({ 'POST /api/v1/couple/join': me });
     renderApp('/join');

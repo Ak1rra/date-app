@@ -109,6 +109,54 @@ describe('InviteCard', () => {
     expect(screen.queryByText('WXYZ6789')).not.toBeInTheDocument();
   });
 
+  it('disables make and stop while either request is in flight', async () => {
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    setup({
+      'GET /api/v1/couple/invites/current': {
+        short_code: 'WXYZ6789',
+        expires_at: '2026-12-01T10:00:00Z',
+      },
+      'POST /api/v1/couple/invites': async () => {
+        await held;
+        return jsonResponse(created, 201);
+      },
+    });
+    renderApp('/us');
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Make a new link' }));
+
+    expect(screen.getByRole('button', { name: 'Stop sharing' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Working…' })).toBeDisabled();
+    release();
+    expect(await screen.findByLabelText('Invite link')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Stop sharing' })).toBeEnabled();
+  });
+
+  it('disables make while a stop is in flight', async () => {
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    setup({
+      'GET /api/v1/couple/invites/current': {
+        short_code: 'WXYZ6789',
+        expires_at: '2026-12-01T10:00:00Z',
+      },
+      'DELETE /api/v1/couple/invites/current': async () => {
+        await held;
+        return new Response(null, { status: 204 });
+      },
+    });
+    renderApp('/us');
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Stop sharing' }));
+
+    expect(screen.getByRole('button', { name: 'Make a new link' })).toBeDisabled();
+    release();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Make a new link' })).toBeEnabled(),
+    );
+  });
+
   it('is hidden in NO_LOGIN mode and never calls the invite routes', async () => {
     const api = setup({ 'GET /api/v1/meta': meta(true) });
     renderApp('/us');
