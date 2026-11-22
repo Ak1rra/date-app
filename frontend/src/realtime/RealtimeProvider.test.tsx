@@ -79,6 +79,12 @@ describe('RealtimeProvider', () => {
     ['date.scheduled', { id: 'it1' }, ['itinerary', 'itineraries', 'calendar', 'hints']],
     ['date.cancelled', { id: 'it1' }, ['itinerary', 'itineraries', 'calendar', 'hints']],
     ['date.rescheduled', { id: 'it1' }, ['itinerary', 'itineraries', 'calendar', 'hints']],
+    [
+      'date.completed',
+      { id: 'it1' },
+      ['itinerary', 'itineraries', 'calendar', 'hints', 'past-dates', 'ratings'],
+    ],
+    ['rating.revealed', { itinerary_id: 'it1' }, ['ratings', 'past-dates']],
     ['calendar.changed', {}, ['calendar', 'surprises', 'surprise']],
     ['hint.released', {}, ['surprises', 'surprise']],
     ['surprise.revealed', { id: 's1' }, ['surprises', 'surprise', 'itineraries', 'calendar']],

@@ -39,7 +39,11 @@ export function rootsFor(event: string): string[] {
   if (event === 'itinerary.updated' || /^date\./.test(event)) {
     roots.push('itinerary', 'itineraries', 'calendar', 'hints');
   }
+  if (event === 'date.completed') roots.push('past-dates', 'ratings');
   switch (event) {
+    case 'rating.revealed':
+      roots.push('ratings', 'past-dates');
+      break;
     case 'calendar.changed':
       roots.push('calendar', 'surprises', 'surprise');
       break;

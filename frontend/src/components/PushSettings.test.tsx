@@ -89,6 +89,34 @@ describe('PushSettings', () => {
     expect(api.find('POST', '/api/v1/me/push-subscriptions')).toHaveLength(0);
   });
 
+  it('lists every notification kind with a readable label', async () => {
+    const kinds = [
+      'reminder_day_before',
+      'reminder_hour_before',
+      'checklist_due',
+      'match',
+      'ideas_added',
+      'date_announced',
+      'date_rescheduled',
+      'date_cancelled',
+      'hint_released',
+      'surprise_revealed',
+      'partner_reaction',
+      'rate_prompt',
+    ];
+    pushApi({
+      'GET /api/v1/me/notification-settings': {
+        ...settings,
+        kinds: Object.fromEntries(kinds.map((kind) => [kind, true])),
+      },
+    });
+    setupPush();
+    renderApp('/profile');
+    for (const kind of kinds) {
+      expect(await screen.findByLabelText(kind.replaceAll('_', ' '))).toBeInTheDocument();
+    }
+  });
+
   it('subscribes with the decoded VAPID key and posts the subscription', async () => {
     const api = pushApi();
     const { subscribe } = setupPush();

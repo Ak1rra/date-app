@@ -14,6 +14,7 @@ import {
 } from '../hooks/useItineraries';
 import { ChecklistSection } from './itinerary/ChecklistSection';
 import { DetailsEditor } from './itinerary/DetailsEditor';
+import { FeedbackSection } from './itinerary/FeedbackSection';
 import { Money } from './itinerary/Money';
 import { ReactionBar } from './itinerary/ReactionBar';
 import { SaveTemplateSheet } from './itinerary/SaveTemplateSheet';
@@ -216,6 +217,8 @@ export function ItineraryPage() {
       (data.status === 'draft' || data.status === 'scheduled') ? (
         <SurpriseSection itinerary={data} />
       ) : null}
+
+      {data.status === 'completed' ? <FeedbackSection key={data.id} itinerary={data} /> : null}
 
       <ChecklistSection itinerary={data} canEdit={data.is_planner && canChange} />
 
