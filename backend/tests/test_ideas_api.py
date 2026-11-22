@@ -138,6 +138,59 @@ async def test_create_validates(
     assert (await call(db_client, "POST", IDEAS, body)).status_code == 422
 
 
+async def test_a_manual_idea_keeps_an_optional_venue_name_and_link(
+    db_app: FastAPI, db_client: AsyncClient
+) -> None:
+    await sign_in(db_app, db_client, OWNER)
+    idea = await add_idea(
+        db_client, "Rooftop drinks", venue_name="  Sky Bar ", link="https://example.com/sky"
+    )
+    assert idea["grounded"] is False and idea["attributions"] == []
+    assert idea["venue"]["name"] == "Sky Bar" and idea["venue"]["url"] == "https://example.com/sky"
+    listed = (await call(db_client, "GET", IDEAS)).json()
+    assert [i["venue"] for i in listed] == [idea["venue"]]
+
+    only_link = await add_idea(db_client, "Link only", link="http://example.com/x")
+    assert only_link["venue"]["name"] is None
+    assert only_link["venue"]["url"] == "http://example.com/x"
+    assert (await add_idea(db_client, "Plain"))["venue"] is None
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"link": "not a url"},
+        {"link": "ftp://example.com/file"},
+        {"link": "javascript:alert(1)"},
+        {"link": "https://example.com/" + "a" * 500},
+        {"venue_name": "x" * 121},
+    ],
+)
+async def test_create_rejects_a_bad_link_or_venue_name(
+    db_app: FastAPI, db_client: AsyncClient, fields: dict[str, Any]
+) -> None:
+    await sign_in(db_app, db_client, OWNER)
+    response = await call(db_client, "POST", IDEAS, {"title": "ok", **fields})
+    assert response.status_code == 422, response.text
+
+
+async def test_patch_sets_and_clears_the_venue_name_and_link(
+    db_app: FastAPI, db_client: AsyncClient
+) -> None:
+    await sign_in(db_app, db_client, OWNER)
+    idea = await add_idea(db_client, "Bar", venue_name="Sky Bar", link="https://example.com/sky")
+    url = f"{IDEAS}/{idea['id']}"
+    body = (await call(db_client, "PATCH", url, {"venue_name": "Moon Bar"})).json()
+    assert body["venue"]["name"] == "Moon Bar" and body["venue"]["url"] == "https://example.com/sky"
+    body = (await call(db_client, "PATCH", url, {"link": None})).json()
+    assert body["venue"]["name"] == "Moon Bar" and body["venue"]["url"] is None
+    assert (await call(db_client, "PATCH", url, {"link": "ftp://x.com"})).status_code == 422
+    body = (await call(db_client, "PATCH", url, {"venue_name": None})).json()
+    assert body["venue"] is None
+    body = (await call(db_client, "PATCH", url, {"title": "Bar night"})).json()
+    assert body["venue"] is None
+
+
 async def test_list_filters_are_validated(db_app: FastAPI, db_client: AsyncClient) -> None:
     await sign_in(db_app, db_client, OWNER)
     assert (await db_client.get(IDEAS, params={"visibility": "public"})).status_code == 422
@@ -308,7 +361,7 @@ async def test_output_has_venue_distance_event_staleness_and_attribution_names(
     assert venue["name"] == "The Loeb Boathouse" and venue["rating"] == 4.4
     assert venue["price_level"] == 2 and venue["address"] == "Central Park, NYC"
     assert 8.0 < venue["distance_km"] < 9.0  # about 8.5 km north-east
-    assert set(venue) == {"name", "rating", "price_level", "address", "distance_km"}
+    assert set(venue) == {"name", "rating", "price_level", "address", "distance_km", "url"}
     assert row["event"] == {
         "name": "Jazz night",
         "local_date": "2030-06-01",

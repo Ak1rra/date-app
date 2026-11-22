@@ -2076,6 +2076,8 @@ export interface components {
             est_cost?: number | null;
             /** Indoor Outdoor */
             indoor_outdoor?: ("indoor" | "outdoor" | "either") | null;
+            /** Link */
+            link?: string | null;
             /**
              * Pitch
              * @default
@@ -2088,6 +2090,8 @@ export interface components {
             tags: string[];
             /** Title */
             title: string;
+            /** Venue Name */
+            venue_name?: string | null;
         };
         /**
          * IdeaItineraryIn
@@ -2180,12 +2184,16 @@ export interface components {
             est_cost?: number | null;
             /** Indoor Outdoor */
             indoor_outdoor?: ("indoor" | "outdoor" | "either") | null;
+            /** Link */
+            link?: string | null;
             /** Pitch */
             pitch?: string;
             /** Tags */
             tags?: string[];
             /** Title */
             title?: string;
+            /** Venue Name */
+            venue_name?: string | null;
         };
         /** ImportantDateIn */
         ImportantDateIn: {
@@ -2302,6 +2310,8 @@ export interface components {
             ends_at: string | null;
             /** Est Total */
             est_total: number | null;
+            /** Has Evergreen */
+            has_evergreen: boolean;
             /**
              * Id
              * Format: uuid
@@ -3190,6 +3200,8 @@ export interface components {
             event: {
                 [key: string]: unknown;
             } | null;
+            /** Evergreen */
+            evergreen: boolean;
             /**
              * Id
              * Format: uuid
@@ -3404,6 +3416,8 @@ export interface components {
             price_level: number | null;
             /** Rating */
             rating: number | null;
+            /** Url */
+            url?: string | null;
         };
         /**
          * VenueOut

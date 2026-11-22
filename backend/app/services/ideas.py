@@ -159,6 +159,7 @@ def _venue_out(venue: dict[str, Any] | None, couple: Couple) -> VenueOut | None:
         price_level=venue.get("price_level"),
         address=venue.get("address"),
         distance_km=distance,
+        url=venue.get("url"),
     )
 
 
@@ -286,6 +287,16 @@ async def list_ideas(
     return list(rows.scalars().all())
 
 
+def _manual_venue(name: str | None, link: Any) -> dict[str, Any] | None:
+    """The `venue` a manual idea stores for its optional name and link (FR-IDEA-1)."""
+    venue: dict[str, Any] = {}
+    if name:
+        venue["name"] = name
+    if link is not None:
+        venue["url"] = str(link)
+    return venue or None
+
+
 def _money(value: float | None) -> Decimal | None:
     return None if value is None else Decimal(str(value)).quantize(CENT)
 
@@ -306,6 +317,7 @@ async def create_idea(
         duration_minutes=body.duration_minutes,
         best_time=body.best_time,
         indoor_outdoor=body.indoor_outdoor,
+        venue=_manual_venue(body.venue_name, body.link),
         grounded=False,
         updated_at=now(),
     )
@@ -334,6 +346,16 @@ async def patch_idea(
         if field in sent:
             value = getattr(body, field)
             setattr(idea, field, _money(value) if field == "est_cost" else value)
+    if "venue_name" in sent or "link" in sent:
+        # A new dict, so the JSONB change is detected; keys of a grounded venue are kept.
+        venue = dict(idea.venue or {})
+        if "venue_name" in sent:
+            venue.pop("name", None)
+            venue.update(_manual_venue(body.venue_name, None) or {})
+        if "link" in sent:
+            venue.pop("url", None)
+            venue.update(_manual_venue(None, body.link) or {})
+        idea.venue = venue or None
     idea.updated_at = now()
     await session.flush()
     return idea

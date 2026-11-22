@@ -272,6 +272,7 @@ def _redacted_stop(stop: Stop) -> StopOut:
         reveal_policy=stop.reveal_policy,
         warnings=[],
         booking_url=None,
+        evergreen=False,
         venue=None,
         travel_to_next=None,
         maps=MapsOut(),
@@ -369,6 +370,7 @@ async def itinerary_out(
                 reveal_policy=stop.reveal_policy,
                 warnings=list(stop.warnings or []),
                 booking_url=booking_url,
+                evergreen=stop.evergreen,
                 venue=venue,
                 travel_to_next=None,
                 maps=maps_links(
@@ -430,6 +432,7 @@ async def itinerary_out(
         created_at=itinerary.created_at,
         updated_at=itinerary.updated_at,
         stops=stop_outs,
+        has_evergreen=any(stop.evergreen for stop in stop_outs),
         checklist=[_checklist_out(item) for item in checklist],
         attributions=attributions,
     )

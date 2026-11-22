@@ -56,6 +56,7 @@ const itinerary: ItineraryOut = {
       place_id: null,
       reveal_policy: 'with_itinerary',
       booking_url: null,
+      evergreen: false,
       maps: { google: null, apple: null, directions_from_previous: null },
       venue: null,
       event: null,
@@ -63,6 +64,7 @@ const itinerary: ItineraryOut = {
       travel_to_next: null,
     },
   ],
+  has_evergreen: false,
   checklist: [],
   attributions: [],
 };

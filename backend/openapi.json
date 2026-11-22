@@ -1637,6 +1637,20 @@
             ],
             "title": "Indoor Outdoor"
           },
+          "link": {
+            "anyOf": [
+              {
+                "format": "uri",
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link"
+          },
           "pitch": {
             "default": "",
             "maxLength": 2000,
@@ -1659,6 +1673,18 @@
             "minLength": 1,
             "title": "Title",
             "type": "string"
+          },
+          "venue_name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Venue Name"
           }
         },
         "required": [
@@ -2039,6 +2065,20 @@
             ],
             "title": "Indoor Outdoor"
           },
+          "link": {
+            "anyOf": [
+              {
+                "format": "uri",
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link"
+          },
           "pitch": {
             "maxLength": 2000,
             "title": "Pitch",
@@ -2059,6 +2099,18 @@
             "minLength": 1,
             "title": "Title",
             "type": "string"
+          },
+          "venue_name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Venue Name"
           }
         },
         "title": "IdeaPatch",
@@ -2344,6 +2396,10 @@
             ],
             "title": "Est Total"
           },
+          "has_evergreen": {
+            "title": "Has Evergreen",
+            "type": "boolean"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -2516,6 +2572,7 @@
           "created_at",
           "updated_at",
           "stops",
+          "has_evergreen",
           "checklist",
           "attributions"
         ],
@@ -5231,6 +5288,10 @@
             ],
             "title": "Event"
           },
+          "evergreen": {
+            "title": "Evergreen",
+            "type": "boolean"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -5332,6 +5393,7 @@
           "reveal_policy",
           "warnings",
           "booking_url",
+          "evergreen",
           "venue",
           "travel_to_next",
           "maps"
@@ -5875,6 +5937,17 @@
               }
             ],
             "title": "Rating"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
           }
         },
         "required": [

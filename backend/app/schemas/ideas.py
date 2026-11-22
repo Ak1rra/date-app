@@ -4,7 +4,15 @@ import datetime as dt
 import uuid
 from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import (
+    AnyHttpUrl,
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    UrlConstraints,
+    model_validator,
+)
 
 from app.ai.schemas import StopKind
 
@@ -22,6 +30,8 @@ Tags = Annotated[list[Tag], Field(max_length=10)]
 Category = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=32)]
 Cost = Annotated[float, Field(ge=0, le=99_999_999.99)]
 Duration = Annotated[int, Field(ge=15, le=1440)]
+VenueName = Annotated[str, StringConstraints(strip_whitespace=True, max_length=120)]
+Link = Annotated[AnyHttpUrl, UrlConstraints(max_length=500, allowed_schemes=["http", "https"])]
 
 
 class IdeaIn(BaseModel):
@@ -33,6 +43,8 @@ class IdeaIn(BaseModel):
     duration_minutes: Duration | None = None
     best_time: BestTime | None = None
     indoor_outdoor: IndoorOutdoor | None = None
+    venue_name: VenueName | None = None
+    link: Link | None = None
 
 
 class IdeaPatch(BaseModel):
@@ -47,6 +59,8 @@ class IdeaPatch(BaseModel):
     duration_minutes: Duration | None = None
     best_time: BestTime | None = None
     indoor_outdoor: IndoorOutdoor | None = None
+    venue_name: VenueName | None = None
+    link: Link | None = None
 
 
 class VoteIn(BaseModel):
@@ -59,6 +73,7 @@ class VenueOut(BaseModel):
     price_level: int | None
     address: str | None
     distance_km: float | None
+    url: str | None = None  # a manual idea's own link; never a provider attribution
 
 
 class EventOut(BaseModel):

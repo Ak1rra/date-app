@@ -209,6 +209,20 @@ async def add_legs(w: World, itinerary_id: uuid.UUID) -> None:
         await session.commit()
 
 
+async def test_a_hidden_stop_does_not_leak_that_it_is_evergreen(db_app: FastAPI) -> None:
+    async with world(db_app) as w:
+        stops = stop_dicts(future=True)
+        stops[1]["evergreen"] = True
+        sid = await seed(w, stops=stops, **surprise_fields())
+        await reveal(w, sid)
+
+        partner = (await w.partner.get(f"{ITINERARIES}/{sid}")).json()
+        assert [s["evergreen"] for s in partner["stops"]] == [False, False, False]
+        assert partner["has_evergreen"] is False
+        planner = (await w.owner.get(f"{ITINERARIES}/{sid}")).json()
+        assert planner["stops"][1]["evergreen"] is True and planner["has_evergreen"] is True
+
+
 async def test_an_upcoming_at_stop_time_stop_is_redacted_for_the_surprisee(
     db_app: FastAPI,
 ) -> None:

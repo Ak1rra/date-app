@@ -54,6 +54,7 @@ const itinerary: ItineraryOut = {
       place_id: null,
       reveal_policy: 'with_itinerary',
       booking_url: null,
+      evergreen: false,
       maps: { google: 'https://maps.google.com', apple: null, directions_from_previous: null },
       venue: { name: 'The Cozy Table', address: '1 Main St', rating: 4.8, price_level: 2 },
       event: null,
@@ -61,6 +62,7 @@ const itinerary: ItineraryOut = {
       travel_to_next: null,
     },
   ],
+  has_evergreen: false,
   checklist: [
     {
       id: 'c1',

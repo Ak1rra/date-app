@@ -155,6 +155,7 @@ class StopOut(BaseModel):
     reveal_policy: RevealPolicy
     warnings: list[dict[str, Any]]
     booking_url: str | None
+    evergreen: bool
     venue: VenueOut | None
     travel_to_next: TravelOut | None
     maps: MapsOut
@@ -206,6 +207,7 @@ class ItineraryOut(BaseModel):
     created_at: dt.datetime
     updated_at: dt.datetime
     stops: list[StopOut]
+    has_evergreen: bool
     checklist: list[ChecklistItemOut]
     attributions: list[str]
 

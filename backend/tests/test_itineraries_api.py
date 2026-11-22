@@ -252,6 +252,23 @@ async def test_venue_is_fetched_live_and_never_stored(db_app: FastAPI) -> None:
         assert all(s.booking_url is None for s in stored)  # never written from provider data
 
 
+async def test_evergreen_stops_are_labelled_and_flagged_on_the_itinerary(db_app: FastAPI) -> None:
+    async with world(db_app) as w:
+        stops = [
+            {"title": "Live", "place_id": TRATTORIA, "venue": await snapshot(TRATTORIA)},
+            {"title": "Home movie", "evergreen": True},
+        ]
+        itinerary_id = await seed(w, stops=stops, status="scheduled", announced_at=when(-1))
+        body = (await w.owner.get(f"{ITINERARIES}/{itinerary_id}")).json()
+        assert [s["evergreen"] for s in body["stops"]] == [False, True]
+        assert body["has_evergreen"] is True
+
+        grounded = await three_stops(w)
+        body = (await w.owner.get(f"{ITINERARIES}/{grounded}")).json()
+        assert all(s["evergreen"] is False for s in body["stops"])
+        assert body["has_evergreen"] is False
+
+
 async def test_event_stop_uses_its_event_url_for_booking_and_credits_ticketmaster(
     db_app: FastAPI,
 ) -> None:
