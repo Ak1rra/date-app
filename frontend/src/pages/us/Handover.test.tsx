@@ -209,7 +209,7 @@ describe('suggest a change', () => {
     renderApp('/us');
     await userEvent.click(await screen.findByRole('button', { name: 'Suggest a change' }));
     const dialog = screen.getByRole('dialog', { name: 'Suggest a change for Alex' });
-    expect(dialog).toHaveFocus();
+    expect(within(dialog).getByRole('button', { name: 'Close suggestion' })).toHaveFocus();
     const send = within(dialog).getByRole('button', { name: 'Send suggestion' });
     expect(send).toBeDisabled();
 

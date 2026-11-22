@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { ApiError } from '../../api/http';
 import { Button } from '../../components/Button';
 import { FormError, TextAreaField } from '../../components/forms';
+import { Sheet } from '../../components/Sheet';
 import {
   toProfileIn,
   useCreateSuggestion,
@@ -44,78 +45,60 @@ export function SuggestChangeSheet({
   const [form, setForm] = useState<ProfileIn>(before);
   const [note, setNote] = useState('');
   const create = useCreateSuggestion(profile.id);
-  const dialog = useRef<HTMLElement>(null);
   const set = <K extends keyof ProfileIn>(key: K, value: ProfileIn[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
   const changes = changedFields(before, form);
   const nothingChanged = Object.keys(changes).length === 0;
 
-  useEffect(() => {
-    dialog.current?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
   return (
-    <div
-      className="fixed inset-0 z-10 flex items-end overflow-y-auto bg-ink/40 p-3 sm:items-center sm:justify-center"
-      role="presentation"
+    <Sheet
+      labelledBy="suggest-title"
+      onClose={onClose}
+      overlayClassName="fixed inset-0 z-10 flex items-end overflow-y-auto bg-ink/40 p-3 sm:items-center sm:justify-center"
     >
-      <section
-        ref={dialog}
-        tabIndex={-1}
-        className="max-h-full w-full max-w-lg overflow-y-auto rounded-3xl bg-surface p-5 shadow-xl"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="suggest-title"
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 id="suggest-title" className="text-xl font-semibold">
-              Suggest a change for {name}
-            </h2>
-            <p className="mt-1 text-sm text-muted">
-              Change what you think is off. {name} decides whether to accept it.
-            </p>
-          </div>
-          <Button variant="secondary" onClick={onClose} aria-label="Close suggestion">
-            Close
-          </Button>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 id="suggest-title" className="text-xl font-semibold">
+            Suggest a change for {name}
+          </h2>
+          <p className="mt-1 text-sm text-muted">
+            Change what you think is off. {name} decides whether to accept it.
+          </p>
         </div>
-        <form
-          className="mt-5 flex flex-col gap-5"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (nothingChanged) return;
-            create.mutate(
-              { changes, note: note.trim() || null },
-              {
-                onSuccess: onClose,
-                onError: (error) => {
-                  if (error instanceof ApiError && error.code === 'edit_directly') onEditDirectly();
-                },
+        <Button variant="secondary" onClick={onClose} aria-label="Close suggestion">
+          Close
+        </Button>
+      </div>
+      <form
+        className="mt-5 flex flex-col gap-5"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (nothingChanged) return;
+          create.mutate(
+            { changes, note: note.trim() || null },
+            {
+              onSuccess: onClose,
+              onError: (error) => {
+                if (error instanceof ApiError && error.code === 'edit_directly') onEditDirectly();
               },
-            );
-          }}
-        >
-          <ProfileFields form={form} set={set} />
-          <TextAreaField
-            label="Note (optional)"
-            hint={`${note.length} of ${NOTE_MAX}`}
-            maxLength={NOTE_MAX}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-          />
-          <FormError error={create.error} />
-          <Button type="submit" disabled={nothingChanged || create.isPending}>
-            {create.isPending ? 'Sending…' : 'Send suggestion'}
-          </Button>
-        </form>
-      </section>
-    </div>
+            },
+          );
+        }}
+      >
+        <ProfileFields form={form} set={set} />
+        <TextAreaField
+          label="Note (optional)"
+          hint={`${note.length} of ${NOTE_MAX}`}
+          maxLength={NOTE_MAX}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
+        <FormError error={create.error} />
+        <Button type="submit" disabled={nothingChanged || create.isPending}>
+          {create.isPending ? 'Sending…' : 'Send suggestion'}
+        </Button>
+      </form>
+    </Sheet>
   );
 }
 
