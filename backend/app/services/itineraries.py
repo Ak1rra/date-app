@@ -47,6 +47,7 @@ from app.schemas.itineraries import (
 )
 from app.services import surprise
 from app.services.couple import _money, not_found, now
+from app.services.feedback import schedule_completion
 from app.services.itinerary_access import visible_itineraries
 from app.services.notify import notify
 
@@ -646,6 +647,7 @@ async def patch_itinerary(
     providers: Providers,
     settings: Settings,
 ) -> None:
+    await session.refresh(itinerary, with_for_update=True)  # serialise with completion/cancel
     fields = body.model_fields_set
     starts_at = body.starts_at if "starts_at" in fields else itinerary.starts_at
     ends_at = body.ends_at if "ends_at" in fields else itinerary.ends_at
@@ -654,6 +656,8 @@ async def patch_itinerary(
     if starts_at is None and itinerary.status == "scheduled":
         raise ApiError(422, "invalid_times", "A scheduled date needs a start time.")
     times_changed = starts_at != itinerary.starts_at or ends_at != itinerary.ends_at
+    if times_changed and itinerary.status in ("completed", "cancelled"):
+        raise ApiError(409, "not_editable", "A finished date's time can't be changed.")
     if "title" in fields:
         itinerary.title = body.title
     itinerary.starts_at = starts_at
@@ -667,6 +671,7 @@ async def patch_itinerary(
     await session.flush()
     if times_changed and itinerary.status == "scheduled":
         await revalidate(session, itinerary, providers, settings)
+        await schedule_completion(session, itinerary)
     emit_itinerary(session, itinerary, "itinerary.updated")
 
 
@@ -843,6 +848,7 @@ async def schedule(
     settings: Settings,
 ) -> None:
     """Announce or surprise (FR-CAL-3/5, FR-PLAN-7); from draft or scheduled."""
+    await session.refresh(itinerary, with_for_update=True)  # serialise with the completion job
     if itinerary.status not in ("draft", "scheduled"):
         raise ApiError(409, "invalid_status", f"A {itinerary.status} date can't be scheduled.")
     ends_at = body.ends_at
@@ -869,6 +875,7 @@ async def schedule(
     await session.flush()
     await revalidate(session, itinerary, providers, settings)
     await on_scheduled(session, itinerary, settings)
+    await schedule_completion(session, itinerary)
     if itinerary.is_surprise:
         moment = now()
         await surprise.process_due(session, itinerary, settings, moment)
@@ -877,6 +884,7 @@ async def schedule(
 
 
 async def cancel(session: AsyncSession, itinerary: Itinerary) -> None:
+    await session.refresh(itinerary, with_for_update=True)  # serialise with the completion job
     if itinerary.status == "completed":
         raise ApiError(409, "invalid_status", "A completed date can't be cancelled.")
     itinerary.status = "cancelled"

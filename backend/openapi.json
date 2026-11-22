@@ -2945,6 +2945,95 @@
         "title": "PartnerReaction",
         "type": "object"
       },
+      "PastDateOut": {
+        "properties": {
+          "ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_surprise": {
+            "title": "Is Surprise",
+            "type": "boolean"
+          },
+          "mine": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RatingOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "partner": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RatingOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "planner_read": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlannerReadOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "planner_user_id": {
+            "format": "uuid",
+            "title": "Planner User Id",
+            "type": "string"
+          },
+          "starts_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts At"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "starts_at",
+          "ends_at",
+          "is_surprise",
+          "planner_user_id",
+          "mine",
+          "partner",
+          "planner_read"
+        ],
+        "title": "PastDateOut",
+        "type": "object"
+      },
       "PlaceOut": {
         "description": "A venue search hit. Live provider data: never stored.",
         "properties": {
@@ -3454,6 +3543,88 @@
           "created_at"
         ],
         "title": "PlanSessionOut",
+        "type": "object"
+      },
+      "PlannerReadIn": {
+        "properties": {
+          "enjoyment": {
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Enjoyment",
+            "type": "integer"
+          },
+          "highlights": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Highlights"
+          },
+          "misses": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Misses"
+          }
+        },
+        "required": [
+          "enjoyment"
+        ],
+        "title": "PlannerReadIn",
+        "type": "object"
+      },
+      "PlannerReadOut": {
+        "properties": {
+          "enjoyment": {
+            "title": "Enjoyment",
+            "type": "integer"
+          },
+          "highlights": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Highlights"
+          },
+          "misses": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Misses"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "enjoyment",
+          "highlights",
+          "misses",
+          "updated_at"
+        ],
+        "title": "PlannerReadOut",
         "type": "object"
       },
       "PolishIn": {
@@ -4288,6 +4459,149 @@
           "keys"
         ],
         "title": "PushSubscriptionIn",
+        "type": "object"
+      },
+      "RatingIn": {
+        "properties": {
+          "comment": {
+            "anyOf": [
+              {
+                "maxLength": 280,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "stars": {
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Stars",
+            "type": "integer"
+          },
+          "stop_thumbs": {
+            "additionalProperties": {
+              "enum": [
+                "up",
+                "down"
+              ],
+              "type": "string"
+            },
+            "propertyNames": {
+              "format": "uuid"
+            },
+            "title": "Stop Thumbs",
+            "type": "object"
+          },
+          "would_again": {
+            "title": "Would Again",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "stars",
+          "would_again"
+        ],
+        "title": "RatingIn",
+        "type": "object"
+      },
+      "RatingOut": {
+        "properties": {
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "stars": {
+            "title": "Stars",
+            "type": "integer"
+          },
+          "stop_thumbs": {
+            "additionalProperties": {
+              "enum": [
+                "up",
+                "down"
+              ],
+              "type": "string"
+            },
+            "propertyNames": {
+              "format": "uuid"
+            },
+            "title": "Stop Thumbs",
+            "type": "object"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "would_again": {
+            "title": "Would Again",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "stars",
+          "would_again",
+          "comment",
+          "stop_thumbs",
+          "updated_at"
+        ],
+        "title": "RatingOut",
+        "type": "object"
+      },
+      "RatingsOut": {
+        "properties": {
+          "mine": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RatingOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "partner": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RatingOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "partner_revealed": {
+            "title": "Partner Revealed",
+            "type": "boolean"
+          },
+          "planner_read": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlannerReadOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "mine",
+          "partner",
+          "partner_revealed",
+          "planner_read"
+        ],
+        "title": "RatingsOut",
         "type": "object"
       },
       "ReactIn": {
@@ -7264,6 +7578,59 @@
         ]
       }
     },
+    "/api/v1/itineraries/{itinerary_id}/planner-read": {
+      "put": {
+        "operationId": "put_planner_read_api_v1_itineraries__itinerary_id__planner_read_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "itinerary_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Itinerary Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlannerReadIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlannerReadOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Planner Read",
+        "tags": [
+          "feedback"
+        ]
+      }
+    },
     "/api/v1/itineraries/{itinerary_id}/polish-invitation": {
       "post": {
         "operationId": "polish_invitation_api_v1_itineraries__itinerary_id__polish_invitation_post",
@@ -7314,6 +7681,102 @@
         "summary": "Polish Invitation",
         "tags": [
           "itineraries"
+        ]
+      }
+    },
+    "/api/v1/itineraries/{itinerary_id}/rating": {
+      "put": {
+        "operationId": "put_rating_api_v1_itineraries__itinerary_id__rating_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "itinerary_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Itinerary Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RatingIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RatingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Rating",
+        "tags": [
+          "feedback"
+        ]
+      }
+    },
+    "/api/v1/itineraries/{itinerary_id}/ratings": {
+      "get": {
+        "operationId": "get_ratings_api_v1_itineraries__itinerary_id__ratings_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "itinerary_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Itinerary Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RatingsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Ratings",
+        "tags": [
+          "feedback"
         ]
       }
     },
@@ -8277,6 +8740,31 @@
         "summary": "Mark Notification Read",
         "tags": [
           "notifications"
+        ]
+      }
+    },
+    "/api/v1/past-dates": {
+      "get": {
+        "operationId": "list_past_dates_api_v1_past_dates_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PastDateOut"
+                  },
+                  "title": "Response List Past Dates Api V1 Past Dates Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Past Dates",
+        "tags": [
+          "feedback"
         ]
       }
     },

@@ -666,6 +666,23 @@ export interface paths {
         patch: operations["patch_hint_api_v1_itineraries__itinerary_id__hints__hint_id__patch"];
         trace?: never;
     };
+    "/api/v1/itineraries/{itinerary_id}/planner-read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Planner Read */
+        put: operations["put_planner_read_api_v1_itineraries__itinerary_id__planner_read_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/itineraries/{itinerary_id}/polish-invitation": {
         parameters: {
             query?: never;
@@ -677,6 +694,40 @@ export interface paths {
         put?: never;
         /** Polish Invitation */
         post: operations["polish_invitation_api_v1_itineraries__itinerary_id__polish_invitation_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/itineraries/{itinerary_id}/rating": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Rating */
+        put: operations["put_rating_api_v1_itineraries__itinerary_id__rating_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/itineraries/{itinerary_id}/ratings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Ratings */
+        get: operations["get_ratings_api_v1_itineraries__itinerary_id__ratings_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -994,6 +1045,23 @@ export interface paths {
         put?: never;
         /** Mark Notification Read */
         post: operations["mark_notification_read_api_v1_notifications__notification_id__read_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/past-dates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Past Dates */
+        get: operations["list_past_dates_api_v1_past_dates_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2308,6 +2376,30 @@ export interface components {
             /** Suggested Start */
             suggested_start?: string | null;
         };
+        /** PastDateOut */
+        PastDateOut: {
+            /** Ends At */
+            ends_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Surprise */
+            is_surprise: boolean;
+            mine: components["schemas"]["RatingOut"] | null;
+            partner: components["schemas"]["RatingOut"] | null;
+            planner_read: components["schemas"]["PlannerReadOut"] | null;
+            /**
+             * Planner User Id
+             * Format: uuid
+             */
+            planner_user_id: string;
+            /** Starts At */
+            starts_at: string | null;
+            /** Title */
+            title: string;
+        };
         /**
          * PlaceOut
          * @description A venue search hit. Live provider data: never stored.
@@ -2474,6 +2566,29 @@ export interface components {
              * @enum {string}
              */
             status: "open" | "done" | "archived";
+        };
+        /** PlannerReadIn */
+        PlannerReadIn: {
+            /** Enjoyment */
+            enjoyment: number;
+            /** Highlights */
+            highlights?: string | null;
+            /** Misses */
+            misses?: string | null;
+        };
+        /** PlannerReadOut */
+        PlannerReadOut: {
+            /** Enjoyment */
+            enjoyment: number;
+            /** Highlights */
+            highlights: string | null;
+            /** Misses */
+            misses: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** PolishIn */
         PolishIn: {
@@ -2685,6 +2800,45 @@ export interface components {
             /** Endpoint */
             endpoint: string;
             keys: components["schemas"]["PushKeys"];
+        };
+        /** RatingIn */
+        RatingIn: {
+            /** Comment */
+            comment?: string | null;
+            /** Stars */
+            stars: number;
+            /** Stop Thumbs */
+            stop_thumbs?: {
+                [key: string]: "up" | "down";
+            };
+            /** Would Again */
+            would_again: boolean;
+        };
+        /** RatingOut */
+        RatingOut: {
+            /** Comment */
+            comment: string | null;
+            /** Stars */
+            stars: number;
+            /** Stop Thumbs */
+            stop_thumbs: {
+                [key: string]: "up" | "down";
+            };
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Would Again */
+            would_again: boolean;
+        };
+        /** RatingsOut */
+        RatingsOut: {
+            mine: components["schemas"]["RatingOut"] | null;
+            partner: components["schemas"]["RatingOut"] | null;
+            /** Partner Revealed */
+            partner_revealed: boolean;
+            planner_read: components["schemas"]["PlannerReadOut"] | null;
         };
         /** ReactIn */
         ReactIn: {
@@ -4373,6 +4527,41 @@ export interface operations {
             };
         };
     };
+    put_planner_read_api_v1_itineraries__itinerary_id__planner_read_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                itinerary_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlannerReadIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlannerReadOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     polish_invitation_api_v1_itineraries__itinerary_id__polish_invitation_post: {
         parameters: {
             query?: never;
@@ -4395,6 +4584,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PolishOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_rating_api_v1_itineraries__itinerary_id__rating_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                itinerary_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RatingIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RatingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_ratings_api_v1_itineraries__itinerary_id__ratings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                itinerary_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RatingsOut"];
                 };
             };
             /** @description Validation Error */
@@ -5087,6 +5342,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_past_dates_api_v1_past_dates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PastDateOut"][];
                 };
             };
         };

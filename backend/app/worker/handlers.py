@@ -24,7 +24,7 @@ from app.models.itinerary import Itinerary
 from app.models.jobs import Job
 from app.models.notify import Notification, PushSubscription
 from app.models.user import MagicLinkToken, UserSession
-from app.services import taste
+from app.services import feedback, taste
 from app.services.surprise import SURPRISE_DUE, process_due
 from app.worker.jobs import enqueue, register
 
@@ -249,3 +249,24 @@ async def taste_recompute(session: AsyncSession, payload: dict[str, Any]) -> Non
     # Cost accounting commits in its own sessions, so it needs a sessionmaker on this engine.
     sessionmaker = async_sessionmaker(bind, expire_on_commit=False)
     await taste.recompute(session, profile_id, ai, settings, sessionmaker)
+
+
+@register(feedback.ITINERARY_COMPLETE)
+async def itinerary_complete(session: AsyncSession, payload: dict[str, Any]) -> None:
+    """Complete a scheduled date once it has ended. Stale jobs (rescheduled, cancelled) no-op."""
+    try:
+        itinerary_id = uuid.UUID(str(payload.get("itinerary_id")))
+        end = datetime.fromisoformat(str(payload.get("end")))
+    except (AttributeError, ValueError):
+        return
+    await feedback.complete(session, itinerary_id, end, get_settings())
+
+
+@register(feedback.RATINGS_REVEAL)
+async def ratings_reveal(session: AsyncSession, payload: dict[str, Any]) -> None:
+    """Tell the couple a completed date's ratings are now visible to both."""
+    try:
+        itinerary_id = uuid.UUID(str(payload.get("itinerary_id")))
+    except (AttributeError, ValueError):
+        return
+    await feedback.reveal_ratings(session, itinerary_id)

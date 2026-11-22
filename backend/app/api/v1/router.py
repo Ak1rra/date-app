@@ -6,6 +6,7 @@ from app.api.v1 import (
     chat,
     couple,
     dev,
+    feedback,
     health,
     ideas,
     itineraries,
@@ -45,3 +46,4 @@ router.include_router(plan.idea_router)
 router.include_router(templates.router)
 router.include_router(ws.router)
 router.include_router(chat.router)
+router.include_router(feedback.router)
