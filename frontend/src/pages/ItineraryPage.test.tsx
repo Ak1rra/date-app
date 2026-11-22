@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ItineraryOut } from '../hooks/useItineraries';
@@ -311,6 +311,32 @@ describe('ItineraryPage', () => {
     renderApp('/itineraries/i1');
     expect(await screen.findByText("That date isn't here")).toBeInTheDocument();
     expect(api.find('GET', '/api/v1/itineraries/i1')).toHaveLength(1);
+  });
+
+  it('labels evergreen stops and shows one notice when live data was missing', async () => {
+    setup({
+      ...itinerary,
+      has_evergreen: true,
+      stops: [
+        { ...dinner, evergreen: true },
+        { ...dessert, evergreen: false },
+      ],
+    });
+    renderApp('/itineraries/i1');
+    const dinnerCard = (await screen.findByRole('heading', { name: 'Dinner' })).closest('article');
+    const dessertCard = screen.getByRole('heading', { name: 'Dessert' }).closest('article');
+    expect(within(dinnerCard!).getByText('Evergreen')).toBeInTheDocument();
+    expect(within(dessertCard!).queryByText('Evergreen')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('note')).toHaveLength(1);
+    expect(screen.getByRole('note')).toHaveTextContent(/couldn.t check live hours or events/);
+  });
+
+  it('shows no evergreen label or notice when everything is live', async () => {
+    setup();
+    renderApp('/itineraries/i1');
+    await screen.findByRole('heading', { name: 'Dinner' });
+    expect(screen.queryByText('Evergreen')).not.toBeInTheDocument();
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
   });
 
   it('formats stop costs in the itinerary currency', async () => {

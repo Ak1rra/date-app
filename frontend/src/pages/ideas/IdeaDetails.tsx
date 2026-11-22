@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
+import { Pill } from '../../components/Pill';
 import type { IdeaOut } from '../../hooks/useIdeas';
+import { safeHttpUrl } from '../../lib/url';
 import type { People, Person } from './usePeople';
 
 /** An estimated cost in the idea's own currency (an unknown code falls back to USD). */
@@ -135,9 +137,10 @@ export function IdeaDetails({
     idea.indoor_outdoor ? INDOOR_OUTDOOR_WORDS[idea.indoor_outdoor] : null,
     when,
   ].filter((item): item is string => item !== null);
+  const venueLink = safeHttpUrl(venue?.url);
   const venueDetails = venue
     ? [
-        venue.name,
+        venueLink ? null : venue.name,
         venue.rating != null ? `${venue.rating.toFixed(1)}★` : null,
         priceLevel,
         venue.distance_km != null
@@ -152,9 +155,7 @@ export function IdeaDetails({
       {idea.pitch ? <p className="whitespace-pre-wrap">{idea.pitch}</p> : null}
       {grounding ? (
         <p>
-          <span className="rounded-full border border-line bg-surface-2 px-3 py-1 text-sm font-semibold text-ink">
-            {grounding}
-          </span>
+          <Pill>{grounding}</Pill>
         </p>
       ) : null}
       {details.length > 0 ? (
@@ -164,8 +165,21 @@ export function IdeaDetails({
           ))}
         </ul>
       ) : null}
-      {venueDetails.length > 0 ? (
+      {venueDetails.length > 0 || venueLink ? (
         <ul className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted" aria-label="Venue">
+          {venueLink ? (
+            <li>
+              <a
+                href={venueLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-accent underline"
+              >
+                {venue?.name ?? 'Link'}
+                <span className="sr-only"> (opens in a new tab)</span>
+              </a>
+            </li>
+          ) : null}
           {venueDetails.map((item) => (
             <li key={item}>{item}</li>
           ))}

@@ -597,6 +597,85 @@ describe('IdeasPage my ideas', () => {
     await vi.waitFor(() => expect(screen.getByLabelText('Title')).toHaveValue(''));
   });
 
+  it('sends an optional place and link with a new idea', async () => {
+    const api = ideasApi({ 'POST /api/v1/ideas': mine });
+    renderApp('/ideas');
+    await userEvent.click(await screen.findByRole('tab', { name: 'My ideas' }));
+    await userEvent.type(await screen.findByLabelText('Title'), 'Moonlit walk');
+    await userEvent.type(screen.getByLabelText('Place (optional)'), '  Riverside Park ');
+    await userEvent.type(screen.getByLabelText('Link (optional)'), 'https://park.example/map');
+    await userEvent.click(screen.getByRole('button', { name: 'Save idea' }));
+    await vi.waitFor(() => expect(api.find('POST', '/api/v1/ideas')).toHaveLength(1));
+    expect(api.body('POST', '/api/v1/ideas')).toMatchObject({
+      venue_name: 'Riverside Park',
+      link: 'https://park.example/map',
+    });
+  });
+
+  it('blocks a link that is not an http or https address', async () => {
+    const api = ideasApi({ 'POST /api/v1/ideas': mine });
+    renderApp('/ideas');
+    await userEvent.click(await screen.findByRole('tab', { name: 'My ideas' }));
+    await userEvent.type(await screen.findByLabelText('Title'), 'Moonlit walk');
+    await userEvent.type(screen.getByLabelText('Link (optional)'), 'ftp://park.example');
+    expect(
+      screen.getByText('Use a full web address starting with http:// or https://'),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Save idea' }));
+    expect(api.find('POST', '/api/v1/ideas')).toHaveLength(0);
+  });
+
+  describe('editing place and link', () => {
+    const withVenue = idea({
+      ...mine,
+      venue: {
+        name: 'Riverside Park',
+        address: null,
+        distance_km: null,
+        price_level: null,
+        rating: null,
+        url: 'https://park.example/map',
+      },
+    });
+
+    async function startEditing() {
+      const api = ideasApi({
+        'GET /api/v1/ideas': [withVenue],
+        'PATCH /api/v1/ideas/k1': withVenue,
+      });
+      renderApp('/ideas');
+      await userEvent.click(await screen.findByRole('tab', { name: 'My ideas' }));
+      await userEvent.click(await screen.findByRole('button', { name: 'Edit Moonlit walk' }));
+      return api;
+    }
+
+    it('prefills both fields and sends neither when only the title changes', async () => {
+      const api = await startEditing();
+      const [, place] = screen.getAllByLabelText('Place (optional)');
+      const [, link] = screen.getAllByLabelText('Link (optional)');
+      expect(place).toHaveValue('Riverside Park');
+      expect(link).toHaveValue('https://park.example/map');
+      const [, editTitle] = screen.getAllByLabelText('Title');
+      await userEvent.type(editTitle!, '!');
+      await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+      await vi.waitFor(() => expect(api.find('PATCH', '/api/v1/ideas/k1')).toHaveLength(1));
+      const body = api.body('PATCH', '/api/v1/ideas/k1') as Record<string, unknown>;
+      expect(body).not.toHaveProperty('venue_name');
+      expect(body).not.toHaveProperty('link');
+    });
+
+    it('sends link null, and no venue_name, when only the link is cleared', async () => {
+      const api = await startEditing();
+      const [, link] = screen.getAllByLabelText('Link (optional)');
+      await userEvent.clear(link!);
+      await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+      await vi.waitFor(() => expect(api.find('PATCH', '/api/v1/ideas/k1')).toHaveLength(1));
+      const body = api.body('PATCH', '/api/v1/ideas/k1') as Record<string, unknown>;
+      expect(body.link).toBeNull();
+      expect(body).not.toHaveProperty('venue_name');
+    });
+  });
+
   it('stops adding tags at the API limit of ten', async () => {
     ideasApi();
     renderApp('/ideas');

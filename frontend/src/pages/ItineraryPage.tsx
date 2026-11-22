@@ -155,6 +155,12 @@ export function ItineraryPage() {
       ) : (
         <section className="flex flex-col gap-4" aria-label="Stops">
           <h2 className="text-xl font-semibold">The plan</h2>
+          {data.has_evergreen ? (
+            <p role="note" className="rounded-2xl border border-line bg-surface-2 p-3 text-sm">
+              Some stops are evergreen picks — we couldn&apos;t check live hours or events for them,
+              so double-check before you go.
+            </p>
+          ) : null}
           {data.stops.map((stop) => (
             <StopCard
               key={stop.id}

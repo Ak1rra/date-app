@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { plannerError } from '../../api/plannerError';
 import { Button } from '../../components/Button';
 import { FormError, TextField } from '../../components/forms';
+import { Pill } from '../../components/Pill';
 import {
   useIsRegenerating,
   useRegenerateStop,
@@ -137,6 +138,11 @@ export function StopCard({
         <div>
           <p className="text-sm font-semibold text-muted">Stop {stop.position + 1}</p>
           <h2 className="text-xl font-semibold">{stop.title}</h2>
+          {stop.evergreen ? (
+            <p className="mt-1">
+              <Pill>Evergreen</Pill>
+            </p>
+          ) : null}
           {stop.description ? <p className="mt-1 text-muted">{stop.description}</p> : null}
         </div>
         {stop.est_cost !== null ? (

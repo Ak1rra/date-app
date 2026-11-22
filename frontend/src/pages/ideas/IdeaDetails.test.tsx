@@ -171,4 +171,66 @@ describe('IdeaDetails', () => {
     render(<IdeaDetails idea={idea({ attributions: ['Google', 'Ticketmaster'] })} />);
     expect(screen.getByText('Data: Google, Ticketmaster')).toBeInTheDocument();
   });
+
+  it('links the venue name to its web address in a new tab', () => {
+    render(
+      <IdeaDetails
+        idea={idea({
+          venue: {
+            name: 'Clay Studio',
+            address: null,
+            distance_km: null,
+            price_level: null,
+            rating: null,
+            url: 'https://clay.example/visit',
+          },
+        })}
+      />,
+    );
+    const link = screen.getByRole('link', { name: /Clay Studio/ });
+    expect(link).toHaveAttribute('href', 'https://clay.example/visit');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(link).toHaveTextContent('(opens in a new tab)');
+  });
+
+  it('calls a nameless venue link "Link"', () => {
+    render(
+      <IdeaDetails
+        idea={idea({
+          venue: {
+            name: null,
+            address: null,
+            distance_km: null,
+            price_level: null,
+            rating: null,
+            url: 'https://clay.example/',
+          },
+        })}
+      />,
+    );
+    expect(screen.getByRole('link', { name: /^Link/ })).toHaveAttribute(
+      'href',
+      'https://clay.example/',
+    );
+  });
+
+  it('renders no link for a stored url that is not http or https', () => {
+    render(
+      <IdeaDetails
+        idea={idea({
+          venue: {
+            name: 'Clay Studio',
+            address: null,
+            distance_km: null,
+            price_level: null,
+            rating: null,
+            url: 'javascript:alert(1)',
+          },
+        })}
+      />,
+    );
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'Venue' })).toHaveTextContent('Clay Studio');
+  });
 });
