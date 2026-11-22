@@ -9,6 +9,8 @@ const IDEA_TAG_MAX_COUNT = 10;
 interface IdeaFormProps {
   /** Present when editing; absent for a new idea. */
   idea?: IdeaOut;
+  /** Prefill for a new idea (ignored when editing). */
+  initial?: { title: string; pitch: string };
   submitLabel: string;
   pending: boolean;
   error: unknown;
@@ -17,9 +19,17 @@ interface IdeaFormProps {
 }
 
 /** Title, description (the pitch), estimated cost in the idea's currency, and tags. */
-export function IdeaForm({ idea, submitLabel, pending, error, onSubmit, onCancel }: IdeaFormProps) {
-  const [title, setTitle] = useState(idea?.title ?? '');
-  const [pitch, setPitch] = useState(idea?.pitch ?? '');
+export function IdeaForm({
+  idea,
+  initial,
+  submitLabel,
+  pending,
+  error,
+  onSubmit,
+  onCancel,
+}: IdeaFormProps) {
+  const [title, setTitle] = useState(idea?.title ?? initial?.title ?? '');
+  const [pitch, setPitch] = useState(idea?.pitch ?? initial?.pitch ?? '');
   const [cost, setCost] = useState(idea?.est_cost != null ? String(idea.est_cost) : '');
   const [tags, setTags] = useState<string[]>(idea?.tags ?? []);
   const costNumber = cost.trim() === '' ? null : Number(cost);

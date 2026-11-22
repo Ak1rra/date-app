@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router';
 import { Button } from '../../components/Button';
 import { Card, EmptyState } from '../../components/EmptyState';
 import {
@@ -8,6 +9,7 @@ import {
   Skeleton,
   TextAreaField,
 } from '../../components/forms';
+import { useCreateIdea } from '../../hooks/useIdeas';
 import {
   useCreateNote,
   useDeleteNote,
@@ -17,10 +19,17 @@ import {
   type NoteOut,
 } from '../../hooks/useNotes';
 import type { ProfileOut } from '../../hooks/useProfiles';
+import { IdeaForm } from '../ideas/IdeaForm';
 import { profileName } from './ProfileSection';
+
+/** How much of a note becomes the idea's title; the whole note becomes the pitch. */
+const IDEA_TITLE_PREFILL = 80;
 
 function NoteRow({ note }: { note: NoteOut }) {
   const [editing, setEditing] = useState(false);
+  const [makingIdea, setMakingIdea] = useState(false);
+  const [ideaAdded, setIdeaAdded] = useState(false);
+  const createIdea = useCreateIdea();
   const [text, setText] = useState(note.text);
   const update = useUpdateNote();
   const remove = useDeleteNote();
@@ -60,7 +69,46 @@ function NoteRow({ note }: { note: NoteOut }) {
       ) : (
         <>
           <p className="whitespace-pre-wrap">{note.text}</p>
+          {makingIdea ? (
+            <IdeaForm
+              initial={{ title: note.text.slice(0, IDEA_TITLE_PREFILL), pitch: note.text }}
+              submitLabel="Save idea"
+              pending={createIdea.isPending}
+              error={createIdea.error}
+              onSubmit={(body) =>
+                createIdea.mutate(body, {
+                  onSuccess: () => {
+                    setMakingIdea(false);
+                    setIdeaAdded(true);
+                  },
+                })
+              }
+              onCancel={() => {
+                createIdea.reset();
+                setMakingIdea(false);
+              }}
+            />
+          ) : null}
+          {ideaAdded ? (
+            <p role="status">
+              Added to your ideas.{' '}
+              <Link to="/ideas" className="font-semibold underline">
+                See your ideas
+              </Link>
+            </p>
+          ) : null}
           <div className="flex flex-wrap gap-2">
+            {note.kind === 'mentioned_idea' && !makingIdea && !ideaAdded ? (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  createIdea.reset();
+                  setMakingIdea(true);
+                }}
+              >
+                Make it an idea
+              </Button>
+            ) : null}
             <Button
               variant="secondary"
               aria-label="Edit this note"
