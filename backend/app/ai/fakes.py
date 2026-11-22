@@ -25,6 +25,7 @@ from app.ai.schemas import (
     PolishedInvitation,
     StopKind,
     SuggestedHint,
+    TasteSummaryOut,
 )
 
 # Per-person cost guess by Google price level (USD); the fake venues carry no real prices.
@@ -354,6 +355,23 @@ async def fake_hint_suggestions(
     )
 
 
+async def fake_taste_summary(
+    tools: ToolRunner | None, context: str, messages: list[dict[str, Any]]
+) -> TasteSummaryOut:
+    text = _last_user_text(messages)
+    counts = json.loads(text[text.find("{") :])
+    loved = [
+        category
+        for category, tally in counts.get("votes", {}).get("by_category", {}).items()
+        if tally.get("yes", 0) > tally.get("no", 0)
+    ][:5]
+    return TasteSummaryOut(
+        summary="Enjoys " + (", ".join(loved) if loved else "a mix of dates") + ".",
+        loves=loved,
+        avoid=[],
+    )
+
+
 # --- Ideas -------------------------------------------------------------------------------------
 
 
@@ -488,3 +506,4 @@ FAKE_RESPONDERS[ItineraryDraft] = fake_itinerary
 FAKE_RESPONDERS[PolishedInvitation] = fake_polished_invitation
 FAKE_RESPONDERS[HintSuggestions] = fake_hint_suggestions
 FAKE_RESPONDERS[GeneratedIdeas] = fake_generated_ideas
+FAKE_RESPONDERS[TasteSummaryOut] = fake_taste_summary

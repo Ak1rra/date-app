@@ -14,8 +14,9 @@ from urllib.parse import urlsplit
 
 from pywebpush import WebPushException, webpush
 from sqlalchemy import delete, func, or_, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+from app.ai.client import get_ai_client
 from app.config import get_settings
 from app.models.ai import ProviderCache
 from app.models.ideas import Idea
@@ -23,6 +24,7 @@ from app.models.itinerary import Itinerary
 from app.models.jobs import Job
 from app.models.notify import Notification, PushSubscription
 from app.models.user import MagicLinkToken, UserSession
+from app.services import taste
 from app.services.surprise import SURPRISE_DUE, process_due
 from app.worker.jobs import enqueue, register
 
@@ -229,3 +231,21 @@ async def push_send(session: AsyncSession, payload: dict[str, Any]) -> None:
     if retryable_failure and not delivered:
         raise RuntimeError("all push deliveries failed")
     notification.pushed_at = _utcnow()
+
+
+@register(taste.TASTE_RECOMPUTE)
+async def taste_recompute(session: AsyncSession, payload: dict[str, Any]) -> None:
+    """Rebuild one partner profile's taste summary. Skipped when AI is unavailable (no key and
+    no demo mode); `taste.recompute` itself never raises on a cap or an AI failure."""
+    try:
+        profile_id = uuid.UUID(str(payload.get("profile_id")))
+    except (AttributeError, ValueError):
+        return
+    settings = get_settings()
+    ai = get_ai_client(settings)
+    bind = session.bind
+    if ai is None or not isinstance(bind, AsyncEngine):
+        return
+    # Cost accounting commits in its own sessions, so it needs a sessionmaker on this engine.
+    sessionmaker = async_sessionmaker(bind, expire_on_commit=False)
+    await taste.recompute(session, profile_id, ai, settings, sessionmaker)

@@ -121,6 +121,12 @@ class HintSuggestions(_Strict):
     hints: Annotated[list[SuggestedHint], Field(min_length=1, max_length=5)]
 
 
+class TasteSummaryOut(_Strict):
+    summary: Annotated[str, Field(min_length=1, max_length=2000)]  # the prompt asks for 120 words
+    loves: Annotated[list[Annotated[str, Field(max_length=80)]], Field(max_length=5)]
+    avoid: Annotated[list[Annotated[str, Field(max_length=80)]], Field(max_length=5)]
+
+
 @dataclass(frozen=True)
 class Issue:
     """A problem `validate_itinerary` found. Not model output. `stop_index` is None for an

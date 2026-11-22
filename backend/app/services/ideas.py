@@ -28,6 +28,7 @@ from app.schemas.ideas import (
     VenueOut,
     VotesOut,
 )
+from app.services import taste
 from app.services.couple import CENT, not_found, now
 from app.services.ideas_access import (
     get_editable_idea,
@@ -399,6 +400,7 @@ async def cast_vote(
         existing.value = value
         existing.updated_at = now()
     await session.flush()
+    await taste.schedule_recompute(session, couple_id, user_ids=[me])
     if not idea.is_surprise:  # the partner can't see a surprise idea, so not even its id
         emit(session, couple_id, "vote.updated", {"idea_id": str(idea.id)}, except_user=me)
     if value == "yes" and theirs == "yes" and not was_match:
@@ -426,6 +428,7 @@ async def undo_vote(session: AsyncSession, couple_id: uuid.UUID, me: uuid.UUID) 
     idea = (await session.execute(select(Idea).where(Idea.id == vote.idea_id))).scalar_one()
     await session.delete(vote)
     await session.flush()
+    await taste.schedule_recompute(session, couple_id, user_ids=[me])
     if not idea.is_surprise:  # the partner can't see a surprise idea, so not even its id
         emit(session, couple_id, "vote.updated", {"idea_id": str(idea.id)}, except_user=me)
     return idea
