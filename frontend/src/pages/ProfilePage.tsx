@@ -1,3 +1,4 @@
+import { Link } from 'react-router';
 import { ButtonLink } from '../components/Button';
 import { Card } from '../components/EmptyState';
 import { PushSettings } from '../components/PushSettings';
@@ -67,6 +68,11 @@ export function ProfilePage() {
         </div>
       </Card>
       <PushSettings key={viewerId ?? 'none'} />
+      <p className="text-sm text-muted">
+        <Link to="/privacy" className="underline">
+          Privacy
+        </Link>
+      </p>
     </div>
   );
 }

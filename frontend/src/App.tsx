@@ -12,6 +12,7 @@ import { ItineraryPage } from './pages/ItineraryPage';
 import { SurprisePage } from './pages/SurprisePage';
 import { NotificationsPage } from './pages/NotificationsPage';
 import { PlanPage } from './pages/PlanPage';
+import { PrivacyPage } from './pages/PrivacyPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { SetupPage } from './pages/SetupPage';
 import { SignInPage } from './pages/SignInPage';
@@ -25,6 +26,7 @@ export const routes: RouteObject[] = [
     children: [
       { path: '/signin', element: <SignInPage /> },
       { path: '/auth/verify', element: <VerifyPage /> },
+      { path: '/privacy', element: <PrivacyPage /> },
       {
         path: '/setup',
         element: (
