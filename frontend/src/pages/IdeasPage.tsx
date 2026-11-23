@@ -5,7 +5,7 @@ import { useDeck, useIdeaLists, type IdeaOut } from '../hooks/useIdeas';
 import { useViewerId } from '../hooks/useSession';
 import { useMatchCelebration } from '../realtime/RealtimeProvider';
 import { DeckTab } from './ideas/DeckTab';
-import { GenerateIdeasSheet, type GenerateMode } from './ideas/GenerateIdeasSheet';
+import { addedMessage, GenerateIdeasSheet, type GenerateMode } from './ideas/GenerateIdeasSheet';
 import { IdeaLists, type ListName } from './ideas/IdeaLists';
 import { MyIdeasTab } from './ideas/MyIdeasTab';
 import { usePeople } from './ideas/usePeople';
@@ -31,6 +31,12 @@ function IdeasBody() {
   // Owned here, outside the tab panel and its loading/error branches, so a deck refetch that
   // fails can't unmount the sheet and lose its success or degraded notice.
   const [generateMode, setGenerateMode] = useState<GenerateMode | null>(null);
+  // Where the last generation put its ideas; they may land on a tab other than the one in view.
+  const [notice, setNotice] = useState<string | null>(null);
+  const openGenerate = (mode: GenerateMode) => {
+    setNotice(null);
+    setGenerateMode(mode);
+  };
   // The overlay lives in RealtimeProvider so a match found anywhere raises the same one.
   const celebration = useMatchCelebration();
   const onMatch = (idea: IdeaOut) => celebration.celebrate(idea.id, idea.title);
@@ -53,12 +59,22 @@ function IdeasBody() {
           <Button
             variant="secondary"
             disabled={!deck}
-            onClick={() => deck && setGenerateMode(deck.partner_joined ? 'match' : 'plan')}
+            onClick={() => deck && openGenerate(deck.partner_joined ? 'match' : 'plan')}
           >
             Generate ideas
           </Button>
         ) : null}
       </div>
+      {notice ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line p-3">
+          <p role="status" className="text-sm">
+            {notice}
+          </p>
+          <Button variant="secondary" aria-label="Dismiss notice" onClick={() => setNotice(null)}>
+            Dismiss
+          </Button>
+        </div>
+      ) : null}
       <div
         role="tablist"
         aria-label="Idea lists"
@@ -93,7 +109,7 @@ function IdeasBody() {
               partnerName={people.partnerName}
               paused={celebration.active || generateMode !== null}
               onMatch={onMatch}
-              onGenerate={() => setGenerateMode('match')}
+              onGenerate={() => openGenerate('match')}
             />
           ) : tab === 'mine' ? (
             <MyIdeasTab partnerName={people.partnerName} />
@@ -103,7 +119,14 @@ function IdeasBody() {
         </div>
       </Card>
       {generateMode ? (
-        <GenerateIdeasSheet defaultMode={generateMode} onClose={() => setGenerateMode(null)} />
+        <GenerateIdeasSheet
+          defaultMode={generateMode}
+          onClose={() => setGenerateMode(null)}
+          onGenerated={(mode, added) => {
+            setTab(mode === 'plan' ? 'mine' : 'deck');
+            setNotice(addedMessage(mode, added));
+          }}
+        />
       ) : null}
     </div>
   );

@@ -264,4 +264,66 @@ describe('GenerateIdeasSheet', () => {
       'true',
     );
   });
+
+  const made = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `new-${i}` }));
+
+  it('switches to My ideas and says where "Just for me" ideas went', async () => {
+    api({ 'POST /api/v1/ideas/generate': { ideas: made(3), degraded: [] } });
+    renderApp('/ideas');
+    const sheet = await openSheet();
+    await userEvent.click(sheet.getByRole('button', { name: 'Just for me' }));
+    await userEvent.click(sheet.getByRole('button', { name: 'Generate ideas' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByRole('status')).toHaveTextContent('Added 3 ideas to My ideas.');
+    expect(screen.getByRole('tab', { name: 'My ideas' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('stays on the Deck and says so for ideas to swipe, singular for one', async () => {
+    api({ 'POST /api/v1/ideas/generate': { ideas: made(1), degraded: [] } });
+    renderApp('/ideas');
+    const sheet = await openSheet();
+    await userEvent.click(sheet.getByRole('button', { name: 'Generate ideas' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByRole('status')).toHaveTextContent('Added 1 idea to the Deck.');
+    expect(screen.getByRole('tab', { name: 'Deck' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('dismisses the confirmation, and clears it when generating again', async () => {
+    api({ 'POST /api/v1/ideas/generate': { ideas: made(2), degraded: [] } });
+    renderApp('/ideas');
+    let sheet = await openSheet();
+    await userEvent.click(sheet.getByRole('button', { name: 'Generate ideas' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await userEvent.click(screen.getByRole('button', { name: 'Dismiss notice' }));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+
+    await userEvent.click(headerButton());
+    await screen.findByRole('dialog', { name: 'Generate ideas' });
+    await userEvent.click(screen.getByRole('button', { name: 'Close generate ideas' }));
+    sheet = await openSheet();
+    await userEvent.click(sheet.getByRole('button', { name: 'Generate ideas' }));
+    await screen.findByRole('button', { name: 'Dismiss notice' });
+    await userEvent.click(headerButton());
+    await screen.findByRole('dialog', { name: 'Generate ideas' });
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('shows the added count in the degraded panel', async () => {
+    api({ 'POST /api/v1/ideas/generate': { ideas: made(4), degraded: ['places'] } });
+    renderApp('/ideas');
+    const sheet = await openSheet();
+    await userEvent.click(sheet.getByRole('button', { name: 'Generate ideas' }));
+    expect(await sheet.findByText('Added 4 ideas to the Deck.')).toBeInTheDocument();
+    expect(sheet.getByRole('button', { name: 'Done' })).toBeInTheDocument();
+  });
+
+  it('explains where the ideas go, following the mode', async () => {
+    api();
+    renderApp('/ideas');
+    const sheet = await openSheet();
+    expect(sheet.getByText('They go to the Deck for you both to swipe.')).toBeInTheDocument();
+    await userEvent.click(sheet.getByRole('button', { name: 'Just for me' }));
+    expect(sheet.getByText('They go to My ideas, only you can see them.')).toBeInTheDocument();
+    expect(sheet.queryByText('They go to the Deck for you both to swipe.')).not.toBeInTheDocument();
+  });
 });

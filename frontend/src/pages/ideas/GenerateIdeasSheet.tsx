@@ -30,6 +30,16 @@ const CATEGORIES: readonly { value: Category; label: string }[] = [
   { value: 'other', label: 'Other' },
 ];
 
+const MODE_HINTS: Record<GenerateMode, string> = {
+  match: 'They go to the Deck for you both to swipe.',
+  plan: 'They go to My ideas, only you can see them.',
+};
+
+/** The confirmation shown once ideas are saved, naming how many and where they landed. */
+export function addedMessage(mode: GenerateMode, added: number): string {
+  return `Added ${added} idea${added === 1 ? '' : 's'} to ${mode === 'plan' ? 'My ideas' : 'the Deck'}.`;
+}
+
 const COUNTS = [5, 6, 8, 10] as const;
 const VIBE_MAX = 200;
 const BUDGET_MAX = 10_000;
@@ -38,9 +48,11 @@ const BUDGET_MAX = 10_000;
 export function GenerateIdeasSheet({
   defaultMode,
   onClose,
+  onGenerated,
 }: {
   defaultMode: GenerateMode;
   onClose: () => void;
+  onGenerated: (mode: GenerateMode, added: number) => void;
 }) {
   const generate = useGenerateIdeas();
   const [mode, setMode] = useState<GenerateMode>(defaultMode);
@@ -50,7 +62,7 @@ export function GenerateIdeasSheet({
   const [budget, setBudget] = useState('');
   const [count, setCount] = useState('8');
   const [surprise, setSurprise] = useState(false);
-  const [degraded, setDegraded] = useState(false);
+  const [degraded, setDegraded] = useState<{ mode: GenerateMode; added: number } | null>(null);
   const budgetInvalid =
     budget.trim() !== '' && !(Number(budget) > 0 && Number(budget) <= BUDGET_MAX);
 
@@ -71,6 +83,7 @@ export function GenerateIdeasSheet({
       </div>
       {degraded ? (
         <div className="mt-5 flex flex-col items-start gap-4">
+          <p className="text-sm font-semibold">{addedMessage(degraded.mode, degraded.added)}</p>
           <p role="status" className="rounded-xl border border-line p-3 text-sm">
             Some live details (venues, weather or events) couldn&apos;t be checked, so a few ideas
             may be rough.
@@ -94,7 +107,9 @@ export function GenerateIdeasSheet({
             };
             generate.mutate(body, {
               onSuccess: (result) => {
-                if (result.degraded.length > 0) setDegraded(true);
+                onGenerated(body.mode, result.ideas.length);
+                if (result.degraded.length > 0)
+                  setDegraded({ mode: body.mode, added: result.ideas.length });
                 else onClose();
               },
             });
@@ -105,6 +120,7 @@ export function GenerateIdeasSheet({
             className="m-0 flex min-w-0 flex-col gap-4 border-0 p-0"
           >
             <Segmented label="Who is it for?" options={MODES} value={mode} onChange={setMode} />
+            <p className="-mt-2 text-sm text-muted">{MODE_HINTS[mode]}</p>
             <TextField
               label="Vibe (optional)"
               maxLength={VIBE_MAX}
