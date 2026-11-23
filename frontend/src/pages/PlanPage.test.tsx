@@ -342,14 +342,13 @@ describe('PlanPage', () => {
       expect(screen.getByLabelText(/What are you in the mood for/)).toHaveValue('cozy');
     });
 
-    it('links to the profile when the home area is missing', async () => {
+    it('links to the Us tab when the home area is missing', async () => {
       setup({ 'POST /api/v1/plan/sessions': apiError(409, 'home_area_required') });
       await fillAndShowOptions();
       const alert = await screen.findByRole('alert');
-      expect(within(alert).getByRole('link', { name: 'Set your home area' })).toHaveAttribute(
-        'href',
-        '/profile',
-      );
+      expect(
+        within(alert).getByRole('link', { name: 'Set your home area on the Us tab' }),
+      ).toHaveAttribute('href', '/us');
     });
 
     it('shows the API message for any other 422', async () => {
