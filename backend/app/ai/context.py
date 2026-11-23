@@ -74,12 +74,14 @@ def _number(value: Decimal | None) -> float | None:
 def _constraints(row: CoupleConstraints | None) -> dict[str, Any]:
     if row is None:
         return {}
+    radius_km = row.max_radius_km
     values = {
         "budget_min": _number(row.budget_min),
         "budget_max": _number(row.budget_max),
         "currency": row.currency,
         "max_travel_minutes": row.max_travel_minutes,
-        "max_radius_km": row.max_radius_km,
+        # In miles, like everything the couple sees; the column stays kilometres.
+        "max_radius_miles": None if radius_km is None else round(radius_km * 0.621371),
         "transport_modes": row.transport_modes,
         "alcohol": row.alcohol,
         "kids_pets_notes": row.kids_pets_notes,

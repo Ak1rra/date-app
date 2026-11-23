@@ -371,3 +371,14 @@ async def test_a_shared_context_has_no_notes_surprises_private_ideas_or_votes(
         assert hidden not in raw
     # The constraints and profiles are still there.
     assert ctx["recipient"]["hard_constraints"]["allergies"] == ["peanuts"]
+
+
+async def test_travel_radius_reaches_the_model_in_miles(db_session: AsyncSession) -> None:
+    fx = await seed(db_session)
+    row = await db_session.get(CoupleConstraints, fx.couple_id)
+    assert row is not None
+    row.max_radius_km = 16
+    await db_session.commit()
+    raw, ctx = await context_for(db_session, fx, fx.ann, fx.bea_profile)
+    assert ctx["couple"]["constraints"]["max_radius_miles"] == 10
+    assert "max_radius_km" not in raw
