@@ -60,12 +60,6 @@ Copy `.env.example` to `.env`. Settings are read from the environment (and from 
 | **`VAPID_PUBLIC_KEY`** | `None` | **Web Push VAPID public key.** |
 | **`VAPID_PRIVATE_KEY`** | `None` | **Web Push VAPID private key.** |
 | **`VAPID_SUBJECT`** | `None` | **Web Push VAPID subject.** |
-| `APPLE_CLIENT_ID` | `None` | Optional Apple OAuth client id. |
-| `APPLE_TEAM_ID` | `None` | Optional Apple OAuth team id. |
-| `APPLE_KEY_ID` | `None` | Optional Apple OAuth key id. |
-| `APPLE_PRIVATE_KEY` | `None` | Optional Apple OAuth private key. |
-| `GOOGLE_OAUTH_CLIENT_ID` | `None` | Optional Google OAuth client id. |
-| `GOOGLE_OAUTH_CLIENT_SECRET` | `None` | Optional Google OAuth client secret. |
 | `CACHE_TTL_EVENTS` | `21600` seconds | Ticketmaster cache lifetime. |
 | `CACHE_TTL_WEATHER` | `3600` seconds | Open-Meteo cache lifetime. |
 | `VENUE_SNAPSHOT_MAX_AGE_DAYS` | `30` | Maximum age of an itinerary venue snapshot before refresh. |

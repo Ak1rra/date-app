@@ -88,12 +88,6 @@ class Settings(BaseSettings):
     vapid_public_key: str | None = None
     vapid_private_key: str | None = None
     vapid_subject: str | None = None
-    apple_client_id: str | None = None
-    apple_team_id: str | None = None
-    apple_key_id: str | None = None
-    apple_private_key: str | None = None
-    google_oauth_client_id: str | None = None
-    google_oauth_client_secret: str | None = None
 
     # Provider caching & rate limits (M2)
     # TTLs in seconds. Only Ticketmaster and Open-Meteo responses are cached in the database:
