@@ -205,6 +205,13 @@ async def test_the_count_is_respected(db_app: FastAPI) -> None:
         assert len(await stored(w)) == 5
 
 
+async def test_the_count_can_be_one_or_twenty(db_app: FastAPI) -> None:
+    async with world(db_app) as w:
+        await set_home(w)
+        assert len((await generate(w, count=1))["ideas"]) == 1
+        assert 1 <= len((await generate(w, count=20))["ideas"]) <= 20
+
+
 async def test_one_category_cannot_dominate(db_app: FastAPI) -> None:
     mixed = [*(idea(f"Food {n}", "food") for n in range(7)), idea("Walk", "outdoors")]
     mixed.append(idea("Game", "activity"))
@@ -238,11 +245,57 @@ async def test_ideas_that_break_the_request_are_not_saved(db_app: FastAPI) -> No
     async with world(db_app) as w:
         await set_home(w)
         async with ai_returns(db_app, fixed(*returned)):
-            out = await generate(
-                w, count=5, category="food", indoor_outdoor="indoor", budget_max=20
-            )
+            out = await generate(w, count=5, category="food", where=["indoor"], budget_max=20)
         assert [i["title"] for i in out["ideas"]] == ["Fits", "Either", "Unset"]
         assert [r.title for r in await stored(w)] == ["Fits", "Either", "Unset"]
+
+
+@pytest.mark.parametrize(
+    ("where", "titles"),
+    [
+        (None, ["Out"]),
+        (["indoor", "outdoor", "at_home"], ["Out", "Stay in"]),
+    ],
+)
+async def test_an_at_home_idea_needs_at_home_in_where(
+    db_app: FastAPI, where: list[str] | None, titles: list[str]
+) -> None:
+    returned = [
+        idea("Out", "food", indoor_outdoor="indoor"),
+        idea("Stay in", "activity", indoor_outdoor="indoor", at_home=True),
+    ]
+    async with world(db_app) as w:
+        await set_home(w)
+        async with ai_returns(db_app, fixed(*returned)):
+            out = await generate(w) if where is None else await generate(w, where=where)
+        assert [i["title"] for i in out["ideas"]] == titles
+
+
+async def test_only_at_home_keeps_only_at_home_ideas(db_app: FastAPI) -> None:
+    returned = [
+        idea("Out", "food", indoor_outdoor="indoor"),
+        idea("Unset", "food"),
+        idea("Stay in", "activity", indoor_outdoor="indoor", at_home=True),
+    ]
+    async with world(db_app) as w:
+        await set_home(w)
+        async with ai_returns(db_app, fixed(*returned)):
+            out = await generate(w, where=["at_home"])
+        assert [i["title"] for i in out["ideas"]] == ["Stay in"]
+        assert [r.generation.get("at_home") for r in await stored(w)] == [True]
+
+
+async def test_outdoor_and_at_home_drop_an_indoor_idea(db_app: FastAPI) -> None:
+    returned = [
+        idea("Indoors", "food", indoor_outdoor="indoor"),
+        idea("Outdoors", "outdoors", indoor_outdoor="outdoor"),
+        idea("Stay in", "activity", indoor_outdoor="indoor", at_home=True),
+    ]
+    async with world(db_app) as w:
+        await set_home(w)
+        async with ai_returns(db_app, fixed(*returned)):
+            out = await generate(w, where=["outdoor", "at_home"])
+        assert [i["title"] for i in out["ideas"]] == ["Outdoors", "Stay in"]
 
 
 async def test_an_event_outside_the_window_is_dropped(db_app: FastAPI) -> None:
@@ -326,7 +379,7 @@ async def test_the_run_is_recorded_and_the_prompt_carries_the_request(db_app: Fa
         await set_home(w)
         await call(w.owner, "POST", "/api/v1/ideas", {"title": "Already here"})
         async with ai_returns(db_app, respond):
-            await generate(w, vibe="  rainy day  ", budget_max=60, indoor_outdoor="indoor")
+            await generate(w, vibe="  rainy day  ", budget_max=60, where=["indoor"])
         async with w.app.state.sessionmaker() as session:
             used = list((await session.execute(select(AIUsage))).scalars())
         assert [(u.feature, u.ok) for u in used] == [("ideas", True)]
@@ -386,14 +439,17 @@ async def test_request_validation(db_app: FastAPI) -> None:
     async with world(db_app) as w:
         await set_home(w)
         bad: list[dict[str, Any]] = [
-            {"count": 4},
-            {"count": 11},
+            {"count": 0},
+            {"count": 21},
             {"window_start": "2030-05-02", "window_end": "2030-05-01"},
             {"budget_max": 0},
             {"budget_max": 10_001},
             {"vibe": "x" * 201},
             {"category": "nope"},
-            {"indoor_outdoor": "sideways"},
+            {"where": ["sideways"]},
+            {"where": []},
+            {"where": ["indoor", "outdoor", "at_home", "indoor"]},  # more than three
+            {"indoor_outdoor": "indoor"},  # replaced by where
             {"surprise": True},  # unknown field
         ]
         for changes in bad:

@@ -85,9 +85,11 @@ when one is given, and put the place_ids (at most three) or the event_id a tool 
 idea. Never invent an id. An idea with no tool-returned id is evergreen: set evergreen true and
 leave place_ids empty and event_id null. Check an event's date falls inside the window.
 
-Fit the filters in the request: budget_max, vibe, indoor_outdoor and category are limits to
-respect, and surprise_me means be bolder and more unexpected. Set best_time, duration_minutes and
-indoor_outdoor when you know them.
+Fit the filters in the request: budget_max, vibe, where and category are limits to respect,
+and surprise_me means be bolder and more unexpected. where lists the settings the couple wants:
+indoor and outdoor are dates out of the house, at_home is a date at home. Unless where includes
+at_home, every idea must get them out of the house. Set at_home true on an idea that happens at
+home and false otherwise. Set best_time, duration_minutes and indoor_outdoor when you know them.
 
 Mode match: ideas both of them would enjoy, to be swiped in a shared deck. Mode plan: ideas the
 requester can plan for their partner, shaped by the recipient's tastes.

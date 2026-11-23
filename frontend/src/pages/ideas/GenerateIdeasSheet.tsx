@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { aiError } from '../../api/plannerError';
 import { Button } from '../../components/Button';
-import { FormError, Segmented, SelectField, TextField } from '../../components/forms';
+import { ChipGroup, FormError, Segmented, SelectField, TextField } from '../../components/forms';
 import { useGenerateIdeas, type GenerateIdeasIn } from '../../hooks/useIdeas';
 import { Sheet } from '../../components/Sheet';
 import { BuildProgress, IDEA_STAGES } from '../plan/BuildProgress';
@@ -13,13 +13,8 @@ const MODES: readonly { value: GenerateMode; label: string }[] = [
   { value: 'plan', label: 'Just for me' },
 ];
 
-type Place = NonNullable<GenerateIdeasIn['indoor_outdoor']>;
 type Category = NonNullable<GenerateIdeasIn['category']>;
-const PLACES: readonly { value: Place; label: string }[] = [
-  { value: 'either', label: 'Either' },
-  { value: 'indoor', label: 'Indoor' },
-  { value: 'outdoor', label: 'Outdoor' },
-];
+type Where = GenerateIdeasIn['where'][number];
 
 const CATEGORIES: readonly { value: Category; label: string }[] = [
   { value: 'food', label: 'Food' },
@@ -29,6 +24,13 @@ const CATEGORIES: readonly { value: Category; label: string }[] = [
   { value: 'outdoors', label: 'Outdoors' },
   { value: 'other', label: 'Other' },
 ];
+
+const WHERE_OPTIONS: readonly Where[] = ['indoor', 'outdoor', 'at_home'];
+const WHERE_LABELS: Record<Where, string> = {
+  indoor: 'Indoor',
+  outdoor: 'Outdoor',
+  at_home: 'At home',
+};
 
 const MODE_HINTS: Record<GenerateMode, string> = {
   match: 'They go to the Deck for you both to swipe.',
@@ -40,7 +42,8 @@ export function addedMessage(mode: GenerateMode, added: number): string {
   return `Added ${added} idea${added === 1 ? '' : 's'} to ${mode === 'plan' ? 'My ideas' : 'the Deck'}.`;
 }
 
-const COUNTS = [5, 6, 8, 10] as const;
+const COUNT_MIN = 1;
+const COUNT_MAX = 20;
 const VIBE_MAX = 200;
 const BUDGET_MAX = 10_000;
 
@@ -58,13 +61,17 @@ export function GenerateIdeasSheet({
   const [mode, setMode] = useState<GenerateMode>(defaultMode);
   const [vibe, setVibe] = useState('');
   const [category, setCategory] = useState('');
-  const [place, setPlace] = useState<Place>('either');
+  const [where, setWhere] = useState<Where[]>(['indoor', 'outdoor']);
   const [budget, setBudget] = useState('');
   const [count, setCount] = useState('8');
   const [surprise, setSurprise] = useState(false);
   const [degraded, setDegraded] = useState<{ mode: GenerateMode; added: number } | null>(null);
   const budgetInvalid =
     budget.trim() !== '' && !(Number(budget) > 0 && Number(budget) <= BUDGET_MAX);
+  const whereInvalid = where.length === 0;
+  const countInvalid =
+    count.trim() === '' ||
+    !(Number.isInteger(Number(count)) && Number(count) >= COUNT_MIN && Number(count) <= COUNT_MAX);
 
   return (
     <Sheet labelledBy="generate-ideas-title" onClose={onClose}>
@@ -95,12 +102,12 @@ export function GenerateIdeasSheet({
           className="mt-5 flex flex-col gap-4"
           onSubmit={(event) => {
             event.preventDefault();
-            if (budgetInvalid || generate.isPending) return;
+            if (budgetInvalid || countInvalid || whereInvalid || generate.isPending) return;
             const body: GenerateIdeasIn = {
               mode,
               vibe: vibe.trim() || null,
               category: CATEGORIES.find((c) => c.value === category)?.value ?? null,
-              indoor_outdoor: place === 'either' ? null : place,
+              where,
               budget_max: budget.trim() === '' ? null : Number(budget),
               count: Number(count),
               surprise_me: surprise,
@@ -141,19 +148,31 @@ export function GenerateIdeasSheet({
                   </option>
                 ))}
               </SelectField>
-              <SelectField
+              <TextField
                 label="How many ideas"
+                type="number"
+                inputMode="numeric"
+                min={COUNT_MIN}
+                max={COUNT_MAX}
+                step={1}
                 value={count}
                 onChange={(event) => setCount(event.target.value)}
-              >
-                {COUNTS.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </SelectField>
+                hint={countInvalid ? 'Enter a whole number from 1 to 20.' : undefined}
+                aria-invalid={countInvalid || undefined}
+              />
             </div>
-            <Segmented label="Where" options={PLACES} value={place} onChange={setPlace} />
+            <ChipGroup
+              label="Where"
+              options={WHERE_OPTIONS}
+              value={where}
+              onChange={setWhere}
+              describe={(option) => WHERE_LABELS[option]}
+            />
+            {whereInvalid || !where.includes('at_home') ? (
+              <p className="-mt-2 text-sm text-muted">
+                {whereInvalid ? 'Pick at least one.' : "We'll get you out of the house."}
+              </p>
+            ) : null}
             <TextField
               label="Budget max, USD (optional)"
               type="number"
@@ -181,7 +200,10 @@ export function GenerateIdeasSheet({
               <BuildProgress label="Dreaming up ideas…" stages={IDEA_STAGES} />
             ) : null}
             <FormError error={aiError(generate.error)} />
-            <Button type="submit" disabled={budgetInvalid || generate.isPending}>
+            <Button
+              type="submit"
+              disabled={budgetInvalid || countInvalid || whereInvalid || generate.isPending}
+            >
               {generate.isPending ? 'Dreaming up ideas…' : 'Generate ideas'}
             </Button>
           </fieldset>

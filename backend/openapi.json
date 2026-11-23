@@ -1190,26 +1190,10 @@
           },
           "count": {
             "default": 8,
-            "maximum": 10.0,
-            "minimum": 5.0,
+            "maximum": 20.0,
+            "minimum": 1.0,
             "title": "Count",
             "type": "integer"
-          },
-          "indoor_outdoor": {
-            "anyOf": [
-              {
-                "enum": [
-                  "indoor",
-                  "outdoor",
-                  "either"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Indoor Outdoor"
           },
           "mode": {
             "enum": [
@@ -1235,6 +1219,24 @@
               }
             ],
             "title": "Vibe"
+          },
+          "where": {
+            "default": [
+              "indoor",
+              "outdoor"
+            ],
+            "items": {
+              "enum": [
+                "indoor",
+                "outdoor",
+                "at_home"
+              ],
+              "type": "string"
+            },
+            "maxItems": 3,
+            "minItems": 1,
+            "title": "Where",
+            "type": "array"
           },
           "window_end": {
             "anyOf": [

@@ -99,6 +99,8 @@ def _idea_from(
         valid_until = _end_of_day(event.local_date, timezone)
         if venue is None and event.location is not None:
             venue = venue_snapshot(event.location)
+    if generated.at_home:
+        generation["at_home"] = True
     shared = body.mode == "match"
     return Idea(
         couple_id=couple_id,
@@ -128,13 +130,24 @@ def _idea_from(
 
 
 def _matches_request(idea: Idea, body: GenerateIdeasIn) -> bool:
-    """Whether the idea obeys the request's category, indoor/outdoor, budget and window. A value
-    the idea leaves unset, or an idea that suits either setting, is never held against it."""
+    """Whether the idea obeys the request's category, where, budget and window. An at-home idea
+    needs at_home in `where`; any other idea needs an indoor or outdoor setting in `where`, and a
+    value it leaves unset, or an idea that suits either setting, is never held against it."""
     if body.category is not None and idea.category != body.category:
         return False
-    wanted = body.indoor_outdoor
-    if wanted not in (None, "either") and idea.indoor_outdoor not in (None, "either", wanted):
-        return False
+    if idea.generation.get("at_home"):
+        if "at_home" not in body.where:
+            return False
+    else:
+        settings = {w for w in body.where if w != "at_home"}
+        if not settings:
+            return False
+        if settings != {"indoor", "outdoor"} and idea.indoor_outdoor not in (
+            None,
+            "either",
+            *settings,
+        ):
+            return False
     if (
         body.budget_max is not None
         and idea.est_cost is not None

@@ -11,6 +11,7 @@ from pydantic import (
     Field,
     StringConstraints,
     UrlConstraints,
+    field_validator,
     model_validator,
 )
 
@@ -21,6 +22,7 @@ IdeaStatus = Literal["active", "archived", "expired"]
 IdeaSource = Literal["ai", "chat", "manual", "plan", "mentioned"]
 BestTime = Literal["day", "evening", "weekend", "any"]
 IndoorOutdoor = Literal["indoor", "outdoor", "either"]
+Where = Literal["indoor", "outdoor", "at_home"]
 VoteValue = Literal["yes", "no", "maybe"]
 
 Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
@@ -132,14 +134,21 @@ class GenerateIdeasIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     mode: Literal["match", "plan"]
-    count: Annotated[int, Field(ge=5, le=10)] = 8
+    count: Annotated[int, Field(ge=1, le=20)] = 8
     window_start: dt.date | None = None
     window_end: dt.date | None = None
     budget_max: Annotated[float, Field(gt=0, le=10_000)] | None = None
     vibe: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)] | None = None
-    indoor_outdoor: IndoorOutdoor | None = None
+    # Indoor and outdoor are dates out of the house; at_home is one at home. Without at_home the
+    # couple wants to leave the house.
+    where: Annotated[list[Where], Field(min_length=1, max_length=3)] = ["indoor", "outdoor"]
     category: StopKind | None = None
     surprise_me: bool = False
+
+    @field_validator("where")
+    @classmethod
+    def _where_unique(cls, value: list[Where]) -> list[Where]:
+        return list(dict.fromkeys(value))
 
     @model_validator(mode="after")
     def _window_order(self) -> Self:

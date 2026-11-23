@@ -410,6 +410,7 @@ async def fake_generated_ideas(
         tags: list[str],
         indoor_outdoor: IndoorOutdoor,
         best_time: BestTime = "any",
+        at_home: bool = False,
     ) -> GeneratedIdea:
         return GeneratedIdea(
             title=title[:120],
@@ -422,6 +423,7 @@ async def fake_generated_ideas(
             duration_minutes=120,
             best_time=best_time,
             indoor_outdoor=indoor_outdoor,
+            at_home=at_home,
         )
 
     ideas = [
@@ -466,6 +468,7 @@ async def fake_generated_ideas(
             tags=["cooking", "night in"],
             indoor_outdoor="indoor",
             best_time="evening",
+            at_home=True,
         ),
         idea(
             f"Dessert at {dessert.name if dessert else 'a cosy dessert place'}",
@@ -482,6 +485,7 @@ async def fake_generated_ideas(
             tags=["movie", "night in"],
             indoor_outdoor="indoor",
             best_time="evening",
+            at_home=True,
         ),
         idea(
             "Sunrise picnic on a blanket",
@@ -497,6 +501,39 @@ async def fake_generated_ideas(
             "activity",
             tags=["games", "night in"],
             indoor_outdoor="indoor",
+            at_home=True,
+        ),
+        idea(
+            "Bowling and milkshakes",
+            "Gutter balls, terrible shoes and a shared milkshake as the prize for whoever loses.",
+            "activity",
+            tags=["bowling", "playful"],
+            indoor_outdoor="indoor",
+            best_time="evening",
+        ),
+        idea(
+            "Bike ride to a lookout",
+            "Pedal somewhere with a view, race the last hill, and let me win. Just once.",
+            "outdoors",
+            tags=["cycling", "views"],
+            indoor_outdoor="outdoor",
+            best_time="day",
+        ),
+        idea(
+            "Browse a bookshop and pick for each other",
+            "Each choose a book for the other, then read the first page aloud over coffee.",
+            "activity",
+            tags=["books", "cosy"],
+            indoor_outdoor="indoor",
+            best_time="day",
+        ),
+        idea(
+            "Wine and cheese tasting night",
+            "Swirl, sniff, pretend we know what we are doing, and rate everything out of ten.",
+            "drink",
+            tags=["tasting", "date night"],
+            indoor_outdoor="indoor",
+            best_time="evening",
         ),
     ]
     return GeneratedIdeas(ideas=ideas)

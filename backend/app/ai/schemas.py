@@ -59,10 +59,11 @@ class GeneratedIdea(_Strict):
     duration_minutes: Annotated[int, Field(ge=30, le=720)] | None = None
     best_time: BestTime | None = None
     indoor_outdoor: IndoorOutdoor | None = None
+    at_home: bool = False
 
 
 class GeneratedIdeas(_Strict):
-    ideas: Annotated[list[GeneratedIdea], Field(min_length=1, max_length=10)]
+    ideas: Annotated[list[GeneratedIdea], Field(min_length=1, max_length=20)]
 
 
 class DraftStop(_Strict):

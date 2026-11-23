@@ -55,9 +55,10 @@ describe('GenerateIdeasSheet', () => {
     await userEvent.click(sheet.getByRole('button', { name: 'Just for me' }));
     await userEvent.type(sheet.getByLabelText('Vibe (optional)'), '  cozy  ');
     await userEvent.selectOptions(sheet.getByLabelText('Category'), 'food');
-    await userEvent.click(sheet.getByRole('button', { name: 'Indoor' }));
+    await userEvent.click(sheet.getByRole('button', { name: 'Outdoor' }));
     await userEvent.type(sheet.getByLabelText('Budget max, USD (optional)'), '50');
-    await userEvent.selectOptions(sheet.getByLabelText('How many ideas'), '6');
+    await userEvent.clear(sheet.getByLabelText('How many ideas'));
+    await userEvent.type(sheet.getByLabelText('How many ideas'), '6');
     await userEvent.click(sheet.getByRole('checkbox', { name: 'Surprise me' }));
     const decks = mock.find('GET', '/api/v1/deck').length;
     await userEvent.click(sheet.getByRole('button', { name: 'Generate ideas' }));
@@ -67,7 +68,7 @@ describe('GenerateIdeasSheet', () => {
         mode: 'plan',
         vibe: 'cozy',
         category: 'food',
-        indoor_outdoor: 'indoor',
+        where: ['indoor'],
         budget_max: 50,
         count: 6,
         surprise_me: true,
@@ -77,16 +78,39 @@ describe('GenerateIdeasSheet', () => {
     await waitFor(() => expect(mock.find('GET', '/api/v1/deck').length).toBeGreaterThan(decks));
   });
 
-  it('offers 5 to 10 ideas, matching what the planner accepts', async () => {
+  it('starts the count at 8 as a number box', async () => {
     api();
     renderApp('/ideas');
     const sheet = await openSheet();
-    const options = within(sheet.getByLabelText('How many ideas')).getAllByRole('option');
-    expect(options.map((o) => o.textContent)).toEqual(['5', '6', '8', '10']);
-    expect(sheet.getByLabelText('How many ideas')).toHaveValue('8');
+    expect(sheet.getByLabelText('How many ideas')).toHaveValue(8);
   });
 
-  it('sends null for anything left open, with either meaning no preference', async () => {
+  it('sends a typed count of 15', async () => {
+    const mock = api();
+    renderApp('/ideas');
+    const sheet = await openSheet();
+    const box = sheet.getByLabelText('How many ideas');
+    await userEvent.clear(box);
+    await userEvent.type(box, '15');
+    await userEvent.click(sheet.getByRole('button', { name: 'Generate ideas' }));
+    await waitFor(() =>
+      expect(mock.body('POST', '/api/v1/ideas/generate')).toMatchObject({ count: 15 }),
+    );
+  });
+
+  it.each(['25', '0', '', '2.5'])('blocks a count of "%s" with a hint', async (value) => {
+    const mock = api();
+    renderApp('/ideas');
+    const sheet = await openSheet();
+    const box = sheet.getByLabelText('How many ideas');
+    await userEvent.clear(box);
+    if (value) await userEvent.type(box, value);
+    expect(sheet.getByText('Enter a whole number from 1 to 20.')).toBeInTheDocument();
+    expect(sheet.getByRole('button', { name: 'Generate ideas' })).toBeDisabled();
+    expect(mock.find('POST', '/api/v1/ideas/generate')).toHaveLength(0);
+  });
+
+  it('sends null for anything left open and defaults to indoor and outdoor', async () => {
     const mock = api();
     renderApp('/ideas');
     const sheet = await openSheet();
@@ -96,12 +120,48 @@ describe('GenerateIdeasSheet', () => {
         mode: 'match',
         vibe: null,
         category: null,
-        indoor_outdoor: null,
+        where: ['indoor', 'outdoor'],
         budget_max: null,
         count: 8,
         surprise_me: false,
       }),
     );
+  });
+
+  it('shows Indoor and Outdoor on by default, with no Either', async () => {
+    api();
+    renderApp('/ideas');
+    const sheet = await openSheet();
+    expect(sheet.getByRole('button', { name: 'Indoor' })).toHaveAttribute('aria-pressed', 'true');
+    expect(sheet.getByRole('button', { name: 'Outdoor' })).toHaveAttribute('aria-pressed', 'true');
+    expect(sheet.getByRole('button', { name: 'At home' })).toHaveAttribute('aria-pressed', 'false');
+    expect(sheet.queryByRole('button', { name: 'Either' })).not.toBeInTheDocument();
+    expect(sheet.getByText("We'll get you out of the house.")).toBeInTheDocument();
+  });
+
+  it('sends At home when it is selected', async () => {
+    const mock = api();
+    renderApp('/ideas');
+    const sheet = await openSheet();
+    await userEvent.click(sheet.getByRole('button', { name: 'At home' }));
+    expect(sheet.queryByText("We'll get you out of the house.")).not.toBeInTheDocument();
+    await userEvent.click(sheet.getByRole('button', { name: 'Generate ideas' }));
+    await waitFor(() =>
+      expect(mock.body('POST', '/api/v1/ideas/generate')).toMatchObject({
+        where: ['indoor', 'outdoor', 'at_home'],
+      }),
+    );
+  });
+
+  it('blocks an empty Where with a hint', async () => {
+    const mock = api();
+    renderApp('/ideas');
+    const sheet = await openSheet();
+    await userEvent.click(sheet.getByRole('button', { name: 'Indoor' }));
+    await userEvent.click(sheet.getByRole('button', { name: 'Outdoor' }));
+    expect(sheet.getByText('Pick at least one.')).toBeInTheDocument();
+    expect(sheet.getByRole('button', { name: 'Generate ideas' })).toBeDisabled();
+    expect(mock.find('POST', '/api/v1/ideas/generate')).toHaveLength(0);
   });
 
   it('defaults to just-for-me until the partner has joined', async () => {

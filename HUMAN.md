@@ -11,6 +11,8 @@ earned its status.
 - **2026-11-19 — ✅ Addressed:** “Dont have any login for now. Maybe just have a profile tab where you can select if you are the husband or wife” — no-login Husband/Wife profile picker in commit `90bf5b9`, matching REQUIREMENTS §14 decision 7.
 - **2026-11-20 — ✅ Addressed:** “Have the husband and wife colors be differnt” — husband/wife palette in commit `5672d17`.
 - **2026-11-20 — ✅ Addressed:** “Make the husbands blue and the wifes keep the current colors” — commit `5672d17`, with the husband blue variables at `frontend/src/styles.css :root[data-person='husband']`.
+- **2026-11-23 — ✅ Addressed:** “Make it so I can just type a number for the amount of dates to generate in dateapp” — “How many ideas” in Generate ideas is a typed number box, 1–20 (default 8): `frontend/src/pages/ideas/GenerateIdeasSheet.tsx`, `backend/app/schemas/ideas.py` (`GenerateIdeasIn.count`), REQUIREMENTS §14 decision 22.
+- **2026-11-23 — ✅ Addressed:** “For the where option, there should be indoor, outdoor, and at-home. If at-home is not selected, assume we want to leave the house for the date. remove the either option. allow me to select more than one.” — Where is a multi-select of Indoor / Outdoor / At home (no Either), and at-home ideas are dropped unless At home is picked: `frontend/src/pages/ideas/GenerateIdeasSheet.tsx`, `backend/app/services/ideas_ai.py` (`_matches_request`), REQUIREMENTS §14 decision 23.
 
 ## Standing facts a human tester needs
 
@@ -49,4 +51,5 @@ earned its status.
 - Email-login mode only: on two phones, does "Invite your partner" → share link → /join → sign in land the partner in the shared space, and does "Leave" feel safe and clear?
 - Does the weekly "Nothing on the calendar 👀" nudge feel flirty rather than naggy?
 - When you reschedule a planned date to another day, do the stops move with it and do any opening-hours warnings that appear make sense?
+- When generating ideas with At home off, do any stay-at-home ideas still slip through? With only At home on, are the ideas all genuinely at home?
 - Is the "Evergreen" stop pill and the "double-check before you go" note on a date clear, or noisy?

@@ -1948,8 +1948,6 @@ export interface components {
              * @default 8
              */
             count: number;
-            /** Indoor Outdoor */
-            indoor_outdoor?: ("indoor" | "outdoor" | "either") | null;
             /**
              * Mode
              * @enum {string}
@@ -1962,6 +1960,14 @@ export interface components {
             surprise_me: boolean;
             /** Vibe */
             vibe?: string | null;
+            /**
+             * Where
+             * @default [
+             *       "indoor",
+             *       "outdoor"
+             *     ]
+             */
+            where: ("indoor" | "outdoor" | "at_home")[];
             /** Window End */
             window_end?: string | null;
             /** Window Start */
