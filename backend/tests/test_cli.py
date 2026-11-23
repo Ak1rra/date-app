@@ -4,7 +4,6 @@ Nothing here runs uv, npm, pg_dump, alembic or uvicorn for real: `subprocess.run
 platform probes are replaced on the cli module, so the tests run on any OS.
 """
 
-import asyncio
 import os
 import subprocess
 from pathlib import Path
@@ -13,17 +12,10 @@ from unittest import mock
 
 import pytest
 from click.testing import CliRunner
-from fastapi import FastAPI
-from httpx import AsyncClient
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import __version__
 from app import cli as cli_mod
-from app.models import MagicLinkToken
-from app.security.tokens import hash_token
-from tests.authutil import post, token_of
-from tests.conftest import ORIGIN, make_settings
+from tests.conftest import make_settings
 
 DB_URL = "postgresql+asyncpg://dateapp:s3cr3t-pw@127.0.0.1:5432/dateapp"
 
@@ -35,8 +27,14 @@ def invoke(*args: str) -> Any:
 def test_help_lists_top_level_commands() -> None:
     result = invoke("--help")
     assert result.exit_code == 0
-    for name in ("build", "serve", "status", "migrate", "backup", "magic-link", "usage", "daemon"):
+    for name in ("build", "serve", "status", "migrate", "backup", "usage", "daemon"):
         assert name in result.output
+
+
+def test_magic_link_is_not_a_command() -> None:
+    result = invoke("magic-link", "a@b.com")
+    assert result.exit_code != 0
+    assert "No such command" in result.output
 
 
 def test_console_script_target_is_the_click_group() -> None:
@@ -385,67 +383,3 @@ def test_status_degraded_when_database_is_down() -> None:
     assert result.exit_code == 1
     assert "degraded" in result.output
     assert "Demo mode : off" in result.output
-
-
-# -- magic-link (operator command) ---------------------------------------------------------
-
-
-def test_magic_link_help_says_it_is_an_operator_command() -> None:
-    result = invoke("magic-link", "--help")
-    assert result.exit_code == 0
-    assert "Operator command" in result.output
-    assert "no email sent" in result.output
-
-
-def test_magic_link_rejects_something_that_is_not_an_address() -> None:
-    result = invoke("magic-link", "nobody")
-    assert result.exit_code == 1
-    assert "not an email address" in result.output
-
-
-def test_magic_link_reports_an_unreachable_database_without_a_traceback() -> None:
-    with mock.patch.object(cli_mod, "_settings", return_value=make_settings()):
-        result = invoke("magic-link", "ann@example.com")
-    assert result.exit_code == 1
-    assert "Could not create the link" in result.output
-    assert "Traceback" not in result.output
-
-
-@pytest.mark.db
-async def test_magic_link_prints_a_link_that_signs_in(
-    db_schema: str, db_app: FastAPI, db_client: AsyncClient, db_session: AsyncSession
-) -> None:
-    settings = make_settings(database_url=db_schema)
-    with mock.patch.object(cli_mod, "_settings", return_value=settings):
-        # CliRunner runs asyncio.run, so it needs a thread without a running event loop.
-        result = await asyncio.to_thread(invoke, "magic-link", "  Ann@Example.com ")
-    assert result.exit_code == 0, result.output
-    link = result.output.strip()
-    assert link.startswith(f"{ORIGIN}/auth/verify#token=")
-    (row,) = (await db_session.execute(select(MagicLinkToken))).scalars().all()
-    assert row.email == "ann@example.com"
-    assert row.token_hash == hash_token(token_of(link))  # only the hash is stored
-
-    response = await post(db_client, "/api/v1/auth/verify", json={"token": token_of(link)})
-    assert response.status_code == 200
-    assert response.json()["user"]["email"] == "ann@example.com"
-    assert (await db_client.get("/api/v1/me")).status_code == 200
-
-
-def test_magic_link_refuses_when_no_login_is_on() -> None:
-    with (
-        mock.patch.object(cli_mod, "_settings", return_value=make_settings(no_login=True)),
-        mock.patch.object(cli_mod, "_issue_magic_link") as issue,
-    ):
-        result = invoke("magic-link", "ann@example.com")
-    assert result.exit_code == 1
-    assert "Email sign-in is switched off (NO_LOGIN=1)." in result.output
-    issue.assert_not_called()
-
-
-def test_magic_link_refuses_the_reserved_household_addresses() -> None:
-    with mock.patch.object(cli_mod, "_issue_magic_link") as issue:
-        result = invoke("magic-link", "Husband@household.invalid")
-    assert result.exit_code == 1
-    assert "reserved for the NO_LOGIN household" in result.output
-    issue.assert_not_called()

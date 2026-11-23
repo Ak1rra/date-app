@@ -133,7 +133,6 @@ The CLI commands are:
 - `dateapp status` - print API health and metadata (`--host`, `--port`).
 - `dateapp migrate` - apply `alembic upgrade head`.
 - `dateapp backup` - write a compressed PostgreSQL dump (`--keep N`, default `14`).
-- `dateapp magic-link EMAIL` - print a one-use sign-in link without sending email.
 - `dateapp usage` - report AI runs, tokens and estimated cost (`--month YYYY-MM`).
 - `dateapp vapid generate` - print a VAPID key pair for the environment.
 - `dateapp daemon install` - build, migrate, install and start the systemd service (`--port`, `--user`, `--dry-run`).

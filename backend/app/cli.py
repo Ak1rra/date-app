@@ -9,7 +9,6 @@ One entry point for building, running and deploying the app. Installed with
     dateapp status                # pretty-print /api/v1/health and /api/v1/meta
     dateapp migrate               # alembic upgrade head
     dateapp backup --keep 14      # pg_dump to backups/, keep the newest 14
-    dateapp magic-link EMAIL      # operator: print a sign-in link (no email sent)
     dateapp usage --month 2026-11 # operator: AI usage and estimated cost per couple
     dateapp daemon install        # run as a systemd service (Linux); see `daemon --help`
     dateapp daemon update         # git pull, backup, build, migrate, restart, health check
@@ -49,7 +48,6 @@ from app.ai.caps import utc_month_bounds
 from app.config import REPO_ROOT, Settings, get_settings
 from app.db import make_engine, make_sessionmaker
 from app.models import AIUsage, CoupleMember, User
-from app.services.auth import is_household_email, issue_magic_link
 
 REPO_DIR = str(REPO_ROOT)
 BACKEND_DIR = os.path.join(REPO_DIR, "backend")
@@ -494,42 +492,6 @@ def backup(keep: int) -> None:
     _banner("backup")
     _run_backup(keep)
     click.echo("")
-
-
-async def _issue_magic_link(settings: Settings, email: str) -> str:
-    engine = make_engine(settings)
-    try:
-        async with make_sessionmaker(engine)() as session:
-            link = await issue_magic_link(session, settings, email)
-            await session.commit()
-            return link
-    finally:
-        await engine.dispose()
-
-
-@cli.command("magic-link")
-@click.argument("email")
-def magic_link(email: str) -> None:
-    """Operator command: print a sign-in link for EMAIL (no email sent, no rate limit).
-
-    Anyone holding the link can sign in as that address once, so treat it like a password.
-    """
-    email = email.strip().lower()
-    if "@" not in email:
-        _fail(f"{email!r} is not an email address.")
-    if is_household_email(email):
-        _fail("That address is reserved for the NO_LOGIN household and cannot sign in by email.")
-    settings = _settings()
-    if settings.no_login:
-        _fail("Email sign-in is switched off (NO_LOGIN=1).")
-    try:
-        link = asyncio.run(_issue_magic_link(settings, email))
-    except Exception as exc:
-        _fail(
-            "Could not create the link.",
-            f"{type(exc).__name__}: is the database up and migrated?",
-        )
-    click.echo(link)
 
 
 # -- AI usage report -----------------------------------------------------------------------
