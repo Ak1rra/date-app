@@ -20,7 +20,7 @@ const CODE_LENGTH = 8;
 const JOIN_MESSAGES: Record<string, string> = {
   invite_invalid: 'This invite has expired or was already used. Ask your partner for a new one.',
   couple_full: 'That couple already has two people.',
-  already_paired: "You're already paired with someone. Leave that space from your Profile first.",
+  already_paired: "You're already paired with someone. Leave that space in Settings first.",
   already_member: "You're already in this couple.",
 };
 

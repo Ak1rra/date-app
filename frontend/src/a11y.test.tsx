@@ -319,7 +319,7 @@ const cases: Case[] = [
     ready: () => screen.findByText('How about pottery?'),
   },
   {
-    name: 'Us',
+    name: 'Profile',
     path: '/us',
     routes: {
       'GET /api/v1/profiles/p-husband/availability': noAvailability,
@@ -332,7 +332,7 @@ const cases: Case[] = [
     ready: () => screen.findByRole('heading', { name: 'You' }),
   },
   {
-    name: 'Profile',
+    name: 'Settings',
     path: '/profile',
     routes: {
       'GET /api/v1/notifications/push-config': { public_key: 'AQID-_8' },
@@ -501,7 +501,7 @@ describe('accessibility (axe)', () => {
     await expectNoAxeViolations(document.body);
   });
 
-  it('Profile with the "Your data" confirm panel open has no axe violations', async () => {
+  it('Settings with the "Your data" confirm panel open has no axe violations', async () => {
     mockApi({
       ...shared,
       'GET /api/v1/notifications/push-config': { public_key: 'AQID-_8' },

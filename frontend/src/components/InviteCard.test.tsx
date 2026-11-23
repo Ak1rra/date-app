@@ -161,7 +161,7 @@ describe('InviteCard', () => {
     const api = setup({ 'GET /api/v1/meta': meta(true) });
     renderApp('/us');
 
-    await screen.findByRole('heading', { name: 'Us' });
+    await screen.findByRole('heading', { name: 'Profile' });
     await waitFor(() => expect(api.find('GET', '/api/v1/couple').length).toBeGreaterThan(0));
     expect(screen.queryByRole('button', { name: 'Invite your partner' })).not.toBeInTheDocument();
     expect(api.calls.filter((c) => c.path.includes('/couple/invites'))).toHaveLength(0);
@@ -171,7 +171,7 @@ describe('InviteCard', () => {
     const api = setup({ 'GET /api/v1/auth/session': session('Sam', 'partner') });
     renderApp('/us');
 
-    await screen.findByRole('heading', { name: 'Us' });
+    await screen.findByRole('heading', { name: 'Profile' });
     await waitFor(() => expect(api.find('GET', '/api/v1/couple').length).toBeGreaterThan(0));
     expect(screen.queryByRole('button', { name: 'Invite your partner' })).not.toBeInTheDocument();
     expect(api.calls.filter((c) => c.path.includes('/couple/invites'))).toHaveLength(0);
@@ -181,7 +181,7 @@ describe('InviteCard', () => {
     const api = setup({ 'GET /api/v1/couple': { ...couple, partner_joined: true } });
     renderApp('/us');
 
-    await screen.findByRole('heading', { name: 'Us' });
+    await screen.findByRole('heading', { name: 'Profile' });
     await waitFor(() => expect(api.find('GET', '/api/v1/couple').length).toBeGreaterThan(0));
     expect(screen.queryByRole('button', { name: 'Invite your partner' })).not.toBeInTheDocument();
   });

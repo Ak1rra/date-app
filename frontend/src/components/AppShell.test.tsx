@@ -27,8 +27,8 @@ describe('AppShell navigation', () => {
       'Ideas',
       'Calendar',
       'Chat',
-      'Us',
       'Profile',
+      'Settings',
     ]);
 
     expect(within(tabs).getByRole('link', { name: 'Ideas' })).toHaveAttribute(

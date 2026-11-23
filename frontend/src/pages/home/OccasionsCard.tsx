@@ -33,7 +33,7 @@ export function OccasionsCard() {
       ) : null}
       {!dates.isPending && !dates.isError && occasions.length === 0 ? (
         <EmptyState title="No occasions yet" icon={<CalendarIcon />}>
-          Add birthdays and anniversaries in Us and we&apos;ll help you plan ahead.
+          Add birthdays and anniversaries in Profile and we&apos;ll help you plan ahead.
         </EmptyState>
       ) : null}
       {!dates.isPending && !dates.isError && occasions.length > 0 ? (

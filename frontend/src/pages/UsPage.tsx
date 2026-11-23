@@ -13,7 +13,7 @@ export function UsPage() {
   const other = profiles.data?.find((p) => !p.is_me);
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold">Us</h1>
+      <h1 className="text-2xl font-bold">Profile</h1>
       <InviteCard />
       <ProfileSection />
       <AvailabilitySection />

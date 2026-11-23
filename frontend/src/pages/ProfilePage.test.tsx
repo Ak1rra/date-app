@@ -90,11 +90,11 @@ describe('ProfilePage', () => {
     expect(screen.getByRole('button', { name: 'Husband' })).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('marks the Profile tab active in the bottom bar', async () => {
+  it('marks the Settings tab active in the bottom bar', async () => {
     mockApi(husband);
     renderApp('/profile');
     const tabs = await screen.findByRole('navigation', { name: 'Main tabs' });
-    expect(within(tabs).getByRole('link', { name: 'Profile' })).toHaveAttribute(
+    expect(within(tabs).getByRole('link', { name: 'Settings' })).toHaveAttribute(
       'aria-current',
       'page',
     );

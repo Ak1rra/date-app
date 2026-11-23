@@ -48,7 +48,7 @@ describe('PrivacyPage', () => {
     expect(screen.getByText(/relies on trust, not on locks/)).toBeInTheDocument();
   });
 
-  it('is linked from the Profile page', async () => {
+  it('is linked from the Settings page', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn<typeof fetch>(async (input) =>

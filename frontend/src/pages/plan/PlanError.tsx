@@ -33,7 +33,7 @@ export function PlanError({ error }: { error: unknown }) {
         <>
           We need to know where you&apos;re based before we can find places.{' '}
           <Link to="/us" className="font-semibold underline">
-            Set your home area on the Us tab
+            Set your home area on the Profile tab
           </Link>
           , then come back.
         </>

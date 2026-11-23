@@ -260,7 +260,7 @@ async def ai_run(
     if couple is None:
         raise not_found()
     if couple.home_lat is None or couple.home_lng is None:
-        raise ApiError(409, "home_area_required", "Set your home area on the Us tab first.")
+        raise ApiError(409, "home_area_required", "Set your home area on the Profile tab first.")
     radius_km = (
         await session.execute(
             select(CoupleConstraints.max_radius_km).where(CoupleConstraints.couple_id == couple_id)

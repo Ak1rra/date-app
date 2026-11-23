@@ -17,7 +17,7 @@ earned its status.
 - **Open the app:** on the LAN, visit [https://dates.lan](https://dates.lan).
 - **Install on iPhone:** in Safari, tap Share → Add to Home Screen.
 - **Trust the `dates.lan` certificate on iPhone:** install Caddy's local root CA profile, then go to Settings → General → About → Certificate Trust Settings and enable full trust. The Caddy host is `192.168.1.164`; its root is `/var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt`. Send that file to the phone by AirDrop or email, then install it under Settings → General → VPN & Device Management.
-- **Switch Husband/Wife:** use the Profile tab.
+- **Switch Husband/Wife:** use the Settings tab.
 - **Run a local demo:** copy `.env.example` to `.env`, set `DEMO_MODE=1` and `NO_LOGIN=1`, then from `backend/` run:
 
   ```text

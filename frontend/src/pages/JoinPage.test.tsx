@@ -120,7 +120,7 @@ describe('JoinPage', () => {
 
     expect(
       await screen.findByText(
-        "You're already paired with someone. Leave that space from your Profile first.",
+        "You're already paired with someone. Leave that space in Settings first.",
       ),
     ).toBeInTheDocument();
     expect(getPendingInvite()).toEqual({ token: 'tok123' });

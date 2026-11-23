@@ -3,7 +3,7 @@ import { NavLink, Outlet } from 'react-router';
 import { RealtimeProvider } from '../realtime/RealtimeProvider';
 import { InstallBanner } from './InstallBanner';
 import { NotificationBell } from './NotificationBell';
-import { CalendarIcon, ChatIcon, HomeIcon, IdeasIcon, ProfileIcon, UsIcon } from './Icons';
+import { CalendarIcon, ChatIcon, HomeIcon, IdeasIcon, SettingsIcon, UsIcon } from './Icons';
 
 interface NavItem {
   to: string;
@@ -17,8 +17,8 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/ideas', label: 'Ideas', icon: IdeasIcon },
   { to: '/calendar', label: 'Calendar', icon: CalendarIcon },
   { to: '/chat', label: 'Chat', icon: ChatIcon },
-  { to: '/us', label: 'Us', icon: UsIcon },
-  { to: '/profile', label: 'Profile', icon: ProfileIcon },
+  { to: '/us', label: 'Profile', icon: UsIcon },
+  { to: '/profile', label: 'Settings', icon: SettingsIcon },
 ];
 
 const focusRing = 'rounded-2xl no-underline';
