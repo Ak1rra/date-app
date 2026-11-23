@@ -155,7 +155,7 @@ case "$MODE" in
     uv sync --frozen </dev/null || exit 1
     uv run python -c "$PYSNIP" "$PG" "$DB" create </dev/null || exit 1
     # Nothing inherited from the login environment may turn on a real provider.
-    unset ANTHROPIC_API_KEY GOOGLE_MAPS_API_KEY TICKETMASTER_API_KEY EMAIL_API_KEY EMAIL_PROVIDER \
+    unset OPENAI_API_KEY GOOGLE_MAPS_API_KEY TICKETMASTER_API_KEY EMAIL_API_KEY EMAIL_PROVIDER \
       VAPID_PUBLIC_KEY VAPID_PRIVATE_KEY VAPID_SUBJECT SENTRY_DSN
     unset DEV_OUTBOX
     export DATABASE_URL="$PG/$DB" DEMO_MODE=1 NO_LOGIN=1 COOKIE_SECURE=0 WEATHER_PROVIDER=fake

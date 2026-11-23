@@ -38,9 +38,9 @@ Copy `.env.example` to `.env`. Settings are read from the environment (and from 
 | `FORWARDED_ALLOW_IPS` | `127.0.0.1` | Proxies whose `X-Forwarded-*` headers the server trusts. |
 | `FRONTEND_DIST` | `None` (resolved to `<repo>/frontend/dist`) | Built frontend directory served by the API. |
 | `RUN_WORKER` | `true` | Runs the background job worker inside the API process. |
-| **`ANTHROPIC_API_KEY`** | `None` | **Anthropic key for real AI calls.** |
-| `AI_MODEL_FAST` | `claude-haiku-5-5` | Fast AI model. |
-| `AI_MODEL_SMART` | `claude-sonnet-5-5` | Smart AI model. |
+| **`OPENAI_API_KEY`** | `None` | **OpenAI key for real AI calls.** |
+| `AI_MODEL_FAST` | `gpt-6-luna` | Fast AI model. |
+| `AI_MODEL_SMART` | `gpt-6.2-sol` | Smart AI model. |
 | `AI_CAP_IDEAS_PER_DAY` | `20` | Per-couple daily idea-run cap. |
 | `AI_CAP_BUILDS_PER_DAY` | `20` | Per-couple daily build cap. |
 | `AI_CAP_CHAT_PER_DAY` | `100` | Per-couple daily chat-message cap. |
@@ -49,7 +49,7 @@ Copy `.env.example` to `.env`. Settings are read from the environment (and from 
 | `AI_MAX_TOOL_ITERATIONS` | `8` | Maximum AI tool-loop iterations. |
 | `AI_EFFORT_SMART` | `medium` | Effort level for the smart model. |
 | `AI_EFFORT_FAST` | `low` | Effort level for the fast model. |
-| `AI_PRICES` | Built-in map: `claude-haiku-5-5` `{input: 0.10, output: 0.50, cache_read: 0.01, cache_write: 0.125}`, `claude-sonnet-5-5` `{input: 2.00, output: 10.00, cache_read: 0.10, cache_write: 2.50}`, `claude-sonnet-5` `{input: 2.00, output: 10.00, cache_read: 0.20, cache_write: 2.50}` | JSON prices per million tokens for `input`, `output`, `cache_read` and `cache_write`. |
+| `AI_PRICES` | Built-in map: `gpt-6-luna` `{input: 0.10, output: 0.50, cache_read: 0.01, cache_write: 0.10}`, `gpt-6.2-sol` `{input: 2.00, output: 10.00, cache_read: 0.10, cache_write: 2.00}` | JSON prices per million tokens for `input`, `output`, `cache_read` and `cache_write`. |
 | `TRAVEL_BUFFER_MINUTES` | `10` | Buffer added between travel and stops. |
 | **`GOOGLE_MAPS_API_KEY`** | `None` | **Google Maps Platform Places, Routes and Geocoding key.** |
 | **`TICKETMASTER_API_KEY`** | `None` | **Ticketmaster events key.** |
@@ -144,7 +144,7 @@ From `backend/`, regenerate the API schema with `python -m app.openapi_export`; 
 
 ## Privacy
 
-The app's `/privacy` page describes what third parties receive, including Anthropic, Google Maps Platform, Ticketmaster, Open-Meteo and Resend. In `NO_LOGIN` mode, the profile picker replaces sign-in and there is no PIN or other identity check, so anyone who can reach the app can choose either household profile; use it only where that trust model is acceptable.
+The app's `/privacy` page describes what third parties receive, including OpenAI, Google Maps Platform, Ticketmaster, Open-Meteo and Resend. In `NO_LOGIN` mode, the profile picker replaces sign-in and there is no PIN or other identity check, so anyone who can reach the app can choose either household profile; use it only where that trust model is acceptable.
 
 ## End-to-end smoke
 

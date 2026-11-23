@@ -22,7 +22,7 @@ describe('PrivacyPage', () => {
     await screen.findByRole('heading', { level: 1, name: 'Privacy' });
 
     for (const name of [
-      'Anthropic (Claude)',
+      'OpenAI',
       'Google Maps Platform',
       'Ticketmaster',
       'Open-Meteo',
@@ -32,9 +32,9 @@ describe('PrivacyPage', () => {
     ]) {
       expect(screen.getByRole('heading', { level: 2, name })).toBeInTheDocument();
     }
-    expect(screen.getByRole('link', { name: /Anthropic's privacy policy/ })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /OpenAI's API data privacy page/ })).toHaveAttribute(
       'href',
-      'https://www.anthropic.com/legal/privacy',
+      'https://openai.com/enterprise-privacy/',
     );
   });
 

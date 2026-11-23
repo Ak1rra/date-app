@@ -50,7 +50,7 @@ async def add_usage(
         AIUsage(
             couple_id=couple_id,
             feature=feature,
-            model="claude-sonnet-5-5",
+            model="gpt-6.2-sol",
             input_tokens=tokens,
             output_tokens=0,
             cache_read_tokens=0,
@@ -115,11 +115,11 @@ def test_utc_month_bounds_roll_over_the_year() -> None:
 
 def test_estimate_cost_uses_the_model_prices_and_prices_unknown_models_as_smart() -> None:
     s = cfg()
-    sonnet = Usage("claude-sonnet-5-5", input=1_000_000, output=1_000_000, cache_read=1_000_000)
-    assert caps.estimate_cost_usd(s, sonnet) == Decimal("12.100000")  # 2.00 + 10.00 + 0.10
-    haiku = Usage("claude-haiku-5-5", input=1_000_000, output=1_000_000, cache_write=1_000_000)
-    assert caps.estimate_cost_usd(s, haiku) == Decimal("0.725000")  # 0.10 + 0.50 + 0.125
-    unknown = Usage("claude-mystery-9", input=1_000_000, output=1_000_000)
+    sol = Usage("gpt-6.2-sol", input=1_000_000, output=1_000_000, cache_read=1_000_000)
+    assert caps.estimate_cost_usd(s, sol) == Decimal("12.100000")  # 2.00 + 10.00 + 0.10
+    luna = Usage("gpt-6-luna", input=1_000_000, output=1_000_000, cache_write=1_000_000)
+    assert caps.estimate_cost_usd(s, luna) == Decimal("0.700000")  # 0.10 + 0.50 + 0.10
+    unknown = Usage("gpt-mystery-9", input=1_000_000, output=1_000_000)
     assert caps.estimate_cost_usd(s, unknown) == Decimal("12.000000")
     assert caps.estimate_cost_usd(s, Usage("fake")) == Decimal("0")
 
@@ -130,35 +130,35 @@ def price(input: float, output: float) -> dict[str, float]:
 
 def test_estimate_cost_prices_each_line_at_its_own_models_rates() -> None:
     prices = {
-        "claude-haiku-5-5": price(0.10, 0.50),
-        "claude-sonnet-5-5": price(2.00, 10.00),
-        "claude-sonnet-5": price(3.00, 20.00),
+        "gpt-6-luna": price(0.10, 0.50),
+        "gpt-6.2-sol": price(2.00, 10.00),
+        "gpt-6.2-sol-mini": price(3.00, 20.00),
     }
     s = cfg(ai_prices=prices)
     usage = Usage(
-        "claude-sonnet-5",
+        "gpt-6.2-sol-mini",
         input=2000,
         output=500,
         lines=(
-            ("claude-sonnet-5-5", 1000, 0, 0, 0),  # the attempt that fell back
-            ("claude-sonnet-5", 1000, 500, 0, 0),
+            ("gpt-6.2-sol", 1000, 0, 0, 0),  # the attempt that fell back
+            ("gpt-6.2-sol-mini", 1000, 500, 0, 0),
         ),
     )
     # 1000 x 2.00 + 1000 x 3.00 + 500 x 20.00 = 15000 per million. Priced all at one model it
-    # would be 0.009 (sonnet-5-5) or 0.016 (sonnet-5).
+    # would be 0.009 (gpt-6.2-sol) or 0.016 (gpt-6.2-sol-mini).
     assert caps.estimate_cost_usd(s, usage) == Decimal("0.015000")
     # A line whose model has no entry is priced as the smart model.
-    unknown = Usage("x", input=1000, lines=(("claude-mystery-9", 1000, 0, 0, 0),))
+    unknown = Usage("x", input=1000, lines=(("gpt-mystery-9", 1000, 0, 0, 0),))
     assert caps.estimate_cost_usd(s, unknown) == Decimal("0.002000")
 
 
 def test_estimate_cost_without_lines_prices_the_totals_at_the_model() -> None:
-    prices = {"claude-haiku-5-5": price(0.10, 0.50), "claude-sonnet-5-5": price(2.00, 10.00)}
+    prices = {"gpt-6-luna": price(0.10, 0.50), "gpt-6.2-sol": price(2.00, 10.00)}
     s = cfg(ai_prices=prices)
-    assert caps.estimate_cost_usd(s, Usage("claude-sonnet-5-5", input=1000, output=500)) == Decimal(
+    assert caps.estimate_cost_usd(s, Usage("gpt-6.2-sol", input=1000, output=500)) == Decimal(
         "0.007000"
     )
-    assert caps.estimate_cost_usd(s, Usage("claude-sonnet-5-5")) == Decimal("0.000000")
+    assert caps.estimate_cost_usd(s, Usage("gpt-6.2-sol")) == Decimal("0.000000")
 
 
 def test_the_default_prices_pass_validation() -> None:
@@ -180,18 +180,18 @@ def test_the_env_example_ai_prices_line_is_accepted_by_settings() -> None:
     [
         ({}, "no entry"),
         (
-            {"claude-haiku-5-5": price(0.1, 0.5), "claude-sonnet-5-5": {"input": 1.0}},
+            {"gpt-6-luna": price(0.1, 0.5), "gpt-6.2-sol": {"input": 1.0}},
             "exactly the keys",
         ),
         (
-            {"claude-haiku-5-5": price(0.1, -0.5), "claude-sonnet-5-5": price(2.0, 10.0)},
+            {"gpt-6-luna": price(0.1, -0.5), "gpt-6.2-sol": price(2.0, 10.0)},
             ">= 0",
         ),
         (
-            {"claude-haiku-5-5": price(0.1, float("nan")), "claude-sonnet-5-5": price(2.0, 1.0)},
+            {"gpt-6-luna": price(0.1, float("nan")), "gpt-6.2-sol": price(2.0, 1.0)},
             "finite",
         ),
-        ({"claude-haiku-5-5": price(0.1, 0.5)}, "claude-sonnet-5-5"),  # no smart-model entry
+        ({"gpt-6-luna": price(0.1, 0.5)}, "gpt-6.2-sol"),  # no smart-model entry
     ],
 )
 def test_bad_price_maps_fail_settings_validation(
@@ -394,10 +394,10 @@ async def test_reserve_then_finalize_fills_the_row_for_ok_and_failed_runs(
     pending = (await db_session.execute(select(AIUsage).where(AIUsage.id == build_id))).scalar_one()
     assert (pending.model, pending.ok, pending.input_tokens) == ("pending", False, 0)
 
-    usage = Usage("claude-sonnet-5-5", input=500_000, output=100_000, cache_read=2_000_000)
+    usage = Usage("gpt-6.2-sol", input=500_000, output=100_000, cache_read=2_000_000)
     await caps.finalize(sessionmaker, s, build_id, usage=usage, ok=True, tool_calls=4)
     await caps.finalize(
-        sessionmaker, s, ideas_id, usage=Usage("claude-haiku-5-5", input=10), ok=False, tool_calls=0
+        sessionmaker, s, ideas_id, usage=Usage("gpt-6-luna", input=10), ok=False, tool_calls=0
     )
 
     db_session.expire_all()
@@ -407,7 +407,7 @@ async def test_reserve_then_finalize_fills_the_row_for_ok_and_failed_runs(
         "build",
         True,
         4,
-        "claude-sonnet-5-5",
+        "gpt-6.2-sol",
     )
     assert (build.input_tokens, build.output_tokens, build.cache_read_tokens) == (
         500_000,
@@ -428,7 +428,7 @@ async def test_a_failed_run_stays_recorded_when_the_callers_transaction_rolls_ba
 ) -> None:
     couple_id = await make_couple(db_session)
     s = cfg()
-    usage = Usage("claude-haiku-5-5", input=7)
+    usage = Usage("gpt-6-luna", input=7)
     async with sessionmaker() as request_session:
         await request_session.execute(select(Couple.id))  # the request's transaction is open
         reservation = await reserve(sessionmaker, s, couple_id, "chat")
@@ -440,5 +440,5 @@ async def test_a_failed_run_stays_recorded_when_the_callers_transaction_rolls_ba
         "chat",
         False,
         7,
-        "claude-haiku-5-5",
+        "gpt-6-luna",
     )

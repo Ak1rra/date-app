@@ -1,24 +1,25 @@
 """The AI client (AI-1..4): one `run` call that does a whole tool-using, structured-output turn.
 
-`AnthropicAIClient` talks to Claude through the Anthropic SDK; `FakeAIClient` is the
-deterministic stand-in for DEMO_MODE and tests. Callers depend on the `AIClient` protocol and
-get one from `get_ai_client` / the `get_ai` FastAPI dependency.
+`OpenAIClient` talks to OpenAI through the Responses API (official `openai` SDK); `FakeAIClient`
+is the deterministic stand-in for DEMO_MODE and tests. Callers depend on the `AIClient` protocol
+and get one from `get_ai_client` / the `get_ai` FastAPI dependency.
 
 The final answer is always a structured output validated by the caller's Pydantic model; free
 text is never parsed. Any failure surfaces as `AIError`, which carries the usage spent so far so
 the caller can still record it (`caps.finalize`).
 """
 
+import copy
 import json
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field, replace
 from functools import lru_cache
-from typing import Any, Literal, Protocol, cast
+from typing import Any, Literal, Protocol
 
-import anthropic
-from anthropic import AsyncAnthropic, transform_schema
+import openai
 from fastapi import Depends
+from openai import AsyncOpenAI
 from pydantic import BaseModel, ValidationError
 
 from app.config import Settings
@@ -30,10 +31,7 @@ logger = logging.getLogger(__name__)
 Tier = Literal["fast", "smart"]
 ErrorCode = Literal["ai_unavailable", "refused", "truncated", "invalid_output"]
 
-# Beta that lets the API re-run a safety-classifier refusal on another model (smart tier only:
-# Haiku 5.5 has no server-side fallback).
-FALLBACK_BETA = "server-side-fallback-2026-07-01"
-MAX_OUTPUT_TOKENS = 16_000  # non-streaming ceiling that stays under the SDK's HTTP timeout
+MAX_OUTPUT_TOKENS = 16_000  # reasoning tokens count against it, so it is generous
 REQUEST_TIMEOUT_S = 90.0
 
 
@@ -44,8 +42,8 @@ class Usage:
     output: int = 0
     cache_read: int = 0
     cache_write: int = 0
-    # What to price, one (model, input, output, cache_read, cache_write) per attempt: server-side
-    # fallbacks bill at the fallback model's rates. Empty means "the totals above, at `model`".
+    # What to price, one (model, input, output, cache_read, cache_write) per attempt. Empty means
+    # "the totals above, at `model`" (always the case for OpenAI; only the cap code reads it).
     # Left out of equality: it is pricing detail, and the totals say what was used.
     lines: tuple[tuple[str, int, int, int, int], ...] = field(default=(), compare=False)
 
@@ -84,8 +82,8 @@ class AIResult[T: BaseModel]:
 
 class AIError(Exception):
     """A run that produced no usable output. `code` is one of:
-    ai_unavailable (SDK/network/API error), refused (safety refusal), truncated (hit max_tokens
-    or the tool-iteration cap) or invalid_output (the structured output failed validation)."""
+    ai_unavailable (SDK/network/API error), refused (safety refusal), truncated (hit the output
+    limit or the tool-iteration cap) or invalid_output (the structured output failed validation)."""
 
     def __init__(
         self,
@@ -175,122 +173,176 @@ class AIClient(Protocol):
         ...
 
 
-_CALLER_CACHE_CONTROL = "callers must not set cache_control; the client places cache markers"
+# --- Schemas ----------------------------------------------------------------------------------
+
+
+def _is_nullable(node: Any) -> bool:
+    if not isinstance(node, dict):
+        return False
+    kind = node.get("type")
+    if kind == "null" or (isinstance(kind, list) and "null" in kind):
+        return True
+    return any(_is_nullable(branch) for branch in node.get("anyOf", ()))
+
+
+def _note_limit(node: dict[str, Any], key: str, phrase: str) -> None:
+    """Strict mode rejects minLength/maxLength: move the limit into the description, so the
+    model still sees it (Pydantic enforces it when the output is validated)."""
+    if key in node:
+        note = f"({phrase} {node.pop(key)} characters)"
+        node["description"] = f"{node['description']} {note}" if node.get("description") else note
+
+
+def _strictify(node: Any, *, nullable_optional: bool) -> None:
+    """Rewrite a schema in place for OpenAI strict mode: every object closed and fully required,
+    no defaults or length limits. A property that was optional becomes required; with
+    `nullable_optional` it also becomes nullable (tool arguments, where null means "not given"),
+    without it the property's schema is left as is (a model's fields, which must still validate)."""
+    if isinstance(node, list):
+        for item in node:
+            _strictify(item, nullable_optional=nullable_optional)
+        return
+    if not isinstance(node, dict):
+        return
+    node.pop("default", None)
+    _note_limit(node, "minLength", "at least")
+    _note_limit(node, "maxLength", "at most")
+    for key in ("$defs", "definitions"):
+        for sub in node.get(key, {}).values():
+            _strictify(sub, nullable_optional=nullable_optional)
+    for key in ("items", "anyOf", "oneOf", "allOf", "prefixItems"):
+        _strictify(node.get(key), nullable_optional=nullable_optional)
+    properties = node.get("properties")
+    if isinstance(properties, dict):
+        was_required = set(node.get("required", ()))
+        for name, sub in properties.items():
+            _strictify(sub, nullable_optional=nullable_optional)
+            if nullable_optional and name not in was_required and not _is_nullable(sub):
+                properties[name] = {"anyOf": [sub, {"type": "null"}]}
+        node["required"] = list(properties)
+        node["additionalProperties"] = False
+
+
+def _strict_schema(model: type[BaseModel]) -> dict[str, Any]:
+    """`model`'s JSON schema in the form OpenAI's strict structured output accepts. Optional
+    fields become required but keep their schema: `X | None` fields are already nullable, and a
+    default-factory list stays a non-null array, so a conforming response still validates."""
+    schema = copy.deepcopy(model.model_json_schema())
+    _strictify(schema, nullable_optional=False)
+    return schema
+
+
+def _function_tool(spec: dict[str, Any]) -> dict[str, Any]:
+    """A `ToolRunner` spec as a Responses API function tool. Optional arguments become required
+    and nullable; `_optional_args` names them so a null is dropped before the tool runs."""
+    parameters = copy.deepcopy(spec["input_schema"])
+    _strictify(parameters, nullable_optional=True)
+    return {
+        "type": "function",
+        "name": spec["name"],
+        "description": spec["description"],
+        "parameters": parameters,
+        "strict": True,
+    }
+
+
+def _optional_args(spec: dict[str, Any]) -> frozenset[str]:
+    """The top-level arguments the spec does not require. `_function_tool` makes them required
+    and nullable, so a None for one of them means "not given"."""
+    schema = spec["input_schema"]
+    return frozenset(set(schema.get("properties", {})) - set(schema.get("required", ())))
+
+
+# --- The client -------------------------------------------------------------------------------
 
 
 def _usage_of(response: Any) -> Usage:
-    """Tokens for the whole response. With server-side fallbacks `usage.iterations` lists every
-    attempt (the top-level counts cover only the one that answered), so it is summed instead."""
+    """Tokens for one response. `input_tokens` includes the cached (and cache-written) tokens,
+    which are split out so each is priced at its own rate; reasoning tokens are already inside
+    `output_tokens`."""
+    model = str(response.model)
     u = response.usage
-    iterations = getattr(u, "iterations", None)
-    if not iterations:
-        return Usage(
-            model=str(response.model),
-            input=u.input_tokens or 0,
-            output=u.output_tokens or 0,
-            cache_read=u.cache_read_input_tokens or 0,
-            cache_write=u.cache_creation_input_tokens or 0,
-        )
-    lines = tuple(
-        (
-            str(getattr(i, "model", None) or response.model),
-            getattr(i, "input_tokens", 0) or 0,
-            getattr(i, "output_tokens", 0) or 0,
-            getattr(i, "cache_read_input_tokens", 0) or 0,
-            getattr(i, "cache_creation_input_tokens", 0) or 0,
-        )
-        for i in iterations
-    )
+    if u is None:
+        return Usage(model=model)
+    details = getattr(u, "input_tokens_details", None)
+    cached = getattr(details, "cached_tokens", 0) or 0
+    written = getattr(details, "cache_write_tokens", 0) or 0
     return Usage(
-        model=str(response.model),
-        input=sum(line[1] for line in lines),
-        output=sum(line[2] for line in lines),
-        cache_read=sum(line[3] for line in lines),
-        cache_write=sum(line[4] for line in lines),
-        lines=lines,
+        model=model,
+        input=max((u.input_tokens or 0) - cached - written, 0),
+        output=u.output_tokens or 0,
+        cache_read=cached,
+        cache_write=written,
     )
 
 
-def _with_cache_marker(convo: list[Any]) -> list[Any]:
-    """A copy of `convo` whose last content block carries a cache breakpoint, so the next round
-    of the tool loop reads everything before it from the cache. Copies only what it changes: the
-    stored history never gets a marker, so markers can't pile up past the API's limit of 4."""
-    if not convo:
-        return convo
-    last = convo[-1]
-    content = last["content"]
-    if isinstance(content, str):
-        blocks: list[Any] = [{"type": "text", "text": content}]
-    else:
-        blocks = list(content)
-    if not blocks or not isinstance(blocks[-1], dict):
-        return convo  # SDK block objects can't take the marker; skip it rather than guess
-    blocks[-1] = {**blocks[-1], "cache_control": {"type": "ephemeral"}}
-    return [*convo[:-1], {**last, "content": blocks}]
+def _problem(response: Any) -> tuple[ErrorCode, str] | None:
+    """The error a response that cannot be used maps to (failed, cut off, filtered or refused),
+    or None."""
+    if response.status == "failed":
+        detail = getattr(response.error, "message", None)
+        logger.warning("openai response failed: %s", detail)
+        return "ai_unavailable", "The AI service is unavailable."
+    if response.status == "incomplete":
+        reason = getattr(response.incomplete_details, "reason", None)
+        if reason == "content_filter":
+            return "refused", "The model declined this request."
+        if reason == "max_output_tokens":
+            return "truncated", "The response was cut off (max_output_tokens)."
+        return "truncated", f"The response was cut off ({reason})."
+    for item in response.output:
+        if item.type == "message" and any(part.type == "refusal" for part in item.content):
+            return "refused", "The model declined this request."
+    return None
+
+
+def _function_calls(response: Any) -> list[Any]:
+    return [item for item in response.output if item.type == "function_call"]
 
 
 @lru_cache
-def _sdk_client(api_key: str) -> AsyncAnthropic:
+def _sdk_client(api_key: str) -> AsyncOpenAI:
     """One SDK client (one connection pool) per key, shared by every request."""
-    return AsyncAnthropic(api_key=api_key, timeout=REQUEST_TIMEOUT_S, max_retries=2)
+    return AsyncOpenAI(api_key=api_key, timeout=REQUEST_TIMEOUT_S, max_retries=2)
 
 
-def _reject_caller_cache_control(
-    messages: list[dict[str, Any]], specs: list[dict[str, Any]]
-) -> None:
-    """The client places every cache marker itself (the API allows 4), so a caller's own would
-    add to them unseen. Shallow: message blocks and tool specs."""
-
-    def marked(item: Any) -> bool:
-        return isinstance(item, dict) and "cache_control" in item
-
-    for message in messages:
-        content = message.get("content")
-        if marked(message) or (isinstance(content, list) and any(marked(b) for b in content)):
-            raise ValueError(_CALLER_CACHE_CONTROL)
-    if any(marked(spec) for spec in specs):
-        raise ValueError(_CALLER_CACHE_CONTROL)
-
-
-class AnthropicAIClient:
-    def __init__(self, settings: Settings, sdk: AsyncAnthropic | None = None) -> None:
+class OpenAIClient:
+    def __init__(self, settings: Settings, sdk: AsyncOpenAI | None = None) -> None:
         if sdk is None:
-            if not settings.anthropic_api_key:
-                raise ValueError("ANTHROPIC_API_KEY is not set")
-            sdk = _sdk_client(settings.anthropic_api_key)
+            if not settings.openai_api_key:
+                raise ValueError("OPENAI_API_KEY is not set")
+            sdk = _sdk_client(settings.openai_api_key)
         self._settings = settings
         self._sdk = sdk
 
     def _request(
-        self, tier: Tier, system: str, context: str, output_model: type[BaseModel] | None
+        self, tier: Tier, system: str, output_model: type[BaseModel] | None
     ) -> dict[str, Any]:
         """The parts of the request that stay the same for every round of the tool loop. With no
-        `output_model` the reply is free text (no `format`)."""
+        `output_model` the reply is free text (no `text.format`). OpenAI caches the longest
+        repeated prefix by itself, so the order matters: tools, then the stable instructions,
+        then the couple's context (the first input item), then the messages."""
         s = self._settings
         smart = tier == "smart"
         request: dict[str, Any] = {
             "model": s.ai_model_smart if smart else s.ai_model_fast,
-            "max_tokens": MAX_OUTPUT_TOKENS,
-            "thinking": {"type": "adaptive"},
-            "output_config": {"effort": s.ai_effort_smart if smart else s.ai_effort_fast},
-            # Caching: the request renders tools, then the stable system prompt, then the couple's
-            # context (its own block, unmarked, so it can change without touching what comes
-            # before it), then the messages. One breakpoint ends the stable system prompt, so
-            # tools plus it are cached whatever the context; `run` adds another on the last
-            # message block of each round so the tool loop reads its earlier rounds.
-            "system": [
-                {"type": "text", "text": system, "cache_control": {"type": "ephemeral"}},
-                {"type": "text", "text": context},
-            ],
+            "instructions": system,
+            "max_output_tokens": MAX_OUTPUT_TOKENS,
+            "reasoning": {"effort": s.ai_effort_smart if smart else s.ai_effort_fast},
+            # Nothing is kept on OpenAI's side; the reasoning items come back encrypted and are
+            # replayed to it between the rounds of the tool loop.
+            "store": False,
+            "include": ["reasoning.encrypted_content"],
         }
         if output_model is not None:
-            request["output_config"]["format"] = {
-                "type": "json_schema",
-                "schema": transform_schema(output_model),
+            request["text"] = {
+                "format": {
+                    "type": "json_schema",
+                    "name": output_model.__name__,
+                    "schema": _strict_schema(output_model),
+                    "strict": True,
+                }
             }
-        if smart:
-            request["betas"] = [FALLBACK_BETA]
-            request["fallbacks"] = "default"
         return request
 
     async def run[T: BaseModel](
@@ -304,11 +356,11 @@ class AnthropicAIClient:
         output_model: type[T],
     ) -> AIResult[T]:
         specs = tools.specs() if tools is not None else []
-        _reject_caller_cache_control(messages, specs)
-        request = self._request(tier, system, context, output_model)
+        request = self._request(tier, system, output_model)
         if specs:
-            request["tools"] = specs
-        convo: list[Any] = list(messages)
+            request["tools"] = [_function_tool(spec) for spec in specs]
+        optional = {spec["name"]: _optional_args(spec) for spec in specs}
+        convo: list[Any] = [{"role": "developer", "content": context}, *messages]
         max_rounds = self._settings.ai_max_tool_iterations
         usage = Usage(model=request["model"])
         tool_calls = 0
@@ -319,42 +371,37 @@ class AnthropicAIClient:
         # Up to `max_rounds` rounds of tool calls, then one request that must be the answer.
         for round_no in range(max_rounds + 1):
             try:
-                response = await self._sdk.beta.messages.create(
-                    **request, messages=_with_cache_marker(convo)
-                )
-            except anthropic.APIError as exc:
-                logger.warning("anthropic request failed: %s: %s", type(exc).__name__, exc)
+                response = await self._sdk.responses.create(**request, input=list(convo))
+            except openai.APIError as exc:
+                logger.warning("openai request failed: %s: %s", type(exc).__name__, exc)
                 raise fail("ai_unavailable", "The AI service is unavailable.") from exc
             usage = usage + _usage_of(response)
-            stop = response.stop_reason
 
-            if stop == "refusal":
-                raise fail("refused", "The model declined this request.")
-            if stop in ("max_tokens", "model_context_window_exceeded"):
-                raise fail("truncated", f"The response was cut off ({stop}).")
+            if (problem := _problem(response)) is not None:
+                raise fail(*problem)
 
-            if stop in ("tool_use", "pause_turn"):
+            calls = _function_calls(response)
+            if calls:
                 if round_no == max_rounds:
                     raise fail("truncated", "The tool-use iteration limit was reached.")
-                convo.append({"role": "assistant", "content": response.content})
-                results: list[dict[str, Any]] = []
-                for block in response.content:
-                    if block.type != "tool_use":
-                        continue
-                    if tools is None:
-                        raise fail("ai_unavailable", "The model called a tool but none exist.")
+                if tools is None:
+                    raise fail("ai_unavailable", "The model called a tool but none exist.")
+                # Nothing is stored server-side, so the whole output (reasoning included) goes
+                # back with the results.
+                convo.extend(item.model_dump(exclude_none=True) for item in response.output)
+                for call in calls:
                     tool_calls += 1
-                    result = await self._call_tool(tools, block.name, block.input, block.id)
-                    results.append(result)
-                if results:
-                    convo.append({"role": "user", "content": results})
+                    convo.append(
+                        await self._call_tool(
+                            tools, call.name, call.arguments, call.call_id, optional
+                        )
+                    )
                 continue
 
-            if stop not in ("end_turn", "stop_sequence"):
-                raise fail("ai_unavailable", f"Unexpected stop reason {stop!r}.")
-            text = "".join(b.text for b in response.content if b.type == "text")
+            if response.status != "completed":
+                raise fail("ai_unavailable", f"Unexpected status {response.status!r}.")
             try:
-                output = output_model.model_validate_json(text)
+                output = output_model.model_validate_json(response.output_text)
             except ValidationError as exc:
                 raise fail("invalid_output", "The structured output did not validate.") from exc
             return AIResult(
@@ -374,11 +421,11 @@ class AnthropicAIClient:
         tools: ToolRunner | None,
     ) -> AsyncIterator[ChatEvent]:
         specs = tools.specs() if tools is not None else []
-        _reject_caller_cache_control(messages, specs)
-        request = self._request("smart", system, context, None)
+        request = self._request("smart", system, None)
         if specs:
-            request["tools"] = specs
-        convo: list[Any] = list(messages)
+            request["tools"] = [_function_tool(spec) for spec in specs]
+        optional = {spec["name"]: _optional_args(spec) for spec in specs}
+        convo: list[Any] = [{"role": "developer", "content": context}, *messages]
         max_rounds = self._settings.ai_max_tool_iterations
         usage = Usage(model=request["model"])
         tool_calls = 0
@@ -388,47 +435,51 @@ class AnthropicAIClient:
             return AIError(code, message, usage=usage, tool_calls=tool_calls)
 
         for round_no in range(max_rounds + 1):
+            response = None
             try:
-                async with self._sdk.beta.messages.stream(
-                    **request, messages=_with_cache_marker(convo)
-                ) as stream:
+                async with self._sdk.responses.stream(**request, input=list(convo)) as stream:
                     async for event in stream:
-                        if event.type == "content_block_delta" and event.delta.type == "text_delta":
-                            yield TextDelta(event.delta.text)
-                    response = await stream.get_final_message()
+                        if event.type == "response.output_text.delta":
+                            yield TextDelta(event.delta)
+                        elif (
+                            event.type == "response.completed"
+                            or event.type == "response.incomplete"
+                            or event.type == "response.failed"
+                        ):
+                            response = event.response
             except Exception as exc:  # a dropped stream can also raise raw httpx errors
-                logger.warning("anthropic stream failed: %s: %s", type(exc).__name__, exc)
+                logger.warning("openai stream failed: %s: %s", type(exc).__name__, exc)
                 raise fail("ai_unavailable", "The AI service is unavailable.") from exc
+            if response is None:
+                # Not get_final_response(): it raises unless the stream completed, which would
+                # hide an incomplete (truncated/refused) or failed response and its usage.
+                logger.warning("openai stream ended without a terminal event")
+                raise fail("ai_unavailable", "The AI service is unavailable.")
             usage = usage + _usage_of(response)
-            texts.append("".join(b.text for b in response.content if b.type == "text"))
-            stop = response.stop_reason
+            texts.append(response.output_text)
 
-            if stop == "refusal":
-                raise fail("refused", "The model declined this request.")
-            if stop in ("max_tokens", "model_context_window_exceeded"):
-                raise fail("truncated", f"The response was cut off ({stop}).")
+            if (problem := _problem(response)) is not None:
+                raise fail(*problem)
 
-            if stop in ("tool_use", "pause_turn"):
+            calls = _function_calls(response)
+            if calls:
                 if round_no == max_rounds:
                     raise fail("truncated", "The tool-use iteration limit was reached.")
-                convo.append({"role": "assistant", "content": response.content})
-                results: list[dict[str, Any]] = []
-                for block in response.content:
-                    if block.type != "tool_use":
-                        continue
-                    if tools is None:
-                        raise fail("ai_unavailable", "The model called a tool but none exist.")
+                if tools is None:
+                    raise fail("ai_unavailable", "The model called a tool but none exist.")
+                convo.extend(item.model_dump(exclude_none=True) for item in response.output)
+                for call in calls:
                     tool_calls += 1
-                    yield ToolStarted(block.name)
-                    result = await self._call_tool(tools, block.name, block.input, block.id)
-                    yield ToolFinished(block.name)
-                    results.append(result)
-                if results:
-                    convo.append({"role": "user", "content": results})
+                    yield ToolStarted(call.name)
+                    result = await self._call_tool(
+                        tools, call.name, call.arguments, call.call_id, optional
+                    )
+                    yield ToolFinished(call.name)
+                    convo.append(result)
                 continue
 
-            if stop not in ("end_turn", "stop_sequence"):
-                raise fail("ai_unavailable", f"Unexpected stop reason {stop!r}.")
+            if response.status != "completed":
+                raise fail("ai_unavailable", f"Unexpected status {response.status!r}.")
             yield ChatFinished(
                 text="".join(texts),
                 usage=usage,
@@ -440,20 +491,27 @@ class AnthropicAIClient:
 
     @staticmethod
     async def _call_tool(
-        tools: ToolRunner, name: str, tool_input: object, tool_use_id: str
+        tools: ToolRunner,
+        name: str,
+        arguments: str,
+        call_id: str,
+        optional: dict[str, frozenset[str]],
     ) -> dict[str, Any]:
         try:
-            content = await tools.execute(name, cast(dict[str, Any], tool_input))
-            return {"type": "tool_result", "tool_use_id": tool_use_id, "content": content}
+            args = json.loads(arguments)
+            if not isinstance(args, dict):
+                raise ValueError("tool arguments are not an object")
+            # Optional arguments are sent as null (strict mode needs them all); handlers expect
+            # them absent.
+            for key in optional.get(name, ()):
+                if args.get(key) is None:
+                    args.pop(key, None)
+            output = await tools.execute(name, args)
         except Exception:
             # A broken tool must not end the run: tell the model, which can carry on without.
             logger.exception("tool %s failed", name)
-            return {
-                "type": "tool_result",
-                "tool_use_id": tool_use_id,
-                "content": json.dumps({"error": f"{name} failed"}),
-                "is_error": True,
-            }
+            output = json.dumps({"error": f"{name} failed"})
+        return {"type": "function_call_output", "call_id": call_id, "output": output}
 
 
 # --- The fake ---------------------------------------------------------------------------------
@@ -619,10 +677,10 @@ async def _default_chat_responder(
 
 
 def get_ai_client(settings: Settings) -> AIClient | None:
-    """Anthropic when the key is set (with or without DEMO_MODE), the fake in DEMO_MODE,
+    """OpenAI when the key is set (with or without DEMO_MODE), the fake in DEMO_MODE,
     otherwise None: AI is unavailable."""
-    if settings.anthropic_api_key:
-        return AnthropicAIClient(settings)
+    if settings.openai_api_key:
+        return OpenAIClient(settings)
     if settings.demo_mode:
         import app.ai.fakes  # noqa: F401  (importing registers the demo responders)
 

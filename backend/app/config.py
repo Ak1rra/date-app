@@ -45,9 +45,9 @@ class Settings(BaseSettings):
     run_worker: bool = True
 
     # Providers (unused in M1 unless noted, but declared)
-    anthropic_api_key: str | None = None
-    ai_model_fast: str = "claude-haiku-5-5"
-    ai_model_smart: str = "claude-sonnet-5-5"
+    openai_api_key: str | None = None
+    ai_model_fast: str = "gpt-6-luna"
+    ai_model_smart: str = "gpt-6.2-sol"
     # AI caps, effort & pricing (M2)
     ai_cap_ideas_per_day: int = 20
     ai_cap_builds_per_day: int = 20
@@ -59,23 +59,17 @@ class Settings(BaseSettings):
     ai_effort_fast: Literal["low", "medium", "high", "xhigh", "max"] = "low"
     # $ per million tokens, per model. A model that isn't listed is priced as the smart model.
     ai_prices: dict[str, dict[str, float]] = {
-        "claude-haiku-5-5": {
+        "gpt-6-luna": {
             "input": 0.10,
             "output": 0.50,
             "cache_read": 0.01,
-            "cache_write": 0.125,
+            "cache_write": 0.10,  # priced at the input rate so caps never undercount
         },
-        "claude-sonnet-5-5": {
+        "gpt-6.2-sol": {
             "input": 2.00,
             "output": 10.00,
             "cache_read": 0.10,
-            "cache_write": 2.50,
-        },
-        "claude-sonnet-5": {  # the "default" fallback for claude-sonnet-5-5
-            "input": 2.00,
-            "output": 10.00,
-            "cache_read": 0.20,
-            "cache_write": 2.50,
+            "cache_write": 2.00,
         },
     }
     travel_buffer_minutes: int = 10

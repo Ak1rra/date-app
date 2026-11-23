@@ -3,24 +3,26 @@ import { Card } from '../components/EmptyState';
 
 const sections = [
   {
-    title: 'Anthropic (Claude)',
+    title: 'OpenAI',
     body: (
       <>
         <p>
           When you use the AI features (idea generation, planning, chat, hints and taste summaries),
-          the relevant profile details, notes, ideas and messages are sent to Claude so it can write
-          a reply. Surprise details are never sent in a way the person being surprised can see.
-          Anthropic&apos;s commercial API terms say API data isn&apos;t used to train its models.
+          the relevant profile details, notes, ideas and messages are sent to OpenAI&apos;s models
+          so they can write a reply. Surprise details are never sent in a way the person being
+          surprised can see. OpenAI says API data isn&apos;t used to train its models unless an
+          organization opts in. The app asks OpenAI not to store its requests, but OpenAI may keep
+          abuse-monitoring logs for up to 30 days.
         </p>
         <p className="mt-2">
           Read more in{' '}
           <a
             className="font-semibold underline"
-            href="https://www.anthropic.com/legal/privacy"
+            href="https://openai.com/enterprise-privacy/"
             target="_blank"
             rel="noreferrer"
           >
-            Anthropic&apos;s privacy policy
+            OpenAI&apos;s API data privacy page
           </a>
           .
         </p>

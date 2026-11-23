@@ -86,7 +86,7 @@ A user belongs to **at most one couple** in v1.
 | Realtime | **WebSockets** (or SSE) from FastAPI so partner actions (votes, matches, schedule changes) appear live |
 | Frontend | **React + TypeScript + Vite**, **Tailwind CSS**, **TanStack Query**, React Router; typed API client generated from FastAPI's OpenAPI schema |
 | PWA | Installable (manifest + service worker), offline read of the calendar and upcoming itineraries, **Web Push** notifications |
-| AI | **Anthropic Claude API** (official `anthropic` Python SDK) with **tool use** |
+| AI | **OpenAI API** (official `openai` Python SDK, Responses API) with **tool use** |
 | Deploy | **No Docker** (superseded, see §14 decision 5): one **systemd service** on the owner's Linux box, managed by the app's own `dateapp` CLI in the style of brothereye (`build`, `serve`, `daemon install/update/...`). FastAPI serves the built frontend; the job runner runs in-process. Served over HTTPS by the owner's Caddy at `https://dates.lan`. |
 | Testing | pytest (+ httpx AsyncClient) for backend; Vitest + React Testing Library for frontend; Playwright for a small e2e smoke suite |
 
@@ -219,10 +219,10 @@ Web Push via the PWA service worker, plus an in-app notification center. Each ty
 
 ### 6.1 Model & integration
 
-- **AI-1 (MUST)** Use the **Anthropic Claude API** via the official Python SDK, server-side only (the key never reaches the browser). — ✅ *Complete.*
+- **AI-1 (MUST)** Use the **OpenAI API** via the official Python SDK, server-side only (the key never reaches the browser). — ✅ *Complete.*
 - **AI-2 (MUST)** Model choice is **config-driven**, with at least two tiers: — ✅ *Complete.*
-  - **Fast tier** (default `claude-haiku-5-5`): hint suggestions, tagging/classifying ideas, short rewrites, chat intent routing.
-  - **Smart tier** (default `claude-sonnet-5-5`): idea generation, itinerary building, chat assistant.
+  - **Fast tier** (default `gpt-6-luna`): hint suggestions, tagging/classifying ideas, short rewrites, chat intent routing.
+  - **Smart tier** (default `gpt-6.2-sol`): idea generation, itinerary building, chat assistant.
   - Model IDs live in env/config, not code, so they can be upgraded without a deploy of logic changes.
 - **AI-3 (MUST)** Use **prompt caching** for stable prompt prefixes (system prompt, tool definitions, couple profile) to cut cost/latency. — 🚧 *Partial: Couple profile and taste summary are not cached as prompt prefixes.*
 - **AI-4 (MUST)** Use **structured outputs** (JSON schema / tool-result schemas validated by Pydantic) for ideas and itineraries; never parse free text for data the app stores. — ✅ *Complete.*
@@ -271,7 +271,7 @@ The AI grounds its suggestions by calling backend-implemented tools. Each tool w
 
 | Need | Provider (default) | Env var(s) |
 |---|---|---|
-| LLM | Anthropic Claude API | `ANTHROPIC_API_KEY`, `AI_MODEL_FAST`, `AI_MODEL_SMART` |
+| LLM | OpenAI API | `OPENAI_API_KEY`, `AI_MODEL_FAST`, `AI_MODEL_SMART` |
 | Places | Google Places API (New) | `GOOGLE_MAPS_API_KEY` |
 | Travel time | Google Routes API | `GOOGLE_MAPS_API_KEY` |
 | Geocoding (home area) | Google Geocoding API | `GOOGLE_MAPS_API_KEY` |
@@ -371,7 +371,7 @@ Realtime events: `idea.created`, `vote.updated` (no vote values leaked pre-match
 ### Privacy
 - **NFR-PRIV-1 (MUST)** Location stored at neighborhood precision for the home area; no continuous location tracking. Device geolocation, if used for "near me now", is per-request and not stored. — ✅ *Complete.*
 - **NFR-PRIV-2 (MUST)** Account deletion removes the user's personal data (and the couple space if they were the last member) within 30 days; data export of a user's own data as JSON. — ✅ *Complete.*
-- **NFR-PRIV-3 (MUST)** A privacy notice page listing the third parties data is sent to (Anthropic, Google Maps Platform, Ticketmaster, weather provider, email provider) and what is sent. — ✅ *Complete.*
+- **NFR-PRIV-3 (MUST)** A privacy notice page listing the third parties data is sent to (OpenAI, Google Maps Platform, Ticketmaster, weather provider, email provider) and what is sent. — ✅ *Complete.*
 - **NFR-PRIV-4 (SHOULD)** Send the LLM only what's needed: first names / "Partner A/B", no emails. — ✅ *Complete.*
 
 ### Performance & reliability
@@ -381,7 +381,7 @@ Realtime events: `idea.created`, `vote.updated` (no vote values leaked pre-match
 - **NFR-REL-2 (MUST)** Health endpoint; structured JSON logs; error tracking hook (e.g. Sentry DSN optional via env). — ✅ *Complete (no JSON-log or Sentry-hook test).*
 
 ### Quality
-- **NFR-QA-1 (MUST)** Backend unit + integration tests (with provider fakes and a mocked Anthropic client); frontend component tests; Playwright smoke, two paths: (a) **solo planner**: sign up → fill both profiles → plan a date (options) → itinerary → schedule as surprise → planner's read; (b) **match**: invite → partner joins → generate → swipe both → match → itinerary → schedule → both rate. — ✅ *Complete (smoke uses NO_LOGIN instead of sign-up/invite, decision 7).*
+- **NFR-QA-1 (MUST)** Backend unit + integration tests (with provider fakes and a mocked OpenAI client); frontend component tests; Playwright smoke, two paths: (a) **solo planner**: sign up → fill both profiles → plan a date (options) → itinerary → schedule as surprise → planner's read; (b) **match**: invite → partner joins → generate → swipe both → match → itinerary → schedule → both rate. — ✅ *Complete (smoke uses NO_LOGIN instead of sign-up/invite, decision 7).*
 - **NFR-QA-2 (MUST)** Lint/format/type-check: ruff + mypy (backend), ESLint + Prettier + `tsc --noEmit` (frontend). One command each to run tests and checks, documented in the README. — 🚧 *Partial: README lists many commands; only backend has a test/check wrapper.*
 - **NFR-QA-3 (MUST)** *(amended 2026-11-19, §14 decision 5)* `dateapp build && dateapp serve` brings up the app (API, in-process worker, frontend) against a local Postgres, and `dateapp daemon install` / `dateapp daemon update` deploy it; previously: `docker compose up` brings up db, api, worker and web locally; `DEMO_MODE=1` works with no external keys (fake providers + canned AI responses). — ✅ *Complete (docker-compose is superseded by decision 5).*
 
@@ -390,7 +390,7 @@ Realtime events: `idea.created`, `vote.updated` (no vote values leaked pre-match
 ## 12. Suggested milestones (for the dev session)
 
 1. **Foundation:** repo layout (`backend/`, `frontend/`, `docker-compose.yml`), DB + migrations, magic-link auth, couple space (single member works), both profiles incl. planner-maintained partner profile, planner notes, PWA shell with nav. — ✅ *Complete (docker-compose superseded by decision 5; magic-link/invite inactive under NO_LOGIN).*
-2. **AI + plan mode:** Claude integration, tools (places, events, weather, travel), caching, caps/usage logging, AI-PLAN options + plan-it-all, private ideas. — ✅ *Complete (prompt-cache gap tracked under AI-3).*
+2. **AI + plan mode:** AI integration (OpenAI; originally built on Claude), tools (places, events, weather, travel), caching, caps/usage logging, AI-PLAN options + plan-it-all, private ideas. — ✅ *Complete (prompt-cache gap tracked under AI-3).*
 3. **Itineraries & calendar:** AI-ITIN + validation/repair, itinerary editor, map links, finishing-touches checklist, calendar views, suggest-times, announce, offline itineraries. *At this point the owner can fully plan dates solo.* — ✅ *Complete.*
 4. **Surprise mode:** hints + release scheduling, reveal, share-ready hints when unpaired, redaction across every surface + tests. — ✅ *Complete.*
 5. **Partner & match mode:** invite/join, profile hand-over, shared deck, AI-GEN, swipe, private votes, matches, realtime events. — ✅ *Complete (invite/join inactive under NO_LOGIN, decision 7).*
@@ -431,7 +431,7 @@ Each milestone should end with its tests passing and a working `docker compose u
 | 5 | Production runs **natively (no Docker) as a systemd service** on the owner's Linux box `rogue@192.168.1.167` (Debian 13, aarch64), port **8090** (brothereye already uses 8080 there), managed by a brothereye-style `dateapp` CLI. Public entry is **`https://dates.lan`** through the owner's citadel Caddy + Pi-hole on 192.168.1.164 (HTTPS is required for PWA install, service worker and Web Push). | 2026-11-19 | Owner: deploy like brothereye, "Move date app to rogue@192.168.1.167. Then, add both brothereye and dates to caddy dns". Replaces the earlier docker-compose plan: the docker bridge networks on the Pi had no internet egress. |
 | 3 | **Caps:** per couple per day, 20 idea-generation runs, 20 itinerary builds and 100 chat messages; per couple per month, 4M tokens. A **global ceiling of $25/month** (`AI_GLOBAL_MONTHLY_USD=25`) pauses AI features (503 `ai_paused`) until the 1st. A per-couple cap returns 429 `ai_cap_reached` with `reset_at`. | 2026-11-20 | Owner chose $25/month; the daily caps keep one runaway day from eating the month. |
 | 4 | **Suggestions only:** once the partner has joined and confirmed, the owner can't edit her profile directly, only suggest changes she accepts or declines (FR-PROF-7 as written). | 2026-11-20 | Keeps her profile hers; matches the spec. Orchestrator decision. |
-| 8 | **Providers:** each provider is real if its key is set, else a fake if `DEMO_MODE=1`, else unavailable (features degrade to evergreen ideas). Keys: `ANTHROPIC_API_KEY`, `GOOGLE_MAPS_API_KEY` (Places, Routes, Geocoding), `TICKETMASTER_API_KEY`; weather is Open-Meteo, keyless. One set of keys in rogue's `.env`, shared by both profiles. Google Places, Routes and Geocoding content is never persisted: only place ids are kept indefinitely, and lat/lng for at most 30 days (refreshed by place id). Within a run, an in-memory memo only. Ticketmaster events are cached 6 h and Open-Meteo weather 1 h in the DB. Venue details are fetched live when an itinerary is read. The home-area label stores the user's own typed text. | 2026-11-20 | Owner will supply Google Maps + Ticketmaster keys. |
+| 8 | **Providers:** each provider is real if its key is set, else a fake if `DEMO_MODE=1`, else unavailable (features degrade to evergreen ideas). Keys: `OPENAI_API_KEY`, `GOOGLE_MAPS_API_KEY` (Places, Routes, Geocoding), `TICKETMASTER_API_KEY`; weather is Open-Meteo, keyless. One set of keys in rogue's `.env`, shared by both profiles. Google Places, Routes and Geocoding content is never persisted: only place ids are kept indefinitely, and lat/lng for at most 30 days (refreshed by place id). Within a run, an in-memory memo only. Ticketmaster events are cached 6 h and Open-Meteo weather 1 h in the DB. Venue details are fetched live when an itinerary is read. The home-area label stores the user's own typed text. | 2026-11-20 | Owner will supply Google Maps + Ticketmaster keys. |
 | 9 | **iPhone is the target device.** Push uses Web Push on the Home-Screen PWA (iOS 16.4+). The app ships an in-app install guide (Share → Add to Home Screen) and a guide to trusting the dates.lan Caddy root certificate (FR-NOTIF-4, UX-8). | 2026-11-20 | Owner: both phones are iPhones. |
 | 6 | **PostgreSQL 17** from Debian's packages (`apt install postgresql`), not 16. | 2026-11-19 | Distro-supported with apt security updates; owner approved. |
 | 7 | **No login for now (`NO_LOGIN=1`)**: the first screen asks "Who's using Date Planner?" (Husband / Wife), and a Profile tab shows and switches the current profile. *(2026-11-22: that tab is now called Settings.)* No PIN or other protection: anyone who can reach the app can act as either profile, so surprise privacy (FR-SURP-2) rests on trust. Husband = couple owner, Wife = partner member; the household's fixed accounts use reserved `@household.invalid` addresses. Email magic-link sign-in (FR-AUTH-1) stays in the code, switched off (404) while `NO_LOGIN=1`; turning it back on is a config change. | 2026-11-19 | Owner: "Dont have any login for now. Maybe just have a profile tab where you can select if you are the husband or wife"; chose "No protection, trust" and "Keep it, switched off". LAN-only deployment. |
@@ -446,6 +446,7 @@ Each milestone should end with its tests passing and a working `docker compose u
 | 18 | **Priority order:** AI planning end to end (plan → options → itinerary → schedule) first. | 2026-11-20 | Owner's answer. |
 | 19 | **Past dates:** no photos; ratings and comments are text only. | 2026-11-20 | Owner's answer. |
 | 20 | **Apple/Google sign-in dropped:** FR-AUTH-2 (Sign in with Apple / Google) is removed from the plan, along with its OAuth provider keys and callbacks. Email magic link (FR-AUTH-1) stays as the only sign-in method, switched off while `NO_LOGIN=1`. | 2026-11-22 | Owner's decision. The app is LAN-only (`dates.lan`), and neither provider accepts a non-public redirect domain. |
+| 21 | **AI provider: OpenAI.** The AI client uses the OpenAI Responses API through the official `openai` SDK instead of Anthropic Claude (AI-1). Fast tier `gpt-6-luna`, smart tier `gpt-6.2-sol`. Requests are sent with `store=false`. OpenAI caches repeated prompt prefixes automatically, so the explicit cache markers and Claude's server-side model fallback are gone. | 2026-11-22 | Owner request. |
 
 ---
 

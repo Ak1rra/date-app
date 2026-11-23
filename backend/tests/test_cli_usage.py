@@ -39,7 +39,7 @@ def add_usage(
         AIUsage(
             couple_id=couple_id,
             feature=feature,
-            model="claude-sonnet-5-5",
+            model="gpt-6.2-sol",
             input_tokens=tokens_in,
             output_tokens=tokens_out,
             cache_read_tokens=0,
