@@ -43,6 +43,12 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    // One ~580 kB (~170 kB gzip) bundle is fine here: the app is served over the
+    // LAN and the service worker precaches it, so it downloads once per release.
+    // Route-level code splitting isn't worth the churn; revisit past ~800 kB.
+    chunkSizeWarningLimit: 800,
+  },
   server: {
     proxy: {
       '/api': { target: 'http://localhost:8090', ws: true },
